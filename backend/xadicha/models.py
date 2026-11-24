@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 import uuid
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -49,10 +49,41 @@ ActionType = Literal[
     "delete_path",
     "wait",
     "system",
+    "web_search",    # internetdan qidirish (faqat o'qish) — text: so'rov
+    "find_file",     # workspace ichida fayl nomini qidirish (faqat o'qish) — text: nom
+    "reveal",        # faylni/papkani Finder'da ko'rsatish (ochmaydi, ishga tushirmaydi) — path
 ]
 
 # Tizim boshqaruvi: faqat shu oldindan belgilangan, xavfsiz amallar (ixtiyoriy buyruq yo'q)
 SYSTEM_CONTROLS = ("volume_up", "volume_down", "volume_set", "mute", "unmute", "brightness_up", "brightness_down")
+
+
+class ToolSpec(BaseModel):
+    """Qat'iy vositalar reyestri: model faqat shu harakatlarni so'ray oladi (ixtiyoriy qobiq buyrug'i yo'q)."""
+
+    read_only: bool          # tizim holatini o'zgartirmaydi
+    idempotent: bool         # xato bo'lsa xavfsiz qayta urinish mumkin (natija takrorlanmaydi)
+    timeout_s: float         # adapter chaqiruvi uchun chegara
+    verify: str              # tekshirish usuli
+
+
+TOOL_REGISTRY: dict[str, ToolSpec] = {
+    "open_app": ToolSpec(read_only=False, idempotent=True, timeout_s=20, verify="frontmost_app"),
+    "open_url": ToolSpec(read_only=False, idempotent=True, timeout_s=15, verify="command_exit_code"),
+    "click": ToolSpec(read_only=False, idempotent=False, timeout_s=5, verify="visual_next_step"),
+    "double_click": ToolSpec(read_only=False, idempotent=False, timeout_s=5, verify="visual_next_step"),
+    "type_text": ToolSpec(read_only=False, idempotent=False, timeout_s=10, verify="visual_next_step"),
+    "hotkey": ToolSpec(read_only=False, idempotent=False, timeout_s=5, verify="visual_next_step"),
+    "scroll": ToolSpec(read_only=False, idempotent=True, timeout_s=5, verify="visual_next_step"),
+    "create_folder": ToolSpec(read_only=False, idempotent=True, timeout_s=5, verify="path_exists"),
+    "create_file": ToolSpec(read_only=False, idempotent=False, timeout_s=5, verify="path_exists"),
+    "delete_path": ToolSpec(read_only=False, idempotent=False, timeout_s=15, verify="path_absent"),
+    "wait": ToolSpec(read_only=True, idempotent=True, timeout_s=11, verify="none"),
+    "system": ToolSpec(read_only=False, idempotent=False, timeout_s=10, verify="readback_if_possible"),
+    "web_search": ToolSpec(read_only=True, idempotent=True, timeout_s=15, verify="results_nonempty"),
+    "find_file": ToolSpec(read_only=True, idempotent=True, timeout_s=8, verify="results_nonempty"),
+    "reveal": ToolSpec(read_only=True, idempotent=True, timeout_s=5, verify="command_exit_code"),
+}
 
 
 class Action(BaseModel):
@@ -93,6 +124,12 @@ class Action(BaseModel):
             return f"Kutish: {self.seconds} s"
         if t == "system":
             return f"Tizim: {self.control}" + (f" {self.amount}" if self.amount is not None else "")
+        if t == "web_search":
+            return f"Internetdan qidirish: {self.text}"
+        if t == "find_file":
+            return f"Fayl qidirish: {self.text}"
+        if t == "reveal":
+            return f"Finder'da ko'rsatish: {self.path}"
         return t
 
 
@@ -134,6 +171,7 @@ class StepRecord(BaseModel):
     status: StepStatus = StepStatus.executed
     detail: str = ""
     verified: bool | None = None
+    verification: str = ""          # qaysi usul bilan tekshirildi (TOOL_REGISTRY.verify)
     started_at: float = Field(default_factory=time.time)
     duration_ms: int = 0
 
@@ -163,6 +201,11 @@ class TaskRecord(BaseModel):
     timings: dict[str, int] = Field(default_factory=lambda: {"screen_ms": 0, "llm_ms": 0, "exec_ms": 0})
     started_at: float = Field(default_factory=time.time)
     finished_at: float | None = None
+    # Vosita natijalari (qidiruv natijalari, topilgan fayllar) — interfeysda kartochka sifatida
+    data: dict[str, Any] = Field(default_factory=dict)
+    # Bosqichlar bo'yicha vaqt izi: [{stage, start, ms, ok, provider, model}] — matn/ekran tarkibisiz
+    trace: list[dict[str, Any]] = Field(default_factory=list)
+    resolved_from: str = ""         # havola hal qilingan bo'lsa — asl buyruq ("uni yana och")
 
     @property
     def latency_ms(self) -> int:

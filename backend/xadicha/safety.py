@@ -88,8 +88,10 @@ def classify(action: Action, workspace: Path | None = None) -> RiskLevel:
     t = action.type
     if t == "delete_path":
         return RiskLevel.high
-    if t in ("wait", "scroll"):
+    if t in ("wait", "scroll", "web_search", "find_file"):
         return RiskLevel.low
+    if t == "reveal":
+        return RiskLevel.low if (workspace is None or is_inside(action.path or "", workspace)) else RiskLevel.high
     if t == "system":
         # Ovoz va yorqinlik — qaytariladigan, zararsiz; tasdiqsiz darhol bajariladi
         return RiskLevel.low if action.control in SYSTEM_CONTROLS else RiskLevel.high
@@ -176,6 +178,20 @@ def _home_reason(resolved: Path, action_type: str) -> str | None:
 
 def blocked_reason(action: Action, workspace: Path) -> str | None:
     """Tasdiq bilan ham bajarilmaydigan harakatlar."""
+    if action.type in ("web_search", "find_file"):
+        q = (action.text or "").strip()
+        if not q:
+            return "So'rov bo'sh."
+        if len(q) > 300:
+            return "So'rov juda uzun."
+        return None
+    if action.type == "reveal":
+        raw = (action.path or "").strip()
+        if not raw:
+            return "Yo'l ko'rsatilmagan."
+        if not is_inside(raw, workspace):
+            return "Faqat ish papkasi ichidagi fayllarni ko'rsatish mumkin."
+        return _home_reason(resolve_path(raw, workspace), "reveal")
     if action.type == "system":
         if action.control not in SYSTEM_CONTROLS:
             return "Noma'lum tizim boshqaruvi."

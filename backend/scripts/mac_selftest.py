@@ -118,6 +118,25 @@ def main() -> int:
             return {"device": dev.get("name"), "default_samplerate": dev.get("default_samplerate")}
         r.step("mic", "Mikrofon qurilmasini aniqlaymi (yozmasdan)?", mic)
 
+    if want("vad"):
+        def vad():
+            from xadicha.speech.stt import Endpointer, Listener
+
+            li = Listener(cfg.whisper_model, cfg.stt_engine)
+            input("   Enter bosing: 2 soniya JIM turing, keyin «Safari ni och, keyin kun uz saytiga kir» deng"
+                  " (o'rtada qisqa pauza qiling) va gapirib bo'lgach jim turing...")
+            ep, levels = Endpointer(), []
+            stop = threading.Event()
+            t0 = time.time()
+            li.record_until(stop, max_seconds=15, on_level=levels.append, endpointer=ep)
+            heard = input("   Yozish gapingiz oxirida (so'zlarni kesmasdan) to'xtadimi? [y/N]: ").strip().lower() in {"y", "ha", "h"}
+            return {"reason": ep.reason, "noise_floor": round(ep.floor or 0, 4), "threshold_on": round(ep.threshold, 4),
+                    "first_speech_s": round(ep.first_speech_t or 0, 2), "speech_s": round(ep.speech_total, 2),
+                    "endpoint_delay_s": round(ep.endpoint_delay_s, 2), "total_s": round(time.time() - t0, 2),
+                    "peak_level": round(max(levels or [0]), 3), "user_says_not_cut": heard,
+                    "_ok": ep.reason == "silence" and heard}
+        r.step("vad", "Gapirib bo'linganini sezishni (mikrofon kalibrlash) sinaymi?", vad)
+
     if want("speech"):
         def speech():
             from xadicha.speech.stt import Listener

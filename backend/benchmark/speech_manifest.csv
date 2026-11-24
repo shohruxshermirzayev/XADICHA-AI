@@ -1,0 +1,128 @@
+id,command_type,lang,script,text,intent,entity
+open_safari_uz_latn_0,open_safari,uz,latn,Safari ni och,open_app,Safari
+open_safari_uz_latn_1,open_safari,uz,latn,Safarini och,open_app,Safari
+open_safari_uz_latn_2,open_safari,uz,latn,Safari ochib ber,open_app,Safari
+open_safari_uz_latn_3,open_safari,uz,latn,Safari ga kir,open_app,Safari
+open_safari_uz_cyrl_4,open_safari,uz,cyrl,Сафари ни оч,open_app,Safari
+open_safari_ru_cyrl_5,open_safari,ru,cyrl,Открой Safari,open_app,Safari
+open_safari_en_latn_6,open_safari,en,latn,Open Safari,open_app,Safari
+open_telegram_uz_latn_0,open_telegram,uz,latn,Telegram ni och,open_app,Telegram
+open_telegram_uz_latn_1,open_telegram,uz,latn,Telegramni ochgin,open_app,Telegram
+open_telegram_uz_cyrl_2,open_telegram,uz,cyrl,Телеграмни оч,open_app,Telegram
+open_telegram_ru_cyrl_3,open_telegram,ru,cyrl,Запусти Telegram,open_app,Telegram
+open_telegram_en_latn_4,open_telegram,en,latn,Launch Telegram,open_app,Telegram
+open_notes_uz_latn_0,open_notes,uz,latn,Notes ni och,open_app,Notes
+open_notes_uz_cyrl_1,open_notes,uz,cyrl,Notesни оч,open_app,Notes
+open_notes_ru_cyrl_2,open_notes,ru,cyrl,Открой Notes,open_app,Notes
+open_notes_en_latn_3,open_notes,en,latn,Open Notes,open_app,Notes
+open_calculator_uz_latn_0,open_calculator,uz,latn,Kalkulyatorni och,open_app,Calculator
+open_calculator_uz_cyrl_1,open_calculator,uz,cyrl,Калькуляторни оч,open_app,Calculator
+open_calculator_ru_cyrl_2,open_calculator,ru,cyrl,Открой калькулятор,open_app,Calculator
+open_calculator_en_latn_3,open_calculator,en,latn,Open Calculator,open_app,Calculator
+open_browser_uz_latn_0,open_browser,uz,latn,Brauzerni ishga tushir,open_app,Safari
+open_browser_uz_cyrl_1,open_browser,uz,cyrl,Браузерни оч,open_app,Safari
+open_browser_ru_cyrl_2,open_browser,ru,cyrl,Открой браузер,open_app,Safari
+open_browser_en_latn_3,open_browser,en,latn,Open the browser,open_app,Safari
+open_chrome_uz_latn_0,open_chrome,uz,latn,Chrome ni och,open_app,Google Chrome
+open_chrome_uz_cyrl_1,open_chrome,uz,cyrl,Хромни оч,open_app,Google Chrome
+open_chrome_ru_cyrl_2,open_chrome,ru,cyrl,Открой Chrome,open_app,Google Chrome
+open_chrome_en_latn_3,open_chrome,en,latn,Open Chrome,open_app,Google Chrome
+open_finder_uz_latn_0,open_finder,uz,latn,Finder ni och,open_app,Finder
+open_finder_ru_cyrl_1,open_finder,ru,cyrl,Открой Finder,open_app,Finder
+open_finder_en_latn_2,open_finder,en,latn,Open Finder,open_app,Finder
+open_site_kunuz_uz_latn_0,open_site_kunuz,uz,latn,kun.uz saytini och,open_url,kun.uz
+open_site_kunuz_uz_latn_1,open_site_kunuz,uz,latn,kun.uz ga kir,open_url,kun.uz
+open_site_kunuz_uz_cyrl_2,open_site_kunuz,uz,cyrl,kun.uz сайтини оч,open_url,kun.uz
+open_site_kunuz_ru_cyrl_3,open_site_kunuz,ru,cyrl,Открой сайт kun.uz,open_url,kun.uz
+open_site_kunuz_en_latn_4,open_site_kunuz,en,latn,Open the website kun.uz,open_url,kun.uz
+google_python_uz_latn_0,google_python,uz,latn,Google dan Python haqida qidir,browser_search,Python
+google_python_uz_latn_1,google_python,uz,latn,Googleda Python qidir,browser_search,Python
+google_python_ru_cyrl_2,google_python,ru,cyrl,Найди в Google Python,browser_search,Python
+google_python_en_latn_3,google_python,en,latn,Search Google for Python,browser_search,Python
+youtube_music_uz_latn_0,youtube_music,uz,latn,YouTube da musiqa qidir,browser_search,musiqa
+youtube_music_uz_cyrl_1,youtube_music,uz,cyrl,YouTubeда мусиқа қидир,browser_search,мусиқа
+youtube_music_ru_cyrl_2,youtube_music,ru,cyrl,Найди на YouTube музыку,browser_search,музыку
+youtube_music_en_latn_3,youtube_music,en,latn,Search YouTube for music,browser_search,music
+web_samarkand_uz_latn_0,web_samarkand,uz,latn,Samarqand haqida qidir,web_search,Samarqand
+web_samarkand_uz_latn_1,web_samarkand,uz,latn,internetdan Samarqand haqida ma'lumot top,web_search,Samarqand
+web_samarkand_uz_cyrl_2,web_samarkand,uz,cyrl,Самарқанд ҳақида қидир,web_search,Самарқанд
+web_samarkand_ru_cyrl_3,web_samarkand,ru,cyrl,Найди информацию о Самарканде,web_search,Самарканд
+web_samarkand_en_latn_4,web_samarkand,en,latn,Search for Samarkand,web_search,Samarkand
+web_python_uz_latn_0,web_python,uz,latn,Python haqida qidir,web_search,Python
+web_python_ru_cyrl_1,web_python,ru,cyrl,Поищи Python,web_search,Python
+web_python_en_latn_2,web_python,en,latn,Look up Python,web_search,Python
+find_report_uz_latn_0,find_report,uz,latn,hisobot faylini top,find_file,hisobot
+find_report_uz_latn_1,find_report,uz,latn,hisobot nomli faylni topib ber,find_file,hisobot
+find_report_uz_cyrl_2,find_report,uz,cyrl,ҳисобот файлини топ,find_file,ҳисобот
+find_report_ru_cyrl_3,find_report,ru,cyrl,Найди файл hisobot,find_file,hisobot
+find_report_en_latn_4,find_report,en,latn,Find the file hisobot,find_file,hisobot
+create_folder_uz_latn_0,create_folder,uz,latn,"Desktopda ""Hisobot"" papka yarat",create_folder,Hisobot
+create_folder_uz_cyrl_1,create_folder,uz,cyrl,"""Hisobot"" папка яратинг",create_folder,Hisobot
+create_folder_ru_cyrl_2,create_folder,ru,cyrl,"Создай папку ""Hisobot""",create_folder,Hisobot
+create_folder_en_latn_3,create_folder,en,latn,"Create a folder ""Hisobot""",create_folder,Hisobot
+volume_up_uz_latn_0,volume_up,uz,latn,Ovozini ko'tar,system,volume_up
+volume_up_uz_latn_1,volume_up,uz,latn,ovozni oshir,system,volume_up
+volume_up_uz_cyrl_2,volume_up,uz,cyrl,Овозни кўтар,system,volume_up
+volume_up_ru_cyrl_3,volume_up,ru,cyrl,Сделай громче,system,volume_up
+volume_up_en_latn_4,volume_up,en,latn,Volume up,system,volume_up
+volume_down_uz_latn_0,volume_down,uz,latn,ovozni pasaytir,system,volume_down
+volume_down_uz_cyrl_1,volume_down,uz,cyrl,овозни пасайтир,system,volume_down
+volume_down_ru_cyrl_2,volume_down,ru,cyrl,Тише,system,volume_down
+volume_down_en_latn_3,volume_down,en,latn,Turn the volume down,system,volume_down
+mute_uz_latn_0,mute,uz,latn,ovozni o'chir,system,mute
+mute_uz_cyrl_1,mute,uz,cyrl,овозни ўчир,system,mute
+mute_ru_cyrl_2,mute,ru,cyrl,Выключи звук,system,mute
+mute_en_latn_3,mute,en,latn,Mute,system,mute
+unmute_uz_latn_0,unmute,uz,latn,ovozni yoq,system,unmute
+unmute_ru_cyrl_1,unmute,ru,cyrl,Включи звук,system,unmute
+unmute_en_latn_2,unmute,en,latn,Unmute,system,unmute
+volume_set_uz_latn_0,volume_set,uz,latn,ovozni 40 ga qo'y,system,volume_set
+volume_set_ru_cyrl_1,volume_set,ru,cyrl,Громкость на 40,system,volume_set
+volume_set_en_latn_2,volume_set,en,latn,Set volume to 40,system,volume_set
+brightness_up_uz_latn_0,brightness_up,uz,latn,yorug'likni oshir,system,brightness_up
+brightness_up_uz_latn_1,brightness_up,uz,latn,ekranni yorqinroq qil,system,brightness_up
+brightness_up_uz_cyrl_2,brightness_up,uz,cyrl,ёруғликни ошир,system,brightness_up
+brightness_up_ru_cyrl_3,brightness_up,ru,cyrl,Увеличь яркость,system,brightness_up
+brightness_up_en_latn_4,brightness_up,en,latn,Brightness up,system,brightness_up
+brightness_down_uz_latn_0,brightness_down,uz,latn,yorqinlikni pasaytir,system,brightness_down
+brightness_down_uz_cyrl_1,brightness_down,uz,cyrl,ёруғликни камайтир,system,brightness_down
+brightness_down_ru_cyrl_2,brightness_down,ru,cyrl,Темнее,system,brightness_down
+brightness_down_en_latn_3,brightness_down,en,latn,Brightness down,system,brightness_down
+describe_screen_uz_latn_0,describe_screen,uz,latn,Ekranda nima turganini ayt,autonomous,
+describe_screen_uz_cyrl_1,describe_screen,uz,cyrl,Экранда нима борлигини айтиб бер,autonomous,
+describe_screen_ru_cyrl_2,describe_screen,ru,cyrl,"Опиши, что на экране",autonomous,
+describe_screen_en_latn_3,describe_screen,en,latn,Describe what is on the screen,autonomous,
+active_app_uz_latn_0,active_app,uz,latn,Hozir qaysi ilova ochiq?,autonomous,
+active_app_ru_cyrl_1,active_app,ru,cyrl,Какое приложение сейчас открыто?,autonomous,
+active_app_en_latn_2,active_app,en,latn,Which app is open right now?,autonomous,
+notes_type_uz_latn_0,notes_type,uz,latn,"Notes ni och va ""Bugungi rejalar"" deb yoz",autonomous,
+notes_type_ru_cyrl_1,notes_type,ru,cyrl,"Открой Notes и напиши ""Планы""",autonomous,
+notes_type_en_latn_2,notes_type,en,latn,"Open Notes and type ""Plans""",autonomous,
+multi_system_uz_latn_0,multi_system,uz,latn,ovozni ko'tar va yorug'likni oshir,system,volume_up+brightness_up
+multi_system_ru_cyrl_1,multi_system,ru,cyrl,сделай громче и ярче,system,volume_up+brightness_up
+multi_system_en_latn_2,multi_system,en,latn,volume up and brightness up,system,volume_up+brightness_up
+reopen_uz_latn_0,reopen,uz,latn,uni yana och,follow_up,last_app
+reopen_uz_cyrl_1,reopen,uz,cyrl,уни яна оч,follow_up,last_app
+reopen_ru_cyrl_2,reopen,ru,cyrl,открой его снова,follow_up,last_app
+reopen_en_latn_3,reopen,en,latn,open it again,follow_up,last_app
+repeat_uz_latn_0,repeat,uz,latn,yana bir marta,follow_up,repeat
+repeat_ru_cyrl_1,repeat,ru,cyrl,ещё раз,follow_up,repeat
+repeat_en_latn_2,repeat,en,latn,again,follow_up,repeat
+first_result_uz_latn_0,first_result,uz,latn,birinchisini och,follow_up,result_1
+first_result_ru_cyrl_1,first_result,ru,cyrl,открой первый,follow_up,result_1
+first_result_en_latn_2,first_result,en,latn,open the first one,follow_up,result_1
+show_file_uz_latn_0,show_file,uz,latn,shu faylni ko'rsat,follow_up,last_path
+show_file_ru_cyrl_1,show_file,ru,cyrl,покажи этот файл,follow_up,last_path
+show_file_en_latn_2,show_file,en,latn,show that file,follow_up,last_path
+delete_file_uz_latn_0,delete_file,uz,latn,eslatma.txt faylini o'chir,autonomous,
+delete_file_ru_cyrl_1,delete_file,ru,cyrl,Удали файл eslatma.txt,autonomous,
+delete_file_en_latn_2,delete_file,en,latn,Delete the file eslatma.txt,autonomous,
+send_message_uz_latn_0,send_message,uz,latn,Telegramda Aliga salom deb yoz,autonomous,
+send_message_ru_cyrl_1,send_message,ru,cyrl,Напиши Али в Telegram привет,autonomous,
+send_message_en_latn_2,send_message,en,latn,Message Ali on Telegram saying hello,autonomous,
+open_terminal_uz_latn_0,open_terminal,uz,latn,Terminalni och,open_app,Terminal
+open_terminal_ru_cyrl_1,open_terminal,ru,cyrl,Открой Терминал,open_app,Terminal
+open_terminal_en_latn_2,open_terminal,en,latn,Open Terminal,open_app,Terminal
+open_textedit_uz_latn_0,open_textedit,uz,latn,TextEdit ni och,open_app,TextEdit
+open_textedit_ru_cyrl_1,open_textedit,ru,cyrl,Открой TextEdit,open_app,TextEdit
+open_textedit_en_latn_2,open_textedit,en,latn,Open TextEdit,open_app,TextEdit

@@ -28,7 +28,7 @@ class ScriptedProvider(LLMProvider):
     def complete(self, system, user, screen):  # pragma: no cover
         raise NotImplementedError
 
-    def decide(self, instruction, history, screen, language):
+    def decide(self, instruction, history, screen, language, **kwargs):
         if self.fail:
             raise ProviderError("simulyatsiya: provayder mavjud emas")
         self.calls.append({"history": list(history), "screen": screen})

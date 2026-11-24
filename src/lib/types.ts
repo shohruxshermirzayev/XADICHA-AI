@@ -45,6 +45,37 @@ export interface Task {
   timings?: { screen_ms: number; llm_ms: number; exec_ms: number };
   started_at: number;
   finished_at: number | null;
+  data?: { query?: string; results?: SearchItem[]; search_provider?: string; errors?: string[] };
+  trace?: TraceSpan[];
+  resolved_from?: string;
+}
+
+export interface SearchItem {
+  title: string;
+  url?: string;
+  path?: string;
+  snippet?: string;
+  source?: string;
+  date?: string | null;
+}
+
+export interface TraceSpan {
+  stage: string;
+  ms: number;
+  ok: boolean;
+  provider?: string;
+  model?: string;
+  path?: string;
+  reason?: string;
+}
+
+export interface Turn {
+  ts: number;
+  role: "user" | "assistant";
+  text: string;
+  lang?: string;
+  task_id?: string | null;
+  status?: Task["status"] | null;
 }
 
 export type Listening = "idle" | "recording" | "transcribing";
@@ -86,6 +117,7 @@ export interface ChatMessage {
   lang?: string;
   status?: Task["status"];
   ts: number;            // ms — xabar vaqti
+  taskId?: string;       // javob qaysi vazifaga tegishli (kartochka uchun)
 }
 
 /** Imkoniyat holati: halol to'rt daraja. */

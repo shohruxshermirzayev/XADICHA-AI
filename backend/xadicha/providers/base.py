@@ -34,9 +34,9 @@ class LLMProvider(ABC):
                                     width=w, height=h)
 
     def decide(self, instruction: str, history: list[dict[str, Any]], screen: Screenshot | None,
-               language: str, context: str = "") -> Decision:
+               language: str, context: str = "", conversation: str = "") -> Decision:
         system = self.system_prompt(language, screen)
-        user = user_turn(instruction, history, screen is not None, context)
+        user = user_turn(instruction, history, screen is not None, context, conversation)
         raw = self.complete(system, user, screen)
         try:
             return parse_decision(raw)

@@ -50,6 +50,14 @@ bajarilgan `open_url` manzili, taqiqlangan harakat bajarilmagani. `answer_only` 
 Tasdiq siyosati benchmark davomida avtomatik va konservativ: faqat benchmark papkasi ichidagi o'rta xavfli amallar
 tasdiqlanadi; yuqori xavfli har qanday amal rad etiladi.
 
+## Nutq tajribasi (real audio)
+
+1. `benchmark/speech_manifest.csv` dagi har bir qatorni (`id`) kamida 2 ta ma'ruzachi, tinch va shovqinli xonada o'qiydi;
+   fayl nomi `<id>__<speaker>__<quiet|noisy>.wav` → baholashdan oldin `<id>.wav` papkalariga ajratiladi.
+2. Modellar bir xil yozuvlarda solishtiriladi: `large-v3-turbo`, `small` (faster-whisper va MLX).
+3. O'lchanadi: WER, CER, LID, niyat aniqligi, RTF, yuklash vaqti, xotira; `mac_selftest.py --only vad` — endpoint kechikishi.
+4. ASR ishonch chegarasi (`ASR_LOW = 0.55`) shu yozuvlarda kalibrlanishi kerak — hozircha taxminiy.
+
 ## Validlikka tahdidlar
 
 - Vazifalar to'plami muallif tomonidan tuzilgan; real foydalanuvchi buyruqlarini to'liq aks ettirmaydi.

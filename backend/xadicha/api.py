@@ -171,9 +171,23 @@ def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, 
     def speak(body: SpeakIn) -> dict[str, Any]:
         return {"spoken": svc.speaker.say(body.text, body.language)}
 
+    @app.get("/api/conversation")
+    def conversation() -> dict[str, Any]:
+        """Joriy suhbat navbatlari (sahifa yangilanganda chat tiklanadi)."""
+        return svc.conversation_public()
+
+    @app.post("/api/conversation/new")
+    def conversation_new() -> dict[str, Any]:
+        if svc.busy:
+            raise HTTPException(409, "Vazifa bajarilmoqda.")
+        return {"session_id": svc.new_conversation()}
+
     @app.delete("/api/history")
     def clear_history() -> dict[str, Any]:
-        return {"deleted": svc.storage.clear_history()}
+        deleted = svc.storage.clear_history()
+        svc.storage.clear_turns()
+        svc.new_conversation()
+        return {"deleted": deleted}
 
     @app.websocket("/api/ws")
     async def ws(socket: WebSocket) -> None:

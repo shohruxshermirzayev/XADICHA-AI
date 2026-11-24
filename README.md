@@ -39,6 +39,11 @@ Interfeys: Next.js 16, Tailwind CSS 4, Motion, lucide-react; shadcn/ui, Magic UI
 - **Ovoz** — mikrofonni faqat backend yozadi; Whisper (MLX / faster-whisper). Belgini bir marta bosasiz va gapirasiz:
   gapirib bo'lganingizni o'zi sezadi (jimlik) va aniq buyruqni darhol bajaradi. Nutq ishonchi va buyruq aniqligi alohida
   baholanadi; noaniq buyruqda eshitilgan matn ko'rsatiladi va foydalanuvchi tanlaydi (jimgina almashtirish yo'q).
+- **Suhbat konteksti** — oxirgi 20 navbat va obyektlar (ilova, sayt, fayl, qidiruv natijalari): "uni yana och",
+  "birinchisini och", "shu faylni ko'rsat", "yana bir marta". Sahifa yangilansa ham suhbat tiklanadi; "Yangi suhbat" tozalaydi.
+- **Aqlli marshrutlash** — oddiy buyruq modelsiz (fast), qidiruv/fayl — maxsus vosita (tool), murakkab — LLM sikli (autonomous).
+- **Internet qidiruvi** — DuckDuckGo HTML + Wikipedia (bepul, kalitsiz): haqiqiy sarlavha, manzil, parcha; javob faqat shu
+  natijalardan, manbalar bilan. Fayl qidiruvi — faqat workspace ichida (Spotlight / os.walk).
 - **Tizim boshqaruvi** — "ovozini ko'tar", "ovozni o'chir", "ovozni 40 ga qo'y", "yorug'likni oshir", "сделай тише",
   "brightness down" (uz lotin/kirill, ru, en): modelsiz, tasdiqsiz, darhol. Faqat aytilgan amal bajariladi.
 - **Yagona holat** — sarlavha, yordamchi, vazifa paneli va dashboard bir manbadan (`phase`, `seq`).
@@ -52,7 +57,8 @@ macOS uchun ixtiyoriy OCR/accessibility: `pip install -r backend/requirements-ma
 ## Tekshirish (testlar)
 
 ```bash
-cd backend && source .venv/bin/activate && python -m pytest -q   # backend: 210 ta test (simulyatsiya)
+cd backend && source .venv/bin/activate && python -m pytest -q   # backend: 278 ta test (simulyatsiya)
+python -m xadicha.speech_eval --text-only   # til/niyat/obyekt aniqligi (127 buyruq, 33 tur; matn, ASR'siz)
 cd .. && npm test              # interfeys mantiqi: holat modeli, hodisalar, tarjimalar (23 ta test)
 npm run lint                   # ESLint
 npm run typecheck              # TypeScript
@@ -78,6 +84,8 @@ harakat bajarilishini isbotlamaydi. Batafsil: [docs/TESTING.md](docs/TESTING.md)
 | Windows adapteri | ⚠️ Windows qurilmasida umuman sinalmagan |
 | Mikrofon, STT/TTS | ⚠️ real qurilmada avtomatik sinalmagan; o'zbekcha WER o'lchanmagan |
 | Claude / Ollama provayderlari | ⚠️ real model bilan avtomatik sinalmagan |
-| Benchmark natijalari | ⏳ hali o'tkazilmagan (faqat harness) |
+| Internet qidiruvi | ⚠️ tahlilchi namunaviy HTML bilan testlangan; real tarmoqda sinalmagan |
+| Javoblarni oqim (streaming) bilan chiqarish | ❌ amalga oshirilmagan — halol "o'ylayapman" holati |
+| Benchmark natijalari, real audio WER | ⏳ hali o'tkazilmagan (faqat vositalar) |
 
 Hech bir platforma "production-ready" deb belgilanmagan. Cheklovlar: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).

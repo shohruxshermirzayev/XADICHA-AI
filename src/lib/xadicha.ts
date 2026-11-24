@@ -9,7 +9,7 @@ export type { Lang } from "./i18n";
 
 export const API = process.env.NEXT_PUBLIC_XADICHA_API ?? "http://127.0.0.1:8765";
 
-import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, Status, Task, Transcript } from "./types";
+import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, Status, Task, Transcript, Turn } from "./types";
 
 export type * from "./types";
 
@@ -82,7 +82,10 @@ export function describeAction(a: Action, lang: Lang = "uz"): string {
       case "hotkey": return (a.keys ?? []).join(" + ");
       case "create_folder":
       case "create_file":
-      case "delete_path": return a.path ?? "";
+      case "delete_path":
+      case "reveal": return a.path ?? "";
+      case "web_search":
+      case "find_file": return a.text ?? "";
       case "system": {
         const c = a.control ? translate(lang, `control.${a.control}` as MsgKey) : "";
         return `${c.startsWith("control.") ? a.control : c}${a.amount != null ? ` ${a.amount}%` : ""}`;
@@ -135,8 +138,25 @@ export function useXadicha(uiLang: Lang = "uz") {
   const announce = useCallback((t: Task) => {
     if (t.status === "running" || announced.current.has(t.id)) return;
     announced.current.add(t.id);
-    push({ role: "assistant", text: t.final_message || "—", status: t.status, lang: t.language });
+    push({ role: "assistant", text: t.final_message || "—", status: t.status, lang: t.language, taskId: t.id });
   }, [push]);
+
+  /** Suhbatni backend'dan tiklash (sahifa yangilanganda yoki qayta ulanganda chat yo'qolmaydi). */
+  const restored = useRef(false);
+  const loadConversation = useCallback(async () => {
+    try {
+      const c = await call<{ session_id: string; turns: Turn[] }>("/api/conversation");
+      const msgs: ChatMessage[] = c.turns.map((t, i) => ({
+        id: `turn-${c.session_id}-${i}`, role: t.role, text: t.text, lang: t.lang, ts: t.ts * 1000,
+        status: t.status ?? undefined, taskId: t.task_id ?? undefined,
+      }));
+      for (const m of msgs) if (m.taskId) announced.current.add(m.taskId);
+      setMessages((prev) => (restored.current && prev.length ? prev : msgs));
+      restored.current = true;
+    } catch {
+      // backend eski versiya yoki o'chiq — jim
+    }
+  }, []);
 
   /** Panelda "bajarilmoqda" qolib ketgan vazifani backend'dan qayta oladi. */
   const syncTask = useCallback(async () => {
@@ -180,6 +200,11 @@ export function useXadicha(uiLang: Lang = "uz") {
       switch (e.type) {
         case "hello":
           refresh();   // tarix va joriy vazifani tiklash
+          if (!restored.current) loadConversation();
+          break;
+        case "conversation_reset":
+          announced.current.clear();
+          setMessages([]);
           break;
         case "task_finished":
           if (applied) announce(e.task as Task);
@@ -278,7 +303,7 @@ export function useXadicha(uiLang: Lang = "uz") {
       wsRef.current = null;
       ws?.close();
     };
-  }, [refresh, push, announce, update, syncTask]);
+  }, [refresh, push, announce, update, syncTask, loadConversation]);
 
   const run = useCallback(async (instruction: string, language: Lang, mode: Mode = "C", fromVoice = false) => {
     setError(null);
@@ -371,6 +396,18 @@ export function useXadicha(uiLang: Lang = "uz") {
     setError(e.message);
   }), []);
 
+  /** Yangi suhbat: kontekst ("uni", "shu fayl") va chat tozalanadi; vazifalar tarixi qoladi. */
+  const newConversation = useCallback(async () => {
+    try {
+      await call("/api/conversation/new", { method: "POST" });
+      announced.current.clear();
+      setMessages([]);
+      setClarify(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, []);
+
   const clearHistory = useCallback(async () => {
     try {
       await call("/api/history", { method: "DELETE" });
@@ -385,6 +422,6 @@ export function useXadicha(uiLang: Lang = "uz") {
     listening: st.listening, micLevel: st.micLevel,
     online, wsOpen, tasks, confirmBusy, confirmError, messages, error, clarify,
     run, analyze, startListening, stopListening, answer, stop, clearHistory, refresh, push,
-    clearClarify: () => setClarify(null),
+    clearClarify: () => setClarify(null), newConversation,
   };
 }

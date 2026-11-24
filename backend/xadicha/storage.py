@@ -20,6 +20,17 @@ CREATE TABLE IF NOT EXISTS tasks (
     data TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_started ON tasks(started_at DESC);
+CREATE TABLE IF NOT EXISTS turns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    ts REAL NOT NULL,
+    role TEXT NOT NULL,
+    text TEXT NOT NULL,
+    lang TEXT,
+    task_id TEXT,
+    status TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, id);
 CREATE TABLE IF NOT EXISTS preferences (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -56,6 +67,35 @@ class Storage:
                  task.instruction, task.model_dump_json()),
             )
             self._db.commit()
+
+    # --- suhbat navbatlari (faqat matn: ekran, clipboard yoki fayl tarkibi saqlanmaydi) ---
+    MAX_TURNS_PER_SESSION = 200
+
+    def save_turn(self, session_id: str, turn) -> None:
+        with self._lock:
+            self._db.execute("INSERT INTO turns (session_id, ts, role, text, lang, task_id, status) VALUES (?,?,?,?,?,?,?)",
+                             (session_id, turn.ts, turn.role, turn.text, turn.lang, turn.task_id, turn.status))
+            self._db.execute("DELETE FROM turns WHERE session_id = ? AND id NOT IN (SELECT id FROM turns WHERE "
+                             "session_id = ? ORDER BY id DESC LIMIT ?)", (session_id, session_id, self.MAX_TURNS_PER_SESSION))
+            self._db.commit()
+
+    def list_turns(self, session_id: str, limit: int = 200) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT ts, role, text, lang, task_id, status FROM turns WHERE session_id = ? "
+                                    "ORDER BY id DESC LIMIT ?", (session_id, limit)).fetchall()
+        return [dict(zip(("ts", "role", "text", "lang", "task_id", "status"), r)) for r in reversed(rows)]
+
+    def latest_session(self) -> str | None:
+        with self._lock:
+            row = self._db.execute("SELECT session_id FROM turns ORDER BY id DESC LIMIT 1").fetchone()
+        return row[0] if row else None
+
+    def clear_turns(self, session_id: str | None = None) -> int:
+        with self._lock:
+            cur = (self._db.execute("DELETE FROM turns WHERE session_id = ?", (session_id,)) if session_id
+                   else self._db.execute("DELETE FROM turns"))
+            self._db.commit()
+            return cur.rowcount
 
     def get_task(self, task_id: str) -> TaskRecord | None:
         with self._lock:

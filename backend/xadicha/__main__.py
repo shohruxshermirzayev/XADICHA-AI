@@ -73,7 +73,7 @@ def main() -> None:
         try:
             if args.voice:
                 input("🎙  Gapirish uchun Enter bosing...")
-                svc.start_listening(args.lang)
+                svc.start_listening(args.lang, force_language=bool(args.lang))
                 input("   Tugatganda Enter bosing...")
                 print("   ⏳ Matnga aylantirilmoqda...")
                 try:

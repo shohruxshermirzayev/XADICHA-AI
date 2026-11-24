@@ -7,6 +7,7 @@ Ikki vazifasi bor:
 
 from __future__ import annotations
 
+import platform
 import re
 from typing import Any
 
@@ -37,9 +38,22 @@ _CYR_APPS = {
     "сафари": "Safari", "телеграм": "Telegram", "телеграмм": "Telegram", "хром": "Google Chrome",
     "гугл хром": "Google Chrome", "заметки": "Notes", "нотс": "Notes", "калькулятор": "Calculator",
     "файндер": "Finder", "музыка": "Music", "почта": "Mail", "календарь": "Calendar",
-    "ютуб": "YouTube", "ворд": "Microsoft Word", "эксель": "Microsoft Excel",
+    "ютуб": "YouTube", "ворд": "Microsoft Word", "эксель": "Microsoft Excel", "терминал": "Terminal",
+    "настройки": "System Settings", "финдер": "Finder", "сафарини": "Safari", "превью": "Preview",
 }
 
+
+# Tez-tez ishlatiladigan ilovalar (macOS + Windows)
+KNOWN_APPS = [
+    "Safari", "Google Chrome", "Firefox", "Microsoft Edge", "Telegram", "WhatsApp", "Notes", "Calculator",
+    "Calendar", "Mail", "Messages", "Music", "Photos", "Finder", "System Settings", "Terminal", "TextEdit",
+    "Preview", "Maps", "FaceTime", "App Store", "Spotify", "Microsoft Word", "Microsoft Excel",
+    "Microsoft PowerPoint", "Visual Studio Code", "Zoom", "Reminders", "Contacts", "Clock", "Weather",
+    "Pages", "Numbers", "Keynote", "Xcode", "Notepad", "File Explorer", "Paint", "Slack", "Discord",
+]
+
+_KNOWN_LOWER = {a.lower() for a in KNOWN_APPS}
+_DEFAULT_BROWSER = "Microsoft Edge" if platform.system() == "Windows" else "Safari"
 
 # Mahalliy nomlar (aniq moslik, taxmin emas) va qisqartmalar → haqiqiy ilova nomi
 APP_ALIASES = {
@@ -51,6 +65,9 @@ APP_ALIASES = {
     "vscode": "Visual Studio Code", "telegramm": "Telegram", "bloknot": "Notepad", "provodnik": "File Explorer",
     "whatsap": "WhatsApp", "vatsap": "WhatsApp",
     **_CYR_APPS,
+    # "brauzer" — tizimning standart brauzeri (macOS'da Safari har doim bor)
+    "brauzer": _DEFAULT_BROWSER, "brauzerni": _DEFAULT_BROWSER, "браузер": _DEFAULT_BROWSER, "браузерни": _DEFAULT_BROWSER,
+    "browser": _DEFAULT_BROWSER, "the browser": _DEFAULT_BROWSER, "web browser": _DEFAULT_BROWSER,
 }
 
 
@@ -144,6 +161,25 @@ def is_simple(text: str) -> bool:
     return not _MULTI.search(text.strip())
 
 
+_SITE = re.compile(r"(google|гугл|youtube|ютуб)", re.I)
+_SEARCH_VERB = re.compile(r"(?:qidir\w*|izla\w*|top\w*|қидир\w*|найди|поищи|search(?: for)?|look up|find)", re.I)
+
+
+def browser_search(text: str) -> tuple[str, str] | None:
+    """"Google dan Python haqida qidir" → ("google", "Python"); "YouTube'da musiqa qidir" → ("youtube", "musiqa")."""
+    m = _SITE.search(text)
+    if not m or not _SEARCH_VERB.search(text):
+        return None
+    site = "youtube" if m.group(1).lower() in ("youtube", "ютуб") else "google"
+    q = re.sub(r"[ʻ’‘`´]", "'", text)
+    q = re.sub(r"\b(?:google|гугл|youtube|ютуб)\w*(?:\s*['’]?\s*(?:da|dan|de|ga|да|дан|га))?\b", " ", q, flags=re.I)
+    q = re.sub(r"\b(?:in|on|в|на)\s*$", " ", q.strip(), flags=re.I)
+    q = _SEARCH_VERB.sub(" ", q)
+    q = re.sub(r"\b(?:haqida|ҳақида|ma'lumot|маълумот|ni|ни|about|for|о|об|про|в|на|in|on|ib ber|ber)\b", " ", q, flags=re.I)
+    q = re.sub(r"\s+", " ", q).strip(" .!?:'\"")
+    return (site, q) if q else None
+
+
 def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], str]:
     """(niyat, harakatlar, javob) qaytaradi."""
     t = text.strip().rstrip(".!?")
@@ -154,25 +190,30 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
         return "system", sys_actions, system_reply(sys_actions, language)
 
     m = _URL_RE.search(t)
-    if m and re.search(_OPEN + r"|sayt|site|сайт|zayti", low):
+    if m and re.search(_OPEN + r"|sayt|site|сайт|zayti|\bkir\b|\bkiring\b|зайди|перейди|go to", low):
         url = m.group(1)
         if not url.startswith("http"):
             url = "https://" + url
         return "open_url", [Action(type="open_url", url=url)], _reply("url", language)
 
-    m = _SEARCH_RE.search(t)
-    if m and m.group(1).strip():
+    bq = browser_search(t)
+    if bq is not None:
         from urllib.parse import quote_plus
 
-        q = m.group(1).strip()
-        return "web_search", [Action(type="open_url", url=f"https://www.google.com/search?q={quote_plus(q)}")], \
-            _reply("url", language)
+        site, q = bq
+        url = (f"https://www.youtube.com/results?search_query={quote_plus(q)}" if site == "youtube"
+               else f"https://www.google.com/search?q={quote_plus(q)}")
+        return "web_search", [Action(type="open_url", url=url)], _reply("url", language)
 
     if re.search(_FOLDER, low) and re.search(r"(?:create|make|yarat|och|созда|ярат)", low):
         name_m = re.search(r"[\"«“']([^\"»”']+)[\"»”']", t)
         name = name_m.group(1) if name_m else "Yangi papka"
         return "create_folder", [Action(type="create_folder", path=f"~/Desktop/{name}")], \
             _reply("folder", language)
+
+    # Savol buyruq emas: "Which app is open right now?", "Qaysi ilova ochiq?" — modelga qoldiriladi
+    if text.strip().endswith("?") or re.match(r"^(?:which|what|is|are|does|qaysi|nima|qanday|какое|какой|что|ли)\b", low):
+        return "unknown", [], _reply("unknown", language)
 
     # "Safari ni och", "Safari'ni och", "открой Safari", "open Safari"
     m = re.search(_OPEN + r"\s+(.+)$", t, re.I)
@@ -181,6 +222,12 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
     else:
         m = re.search(r"^(.+?)(?:\s*['’‘]?\s*(?:ni|ni\s+ham|-ni|ни|ни\s+ҳам|-ни))\s+" + _OPEN, t, re.I)
         app = m.group(1) if m else ""
+        if not app:
+            # "Safari ochib ber", "Safari ga kir", "Telegram och" — qo'shimchasiz; faqat MA'LUM ilova bo'lsa
+            m = re.search(r"^(.+?)\s*(?:['’]?ga\s+kir\w*|\s+" + _OPEN + r")$", t, re.I)
+            cand = (m.group(1).strip(" '\"’") if m else "")
+            if cand and (cand.lower() in _KNOWN_LOWER or cand.lower() in APP_ALIASES):
+                app = cand
     app = re.sub(r"^(the|app|application|ilova(?:si)?|приложение)\s+", "", app.strip(), flags=re.I)
     app = re.sub(r"\s+(app|ilovasi(?:ni)?|приложение)$", "", app, flags=re.I).strip(" '\"’")
     if app:

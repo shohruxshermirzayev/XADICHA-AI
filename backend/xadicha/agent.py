@@ -19,9 +19,10 @@ from pathlib import Path
 from typing import Any
 
 from . import safety
-from .adapters.base import OSAdapter
+from .adapters.base import ExecResult, OSAdapter
 from .config import Config
 from .models import (
+    TOOL_REGISTRY,
     Action,
     Decision,
     Mode,
@@ -33,7 +34,7 @@ from .models import (
     max_risk,
 )
 from .providers.base import LLMProvider, ProviderError
-from .providers.rule_based import FAST_INTENTS, RuleBasedProvider, is_simple, parse_command
+from .providers.rule_based import RuleBasedProvider, parse_command
 from .storage import Storage
 from .vision.screen import Screenshot, to_screen
 
@@ -65,6 +66,15 @@ _MSG = {
     "denied": {"uz": "Siz rad etdingiz, bu harakatni bajarmadim.", "ru": "Вы отказали, я не выполнила это действие.",
                "en": "You declined, so I did not perform this action."},
     "done": {"uz": "Bajarildi.", "ru": "Готово.", "en": "Done."},
+    "no_results": {"uz": "Hech narsa topilmadi.", "ru": "Ничего не найдено.", "en": "Nothing was found."},
+    "search_failed": {"uz": "Qidiruv ishlamadi (internet yoki qidiruv xizmati javob bermadi).",
+                      "ru": "Поиск не удался (нет интернета или сервис не ответил).",
+                      "en": "The search failed (no internet or the search service did not respond)."},
+    "found_results": {"uz": "Topilgan natijalar:", "ru": "Найденные результаты:", "en": "Results found:"},
+    "files_found": {"uz": "{n} ta topildi:", "ru": "Найдено {n}:", "en": "Found {n}:"},
+    "no_repeat": {"uz": "Muvaffaqiyatsiz bo'lgan bu harakat takrorlanmaydi — boshqa usul kerak.",
+                  "ru": "Это неудавшееся действие не повторяется — нужен другой способ.",
+                  "en": "This failed action is not repeated blindly — a different approach is needed."},
     "internal": {"uz": "Ichki xato yuz berdi, vazifa to'xtatildi.", "ru": "Произошла внутренняя ошибка, задача остановлена.",
                  "en": "An internal error occurred; the task was stopped."},
 }
@@ -85,6 +95,9 @@ class Agent:
         self.confirm = confirm or (lambda task, action, risk, why: False)
         self.on_event = on_event or (lambda e: None)
         self.screen_fn = screen_fn
+        self.conversation = None          # Conversation — suhbat konteksti (service beradi)
+        self.search_fn = None             # web_search(query, lang) — sinovda almashtiriladi
+        self.file_fn = None               # find_files(query, root)
         self.text_context = False   # OCR yoki accessibility mavjud bo'lsa — vision'siz model ham kontekst oladi
         self._cancel = threading.Event()
 
@@ -141,6 +154,8 @@ class Agent:
             if not p.is_absolute() and not safety._is_windows_path(action.path.strip()):
                 action = action.model_copy(update={"path": str(self.cfg.workspace.expanduser() / p)})
         step = StepRecord(index=len(task.steps) + 1, action=action, expected_outcome=expected)
+        spec = TOOL_REGISTRY.get(action.type)
+        step.verification = spec.verify if spec else ""
         step.risk = safety.final_risk(action, proposed, self.cfg.workspace, context=expected + " " + task.instruction)
         t0 = time.time()
 
@@ -158,6 +173,13 @@ class Agent:
                 denied = DENY_STOPPED   # tasdiqlangan, lekin shu orada to'xtatish bosildi
         if denied:
             step.status, step.detail = StepStatus.denied, denied
+        elif action.type in ("web_search", "find_file"):
+            self._emit("step_started", task, step=step.model_dump(mode="json"))
+            te = time.perf_counter()
+            res = self._run_tool(task, action)
+            task.timings["exec_ms"] += int((time.perf_counter() - te) * 1000)
+            step.detail, step.verified = res.detail, res.verified
+            step.status = StepStatus.verified if res.ok and res.verified else StepStatus.failed
         elif action.type == "wait":
             # Kutish to'xtatish bilan darhol uziladi (avval 10 s gacha uxlab qolardi)
             self._emit("step_started", task, step=step.model_dump(mode="json"))
@@ -169,8 +191,9 @@ class Agent:
         else:
             self._emit("step_started", task, step=step.model_dump(mode="json"))
             te = time.perf_counter()
-            res = self.adapter.execute(action)
+            res = self._call_adapter(action)
             task.timings["exec_ms"] += int((time.perf_counter() - te) * 1000)
+            self._span(task, f"exec:{action.type}", te, res.ok)
             step.detail = res.detail
             step.verified = res.verified
             if not res.ok or res.verified is False:
@@ -184,6 +207,100 @@ class Agent:
         self._save(task)
         self._emit("step_finished", task, step=step.model_dump(mode="json"))
         return step
+
+    # --- vaqt izi ---
+    @staticmethod
+    def _span(task: TaskRecord, stage: str, t0_perf: float, ok: bool = True, **meta: Any) -> None:
+        """Bosqich vaqti (matn yoki ekran tarkibisiz)."""
+        task.trace.append({"stage": stage, "ms": int((time.perf_counter() - t0_perf) * 1000), "ok": bool(ok),
+                           **{k: v for k, v in meta.items() if v is not None}})
+
+    # --- adapter chaqiruvi: vaqt chegarasi bilan ---
+    def _call_adapter(self, action: Action) -> ExecResult:
+        spec = TOOL_REGISTRY.get(action.type)
+        timeout = spec.timeout_s if spec else 15.0
+        box: dict[str, ExecResult] = {}
+
+        def work() -> None:
+            box["r"] = self.adapter.execute(action)
+
+        th = threading.Thread(target=work, daemon=True)
+        th.start()
+        th.join(timeout)
+        if th.is_alive():
+            # Ipni majburan to'xtatib bo'lmaydi; natija kutilmaydi va qadam muvaffaqiyatsiz deb belgilanadi
+            return ExecResult(False, f"vaqt tugadi ({timeout:g} s)", verified=False)
+        return box.get("r") or ExecResult(False, "natija yo'q", verified=False)
+
+    # --- vositalar: internet va fayl qidiruvi (faqat o'qish) ---
+    def _run_tool(self, task: TaskRecord, action: Action) -> ExecResult:
+        q = (action.text or "").strip()
+        lang = task.language
+        if action.type == "web_search":
+            from .tools.search import web_search
+
+            fn = self.search_fn or web_search
+            t0 = time.perf_counter()
+            results, provider, errors = fn(q, lang)
+            self._span(task, "tool:web_search", t0, bool(results), provider=provider or None)
+            task.data["query"] = q
+            task.data["results"] = [r.public() if hasattr(r, "public") else dict(r) for r in results]
+            task.data["search_provider"] = provider
+            if not results:
+                task.data["errors"] = errors
+                only_empty = errors and all(e.endswith(":empty") for e in errors)
+                return ExecResult(False, msg("no_results" if only_empty else "search_failed", lang), verified=False)
+            return ExecResult(True, f"{len(results)} natija ({provider})", verified=True)
+        from .tools.files import find_files
+
+        fn = self.file_fn or find_files
+        t0 = time.perf_counter()
+        paths = fn(q, self.cfg.workspace)
+        self._span(task, "tool:find_file", t0, bool(paths))
+        task.data["query"] = q
+        task.data["results"] = [{"title": Path(p).name, "path": str(p)} for p in paths]
+        if not paths:
+            return ExecResult(False, msg("no_results", lang), verified=False)
+        return ExecResult(True, f"{len(paths)} ta", verified=True)
+
+    def _summarize_search(self, task: TaskRecord) -> str:
+        """Natijalar asosida qisqa javob. Model faqat berilgan natijalardan foydalanadi; bo'lmasa — ro'yxat."""
+        results = task.data.get("results") or []
+        lang = task.language
+        listing = " ".join(f"{i}) {r.get('title', '')}" for i, r in enumerate(results[:3], 1))
+        fallback = f"{msg('found_results', lang)} {listing}"
+        if isinstance(self.provider, RuleBasedProvider):
+            return fallback
+        numbered = "\n".join(f"[{i}] {r.get('title', '')} — {r.get('snippet', '')} ({r.get('url', '')})"
+                              for i, r in enumerate(results[:5], 1))
+        names = {"uz": "Uzbek", "ru": "Russian", "en": "English"}
+        system = ("You answer the user's question using ONLY the numbered web search results below. "
+                  f"Reply with ONE JSON object {{\"answer\": \"...\"}} written in {names.get(lang, 'English')}, "
+                  "2-4 short sentences, cite sources like [1]. If the results do not contain the answer, say so. "
+                  "Never invent facts that are not in the results.")
+        t0 = time.perf_counter()
+        try:
+            raw = self.provider.complete(system, f"Question: {task.data.get('query', '')}\n\nResults:\n{numbered}", None)
+            task.llm_calls += 1
+            from .providers.prompts import parse_json
+
+            answer = str(parse_json(raw).get("answer", "")).strip()
+            self._span(task, "llm:summarize", t0, bool(answer), provider=self.provider.name)
+            return answer or fallback
+        except Exception:  # noqa: BLE001 — model ishlamasa ham natijalar ko'rsatiladi
+            self._span(task, "llm:summarize", t0, False, provider=self.provider.name)
+            return fallback
+        finally:
+            task.timings["llm_ms"] += int((time.perf_counter() - t0) * 1000)
+
+    def _blind_repeat(self, task: TaskRecord, action: Action) -> bool:
+        """Oxirgi qadam muvaffaqiyatsiz bo'lsa va model aynan shu takrorlab bo'lmaydigan harakatni yana so'rasa."""
+        if not task.steps:
+            return False
+        last = task.steps[-1]
+        spec = TOOL_REGISTRY.get(action.type)
+        return (last.status == StepStatus.failed and spec is not None and not spec.idempotent
+                and last.action.model_dump(exclude_none=True) == action.model_dump(exclude_none=True))
 
     def _finish_denied(self, task: TaskRecord, step: StepRecord, cancel_status: bool = True) -> None:
         """Rad etilgan qadamdan keyingi yakun: sababga mos xabar (rad / muddat / to'xtatish / siyosat)."""
@@ -252,30 +369,6 @@ class Agent:
         return [{"index": s.index, "action": s.action.describe(), "status": s.status.value,
                  "detail": s.detail, "expected": s.expected_outcome} for s in task.steps]
 
-    def _try_fast_path(self, task: TaskRecord) -> bool:
-        """Oddiy buyruqni (ilova/sayt ochish, papka yaratish) modelsiz bajaradi.
-
-        Muvaffaqiyatli bo'lsa True. Aks holda bajarilgan qadam tarixda qoladi va
-        model to'liq siklda (ekran + tekshiruv) davom ettiradi.
-        """
-        if not self.cfg.fast_path:
-            return False
-        intent, actions, reply = parse_command(task.instruction, task.language)
-        if intent == "system" and actions:
-            # Ovoz / yorqinlik: aniq tanilgan buyruq — modelsiz, darhol; faqat aytilgan amallar bajariladi
-            return self._run_system(task, actions, reply)
-        if not is_simple(task.instruction) or intent not in FAST_INTENTS or len(actions) != 1:
-            return False
-        step = self._execute(task, actions[0], RiskLevel.low, "")
-        if step.status in (StepStatus.verified, StepStatus.executed):
-            task.intent, task.planner = intent, "rules"
-            task.status, task.final_message = TaskStatus.success, reply
-            return True
-        if step.status == StepStatus.denied:
-            self._finish_denied(task, step)
-            return True
-        return False   # masalan, ilova nomi noto'g'ri tanildi — model davom ettiradi
-
     def _run_system(self, task: TaskRecord, actions: list[Action], reply: str) -> bool:
         task.intent, task.planner = "system", "rules"
         for a in actions:
@@ -289,8 +382,49 @@ class Agent:
         task.status, task.final_message = TaskStatus.success, reply
         return True
 
+    def _run_routed(self, task: TaskRecord) -> str | None:
+        """Marshrut bo'yicha bajarish. Qaytaradi: None — tugadi; matn — modelga beriladigan buyruq (autonomous)."""
+        from .router import route
+
+        t0 = time.perf_counter()
+        r = route(task.instruction, task.language, self.conversation, fast_path=self.cfg.fast_path)
+        self._span(task, "route", t0, True, path=r.path)
+        if r.resolved_from:
+            task.resolved_from = r.resolved_from
+        if r.path == "clarify":
+            task.intent, task.planner = r.intent, "rules"
+            task.status, task.final_message = TaskStatus.failed, r.reply
+            return None
+        if r.path == "autonomous":
+            return r.note or task.instruction
+        task.intent, task.planner = r.intent or task.intent, "rules" if r.path == "fast" else "tool"
+        if r.intent == "system":
+            self._run_system(task, r.actions, r.reply)
+            return None
+        for a in r.actions:
+            step = self._execute(task, a, RiskLevel.low, "")
+            if step.status == StepStatus.denied:
+                self._finish_denied(task, step)
+                return None
+            if step.status == StepStatus.failed:
+                if r.path == "fast" and a.type == "open_app":
+                    task.planner = "llm"      # masalan, ilova nomi noto'g'ri tanildi — model davom ettiradi
+                    return task.instruction
+                task.status, task.final_message = TaskStatus.failed, step.detail
+                return None
+        task.status = TaskStatus.success
+        if r.intent == "web_search" and task.data.get("results"):
+            task.final_message = self._summarize_search(task)
+        elif r.intent == "find_file" and task.data.get("results"):
+            names = ", ".join(x["title"] for x in task.data["results"][:5])
+            task.final_message = f"{msg('files_found', task.language).format(n=len(task.data['results']))} {names}"
+        else:
+            task.final_message = r.reply or msg("done", task.language)
+        return None
+
     def _run_loop(self, task: TaskRecord) -> None:
-        if self._try_fast_path(task):
+        instruction = self._run_routed(task)
+        if instruction is None:
             return
         failures = 0
         for _ in range(self.cfg.max_steps):
@@ -304,10 +438,17 @@ class Agent:
             shot = self.screen_fn() if want_shot else None
             screen = shot if (shot is not None and self.provider.supports_vision) else None
             t1 = time.perf_counter()
-            extra = {"context": shot.context} if (shot is not None and shot.context) else {}
-            decision: Decision = self.provider.decide(task.instruction, self._history(task), screen, task.language,
+            extra: dict[str, Any] = {"context": shot.context} if (shot is not None and shot.context) else {}
+            conv = self.conversation.summary() if self.conversation is not None else ""
+            if conv:
+                extra["conversation"] = conv
+            if shot is not None:
+                self._span(task, "screen", t0, True)
+            decision: Decision = self.provider.decide(instruction, self._history(task), screen, task.language,
                                                       **extra)
             t2 = time.perf_counter()
+            self._span(task, "llm:decide", t1, True, provider=self.provider.name,
+                       model=getattr(self.provider, "model", None))
             if shot is not None and decision.action is not None and decision.action.x is not None \
                     and decision.action.y is not None:
                 # Model rasm koordinatasini qaytaradi; bosish mantiqiy ekran nuqtasida bo'ladi (Retina/masshtab)
@@ -345,6 +486,17 @@ class Agent:
                 task.final_message = decision.final_message or msg("done", task.language)
                 return
 
+            if self._blind_repeat(task, decision.action):
+                # Takrorlab bo'lmaydigan muvaffaqiyatsiz harakatni ko'r-ko'rona qayta bajarmaymiz
+                step = StepRecord(index=len(task.steps) + 1, action=decision.action, status=StepStatus.failed,
+                                  detail=msg("no_repeat", task.language), expected_outcome=decision.expected_outcome)
+                task.steps.append(step)
+                self._emit("step_finished", task, step=step.model_dump(mode="json"))
+                failures += 1
+                if failures > self.cfg.max_retries:
+                    task.status, task.final_message = TaskStatus.failed, msg("too_many_failures", task.language)
+                    return
+                continue
             step = self._execute(task, decision.action, decision.risk, decision.expected_outcome)
             if step.status == StepStatus.failed:
                 failures += 1

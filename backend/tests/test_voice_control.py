@@ -142,7 +142,7 @@ class AutoMic:
         stop.wait(2)
         return np.ones(16000, dtype=np.float32)
 
-    def transcribe(self, audio, language=None):
+    def transcribe(self, audio, language=None, prior=None):
         return Transcript(self.text, language or "uz", 0.9, True, asr_confidence=self.conf)
 
 

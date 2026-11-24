@@ -37,6 +37,9 @@ Action types and fields:
 - create_file {{"path": "~/Desktop/a.txt", "content": "..."}}
 - delete_path {{"path": "..."}}           ALWAYS risk "high"
 - wait {{"seconds": 1.5}}
+- web_search {{"text": "query"}}           search the internet; results are returned to you (read-only)
+- find_file {{"text": "name"}}            find files by name in the user's workspace (read-only)
+- reveal {{"path": "..."}}                show a file/folder in Finder (does not open or run it)
 - system {{"control": "volume_up"|"volume_down"|"volume_set"|"mute"|"unmute"|"brightness_up"|"brightness_down", "amount": 10}}
                                          volume / screen brightness; amount = step in % (or the level for volume_set)
 
@@ -75,9 +78,12 @@ def history_text(history: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def user_turn(instruction: str, history: list[dict[str, Any]], has_screen: bool, context: str = "") -> str:
+def user_turn(instruction: str, history: list[dict[str, Any]], has_screen: bool, context: str = "",
+              conversation: str = "") -> str:
     return (
-        f"User instruction: {instruction}\n\n"
+        (f"Conversation so far (use it to resolve references like 'it', 'that file', 'again'):\n{conversation}\n\n"
+         if conversation else "")
+        + f"User instruction: {instruction}\n\n"
         f"Previous steps:\n{history_text(history)}\n\n"
         + ("The current screenshot is attached." if has_screen else "No screenshot is available.")
         + (f"\n\nScreen context (exact data, prefer it over guessing from pixels):\n{context}" if context else "")

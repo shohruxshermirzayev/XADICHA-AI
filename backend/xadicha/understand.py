@@ -17,7 +17,7 @@ import difflib
 import re
 from dataclasses import asdict, dataclass, field
 
-from .providers.rule_based import APP_ALIASES, is_simple, parse_command
+from .providers.rule_based import APP_ALIASES, KNOWN_APPS, is_simple, parse_command
 
 ASR_LOW = 0.55          # bundan past — eshitilgan matnni ko'rsatib tasdiq so'raladi
 FUZZY_SUGGEST = 0.6     # ilova nomi o'xshashligi shundan yuqori bo'lsa — taklif qilinadi
@@ -25,13 +25,6 @@ FUZZY_EXACT = 0.97
 
 # Tez-tez ishlatiladigan ilovalar (macOS + Windows). Ro'yxatda yo'q ilova ham ochilishi mumkin —
 # u holda shunchaki "noma'lum ilova" deb past ishonch beriladi, taqiqlanmaydi.
-KNOWN_APPS = [
-    "Safari", "Google Chrome", "Firefox", "Microsoft Edge", "Telegram", "WhatsApp", "Notes", "Calculator",
-    "Calendar", "Mail", "Messages", "Music", "Photos", "Finder", "System Settings", "Terminal", "TextEdit",
-    "Preview", "Maps", "FaceTime", "App Store", "Spotify", "Microsoft Word", "Microsoft Excel",
-    "Microsoft PowerPoint", "Visual Studio Code", "Zoom", "Reminders", "Contacts", "Clock", "Weather",
-    "Pages", "Numbers", "Keynote", "Xcode", "Notepad", "File Explorer", "Paint", "Slack", "Discord",
-]
 
 _ALIASES = APP_ALIASES
 

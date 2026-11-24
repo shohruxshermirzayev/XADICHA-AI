@@ -72,6 +72,13 @@ class MacOSAdapter(OSAdapter):
             return ExecResult(True, f"yorqinlik {'+' if code == 144 else '-'}{presses} qadam", verified=None)
         return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
 
+    def _do_reveal(self, a: Action) -> ExecResult:
+        p = Path(a.path or "").expanduser()
+        if not p.exists():
+            return ExecResult(False, f"Topilmadi: {p}", verified=False)
+        r = subprocess.run(["open", "-R", str(p)], capture_output=True, text=True, timeout=10)   # faqat ko'rsatadi
+        return ExecResult(r.returncode == 0, str(p), verified=None if r.returncode == 0 else False)
+
     def _to_trash(self, path: Path) -> None:
         # Finder orqali Savatga — qaytarib olsa bo'ladi
         posix = str(path.resolve()).replace("\\", "\\\\").replace('"', '\\"')

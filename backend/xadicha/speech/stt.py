@@ -35,47 +35,82 @@ def rms_level(samples: np.ndarray) -> float:
 
 
 class Endpointer:
-    """Gapirib bo'lganini sezish (energiya asosida, sof — testlanadi).
+    """Gapirib bo'linganini sezish (energiya asosida, sof — testlanadi).
 
-    - Birinchi `calib_s` soniyada fon shovqini o'lchanadi.
-    - Nutq: RMS > max(min_level, shovqin × ratio) kamida `min_speech_s` davomida.
-    - Nutqdan keyin `silence_s` jimlik — to'xtash. Umuman nutq bo'lmasa — `no_speech_s` dan keyin to'xtash.
-    Qiymatlar real mikrofonda sozlanmagan (docs/LIMITATIONS.md).
+    Algoritm:
+      - Kalibrlash: birinchi `calib_s` da fon shovqini (median RMS) o'lchanadi.
+      - Moslashuvchan shovqin: nutq bo'lmagan bo'laklarda fon darajasi sekin yangilanadi (EMA) — konditsioner
+        yoqilsa yoki xona tinchisa ham chegara mos keladi.
+      - Gisterezis: nutq boshlanishi uchun yuqoriroq chegara (`on_ratio`), davom etishi uchun pastroq (`off_ratio`) —
+        so'z oxiridagi pasayishda erta kesib qo'ymaydi.
+      - Pauzaga chidamlilik: uzoqroq gapirilgan bo'lsa (> `long_speech_s`), jimlik chegarasi biroz uzayadi
+        (gap ichidagi o'ylash pauzasi ko'proq bo'ladi).
+      - Minimal nutq: `min_speech_s` dan qisqa tovush (stol taqillashi) nutq hisoblanmaydi.
+      - Nutq bo'lmasa — `no_speech_s` dan keyin; umumiy chegara — chaqiruvchidagi `max_seconds`.
+    Qiymatlar real mikrofonda kalibrlanmagan — scripts/mac_selftest.py --only vad bilan o'lchanadi.
     """
 
-    def __init__(self, silence_s: float = 0.9, min_speech_s: float = 0.25, no_speech_s: float = 6.0,
-                 calib_s: float = 0.3, ratio: float = 3.0, min_level: float = 0.012):
+    def __init__(self, silence_s: float = 0.9, min_speech_s: float = 0.2, no_speech_s: float = 6.0,
+                 calib_s: float = 0.3, on_ratio: float = 3.0, off_ratio: float = 1.8, min_level: float = 0.008,
+                 long_speech_s: float = 1.5, long_silence_s: float = 1.2, noise_alpha: float = 0.05):
         self.silence_s, self.min_speech_s, self.no_speech_s = silence_s, min_speech_s, no_speech_s
-        self.calib_s, self.ratio, self.min_level = calib_s, ratio, min_level
+        self.calib_s, self.on_ratio, self.off_ratio, self.min_level = calib_s, on_ratio, off_ratio, min_level
+        self.long_speech_s, self.long_silence_s, self.noise_alpha = long_speech_s, long_silence_s, noise_alpha
         self.t = 0.0
         self.noise: list[float] = []
+        self.floor: float | None = None
+        self.in_speech = False
         self.speech_run = 0.0
+        self.speech_total = 0.0
         self.silence_run = 0.0
         self.heard = False
+        self.first_speech_t: float | None = None
+        self.last_speech_t: float | None = None
         self.reason = ""
+
+    def _threshold(self, ratio: float) -> float:
+        return max(self.min_level, (self.floor or 0.0) * ratio)
 
     @property
     def threshold(self) -> float:
-        floor = sorted(self.noise)[len(self.noise) // 2] if self.noise else 0.0
-        return max(self.min_level, floor * self.ratio)
+        return self._threshold(self.on_ratio)
+
+    @property
+    def endpoint_delay_s(self) -> float:
+        """Oxirgi nutq bo'lagidan to'xtash qaroriga qadar o'tgan vaqt (kechikish)."""
+        return 0.0 if self.last_speech_t is None else max(0.0, self.t - self.last_speech_t)
 
     def feed(self, rms: float, dt: float) -> bool:
         """Bitta bo'lak (RMS, davomiyligi). True — yozishni to'xtatish vaqti keldi."""
         self.t += dt
-        if self.t <= self.calib_s and not self.heard:
-            self.noise.append(rms)
-            return False
-        if rms > self.threshold:
+        if self.floor is None:
+            if self.t <= self.calib_s:
+                self.noise.append(rms)
+                return False
+            self.floor = sorted(self.noise)[len(self.noise) // 2] if self.noise else 0.0
+        thr = self._threshold(self.off_ratio if self.in_speech else self.on_ratio)
+        if rms > thr:
             self.speech_run += dt
             self.silence_run = 0.0
-            if self.speech_run >= self.min_speech_s:
+            if self.speech_run >= self.min_speech_s and not self.in_speech:
+                self.in_speech = True
                 self.heard = True
+                self.first_speech_t = self.first_speech_t or (self.t - self.speech_run)
+            if self.in_speech:
+                self.speech_total += dt
+                self.last_speech_t = self.t
         else:
-            self.speech_run = 0.0
+            if not self.in_speech:
+                self.speech_run = 0.0
+                # Faqat nutq yo'q paytda fon yangilanadi (nutqni shovqin deb o'rganib qolmaslik uchun)
+                self.floor = (1 - self.noise_alpha) * self.floor + self.noise_alpha * rms
             self.silence_run += dt
-        if self.heard and self.silence_run >= self.silence_s:
-            self.reason = "silence"
-            return True
+            limit = self.long_silence_s if self.speech_total >= self.long_speech_s else self.silence_s
+            if self.in_speech and self.silence_run >= limit:
+                self.in_speech = False
+                self.speech_run = 0.0
+                self.reason = "silence"
+                return True
         if not self.heard and self.t >= self.no_speech_s:
             self.reason = "no_speech"
             return True
@@ -117,15 +152,23 @@ class Transcript:
     asr_confidence: float | None = None   # nutq tanish ishonchi (0..1); noma'lum bo'lsa None
 
 
+PRIOR_BOOST = 0.15   # tanlangan tilga qo'shimcha og'irlik — "prior", majburlash emas
+
+
 def pick_language(all_probs: list[tuple[str, float]] | None, raw_lang: str,
-                  allowed: tuple[str, ...] = SUPPORTED) -> tuple[str, float]:
-    """Ehtimolliklar ro'yxatidan faqat ruxsat etilgan tillar orasidan eng yuqorisini tanlaydi."""
+                  allowed: tuple[str, ...] = SUPPORTED, prior: str | None = None) -> tuple[str, float]:
+    """Ehtimolliklar ro'yxatidan faqat ruxsat etilgan tillar orasidan eng yuqorisini tanlaydi.
+    prior — foydalanuvchi tanlagan til: unga kichik qo'shimcha beriladi (aniq boshqa til bo'lsa, u yutadi)."""
     probs = dict(all_probs or [])
-    best = max(allowed, key=lambda lang: probs.get(lang, 0.0))
+
+    def score(lang: str) -> float:
+        return probs.get(lang, 0.0) + (PRIOR_BOOST if lang == prior and probs.get(lang, 0.0) > 0 else 0.0)
+
+    best = max(allowed, key=score)
     if probs.get(best, 0.0) > 0:
         return best, float(probs[best])
-    # Ehtimolliklar yo'q bo'lsa: aniqlangan til ruxsat etilgan bo'lsa o'shani, aks holda o'zbekcha
-    return (raw_lang if raw_lang in allowed else "uz"), 0.0
+    # Ehtimolliklar yo'q bo'lsa: aniqlangan til ruxsat etilgan bo'lsa o'shani, aks holda tanlangan til / o'zbekcha
+    return (raw_lang if raw_lang in allowed else (prior if prior in allowed else "uz")), 0.0
 
 
 def mlx_available() -> bool:
@@ -221,7 +264,7 @@ class Listener:
             return np.zeros(0, dtype=np.float32)
         return np.concatenate(chunks)[:, 0]
 
-    def detect(self, audio: np.ndarray) -> tuple[str, float, str]:
+    def detect(self, audio: np.ndarray, prior: str | None = None) -> tuple[str, float, str]:
         """(tanlangan til, ehtimollik, Whisper'ning cheklovsiz aniqlagani)."""
         model = self._load()
         try:
@@ -229,16 +272,17 @@ class Listener:
         except (AttributeError, TypeError):   # faster-whisper'ning eski versiyalari
             _segs, info = model.transcribe(audio, beam_size=1, vad_filter=True)
             raw, all_probs = info.language, getattr(info, "all_language_probs", None)
-        lang, prob = pick_language(all_probs, raw)
+        lang, prob = pick_language(all_probs, raw, prior=prior)
         return lang, prob, raw
 
-    def transcribe(self, audio: np.ndarray, language: str | None = None) -> Transcript:
-        """language=None — uz/ru/en orasidan avtomatik tanlash; "uz"/"ru"/"en" — majburiy til."""
+    def transcribe(self, audio: np.ndarray, language: str | None = None, prior: str | None = None) -> Transcript:
+        """language=None — uz/ru/en orasidan avtomatik tanlash (prior — tanlangan tilga ustunlik);
+        "uz"/"ru"/"en" — majburiy til."""
         if audio.size < SAMPLE_RATE // 4:
             return Transcript("", language or "", 0.0, True)
         if self.engine == "mlx":
             try:
-                return self._transcribe_mlx(audio, language)
+                return self._transcribe_mlx(audio, language, prior)
             except Exception:  # noqa: BLE001 — MLX ishlamasa faster-whisper'ga o'tamiz
                 import logging
 
@@ -248,7 +292,7 @@ class Listener:
         raw = ""
         prob = 1.0
         if language is None:
-            language, prob, raw = self.detect(audio)
+            language, prob, raw = self.detect(audio, prior)
         segments, _info = model.transcribe(audio, language=language, beam_size=5, vad_filter=True,
                                            initial_prompt=PROMPTS.get(language))
         segments = list(segments)
@@ -259,13 +303,14 @@ class Listener:
             text, conf = "", None   # jimlikda Whisper ba'zan matn "o'ylab topadi" — bu nutq emas, bajarilmaydi
         return Transcript(text, language, prob, language in SUPPORTED, detected_raw=raw, asr_confidence=conf)
 
-    def _transcribe_mlx(self, audio: np.ndarray, language: str | None) -> Transcript:
+    def _transcribe_mlx(self, audio: np.ndarray, language: str | None, prior: str | None = None) -> Transcript:
         text, lang, conf = self._mlx_full(audio, language)
         raw = ""
         if language is None and lang not in SUPPORTED:
-            # MLX tilni cheklovsiz aniqlaydi — qo'llab-quvvatlanmaydigan til chiqsa, o'zbekcha deb qayta o'qiymiz
+            # MLX tilni cheklovsiz aniqlaydi — qo'llab-quvvatlanmaydigan til chiqsa (ko'pincha o'zbek → turk/qozoq),
+            # tanlangan til (yoki o'zbekcha) deb qayta o'qiymiz
             raw = lang
-            text, lang, conf = self._mlx_full(audio, "uz")
+            text, lang, conf = self._mlx_full(audio, prior if prior in SUPPORTED else "uz")
         if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(lang, "")) or is_hallucination(text):
             text, conf = "", None
         # MLX til ehtimolligini bermaydi — 1.0 emas, noma'lum deb belgilaymiz

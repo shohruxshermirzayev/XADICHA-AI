@@ -17,7 +17,7 @@ export interface TaskLike<S extends StepLike = StepLike> {
 export const EVENT_TYPES = [
   "hello", "pong", "warm", "task_started", "step_started", "step_finished", "step_verified", "task_finished",
   "confirm_request", "confirm_resolved", "listening", "mic_level", "transcript", "error", "stopped", "spoken",
-  "state", "clarify", "voice_result",
+  "state", "clarify", "voice_result", "conversation_reset",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 

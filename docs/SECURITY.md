@@ -39,6 +39,12 @@ Mahalliy zararli dastur (kompyuterda allaqachon ishlayotgan) — doiradan tashqa
 - `delete_path` — har doim `high`, faqat Savatga (Finder / send2trash).
 - Tasdiq: aniq `True` bo'lsa bajariladi; rad, muddat (120 s), to'xtatish — bajarilmaydi; birinchi javob hisobga olinadi.
 
+**Vositalar**
+- Internet qidiruvi faqat `html.duckduckgo.com` va `{uz,ru,en}.wikipedia.org` ga; CAPTCHA va autentifikatsiya chetlab o'tilmaydi.
+- Fayl qidiruvi faqat workspace ichida, sezgir papkalarsiz, faqat nom bo'yicha (tarkib o'qilmaydi).
+- `reveal` faylni faqat Finder'da ko'rsatadi (`open -R`) — ochmaydi va ishga tushirmaydi.
+- Suhbat xotirasi: maks. 20 navbat (xotirada), 200 (SQLite), `redact()`; ekran/OCR/clipboard saqlanmaydi.
+
 **Klaviatura va clipboard** — `adapters/base.py`
 - `type_text` clipboard orqali joylaydi (kirill uchun) va avvalgi clipboard tarkibini qaytaradi.
 - `pyautogui.FAILSAFE`: sichqonchani ekranning yuqori-chap burchagiga olib borish — favqulodda to'xtatish.

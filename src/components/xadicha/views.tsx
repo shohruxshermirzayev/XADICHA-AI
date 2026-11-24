@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, Check, Loader2, Monitor, Octagon, Pencil, Trash2, X as XIcon } from "lucide-react";
+import { ArrowUp, Check, ChevronDown, ExternalLink, FileText, Loader2, Monitor, Octagon, Pencil, Plus, Trash2, X as XIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { detectCommandLanguage, LANG_LABEL, LANGS, LOCALE, type Lang, type MsgKey } from "@/lib/i18n";
@@ -104,6 +104,10 @@ export function AssistantView({ x, l }: { x: X; l: L }) {
       <Card className="glass flex min-h-[520px] flex-col p-0 xl:h-[calc(100vh-8.5rem)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
           <LangSwitch {...l} />
+          <div className="flex items-center gap-2">
+          <Button variant="ghost" className="h-7 px-2 text-xs" disabled={busy || !x.messages.length} onClick={x.newConversation}>
+            <Plus className="size-3.5" />{t("chat.new")}
+          </Button>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             {t("mode.label")}
             <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} title={t(`mode.${mode}.hint`)}
@@ -111,9 +115,11 @@ export function AssistantView({ x, l }: { x: X; l: L }) {
               {MODES.map((m) => <option key={m} value={m}>{m} — {t(`mode.${m}`)}</option>)}
             </select>
           </label>
+          </div>
         </div>
 
-        <Conversation messages={x.messages} lang={lang} t={t} scrollKey={pending ? 1 : 0}
+        <Conversation messages={x.messages} lang={lang} t={t} scrollKey={(pending ? 1 : 0) + (busy ? 2 : 0)}
+          tasks={x.tasks} current={x.current} thinking={busy && x.phase !== "awaiting_confirmation"}
           onExample={(ex) => !busy && !offline && x.run(ex, lang, mode)} />
 
         <AnimatePresence>
@@ -193,16 +199,22 @@ function Clarification({ p, t, onRun, onEdit, onCancel }: {
 }
 
 const EXAMPLES: Record<Lang, string[]> = {
-  uz: ["Safari ni och", "YouTube'da o'zbek musiqasini qidir", "Desktopda \"Hisobot\" papka yarat", "Ekranda nima bor?"],
-  ru: ["Открой Notes", "Найди погоду в Ташкенте", "Открой kun.uz"],
-  en: ["Open Calculator", "Search Google for Tashkent weather", "What is on my screen?"],
+  uz: ["Safari ni och", "Samarqand haqida qidir", "Ovozini ko'tar", "hisobot faylini top", "Ekranda nima turganini ayt"],
+  ru: ["Открой Notes", "Найди информацию о Самарканде", "Сделай тише", "Опиши, что на экране"],
+  en: ["Open Calculator", "Search for Samarkand", "Volume up", "Describe what is on the screen"],
 };
 
 const GROUP_MS = 2 * 60 * 1000;
 
-function Conversation({ messages, lang, t, onExample, scrollKey = 0 }: {
+function Conversation({ messages, lang, t, onExample, scrollKey = 0, tasks, current, thinking }: {
   messages: ChatMessage[]; lang: Lang; t: T; onExample: (text: string) => void; scrollKey?: number;
+  tasks: Task[]; current: Task | null; thinking: boolean;
 }) {
+  const byId = useMemo(() => {
+    const m = new Map(tasks.map((k) => [k.id, k]));
+    if (current) m.set(current.id, current);
+    return m;
+  }, [tasks, current]);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // Yangi xabar yoki aniqlashtirish kartasi chiqqanda oxirgi xabar ko'rinib tursin
@@ -215,7 +227,8 @@ function Conversation({ messages, lang, t, onExample, scrollKey = 0 }: {
       <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-8 text-center">
         <p className="text-lg font-medium">{t("chat.greeting")}</p>
         <p className="max-w-sm text-sm text-muted-foreground">{t("chat.intro")}</p>
-        <div className="mt-4 flex max-w-lg flex-wrap justify-center gap-2">
+        <p className="mt-4 text-xs text-muted-foreground">{t("chat.examplesTitle")}</p>
+        <div className="flex max-w-lg flex-wrap justify-center gap-2">
           {EXAMPLES[lang].map((ex) => (
             <button key={ex} lang={lang} onClick={() => onExample(ex)}
               className="rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
@@ -249,12 +262,113 @@ function Conversation({ messages, lang, t, onExample, scrollKey = 0 }: {
                   <div className="mt-1"><TaskStatus status={m.status} t={t} /></div>
                 )}
               </div>
+              {m.role === "assistant" && m.taskId && byId.get(m.taskId) && (
+                <TaskCard task={byId.get(m.taskId)!} lang={lang} t={t} />
+              )}
               {endsGroup && <time className="mt-1 px-1 text-[10px] text-muted-foreground" dateTime={new Date(m.ts).toISOString()}>{fmt(m.ts)}</time>}
             </motion.div>
           );
         })}
       </AnimatePresence>
+      {thinking && (
+        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+          <span className="inline-flex gap-1 rounded-2xl rounded-bl-md bg-muted px-3 py-2.5" aria-hidden>
+            <span className="size-1.5 animate-bounce rounded-full bg-secondary [animation-delay:-0.3s]" />
+            <span className="size-1.5 animate-bounce rounded-full bg-secondary [animation-delay:-0.15s]" />
+            <span className="size-1.5 animate-bounce rounded-full bg-secondary" />
+          </span>
+          {t("chat.thinking")}
+        </div>
+      )}
       <div ref={end} />
+    </div>
+  );
+}
+
+/** Suhbat ichidagi ixcham vazifa kartochkasi: natijalar (manbalar / fayllar) va ochiladigan tafsilotlar. */
+function TaskCard({ task, lang, t }: { task: Task; lang: Lang; t: T }) {
+  const [open, setOpen] = useState(false);
+  const results = task.data?.results ?? [];
+  const isSearch = results.some((r) => r.url);
+  const isFiles = results.some((r) => r.path);
+  const total = (task.trace ?? []).reduce((a, s) => a + s.ms, 0);
+  return (
+    <div className="mt-1.5 w-full max-w-[82%] space-y-2">
+      {task.resolved_from && (
+        <p className="px-1 text-[11px] text-muted-foreground">
+          {t("card.resolved", { from: task.resolved_from })} {task.steps[0] ? describeAction(task.steps[0].action, lang) : ""}
+        </p>
+      )}
+      {isSearch && (
+        <div className="rounded-xl border border-border bg-card/60 p-3">
+          <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+            {t("card.sources")}{task.data?.search_provider ? ` · ${t("card.via", { p: task.data.search_provider })}` : ""}
+          </p>
+          <ol className="space-y-2">
+            {results.slice(0, 5).map((r, i) => (
+              <li key={r.url ?? i} className="text-xs">
+                <a href={r.url} target="_blank" rel="noreferrer noopener"
+                  className="inline-flex items-start gap-1 font-medium text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-ring">
+                  <span className="text-muted-foreground">[{i + 1}]</span>{r.title}<ExternalLink className="mt-0.5 size-3 shrink-0" aria-hidden />
+                </a>
+                {r.snippet && <p className="mt-0.5 line-clamp-2 text-muted-foreground">{r.snippet}</p>}
+                <p className="truncate text-[10px] text-muted-foreground/80">{r.url}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      {isFiles && (
+        <div className="rounded-xl border border-border bg-card/60 p-3">
+          <p className="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{t("card.files")}</p>
+          <ul className="space-y-1">
+            {results.slice(0, 8).map((r) => (
+              <li key={r.path} className="flex items-center gap-1.5 truncate text-xs" title={r.path}>
+                <FileText className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />{r.title}
+                <span className="truncate text-[10px] text-muted-foreground">{r.path}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {(task.steps.length > 0 || (task.trace?.length ?? 0) > 0) && (
+        <div>
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+            className="inline-flex items-center gap-1 px-1 text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+            <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} aria-hidden />
+            {open ? t("card.hide") : t("card.details")} · {t("card.steps", { n: task.steps.length })} · {latency(task)}
+          </button>
+          {open && (
+            <div className="mt-1.5 space-y-2 rounded-xl border border-border bg-card/60 p-3 text-xs">
+              <ol className="space-y-1">
+                {task.steps.map((s) => (
+                  <li key={s.index} className="flex items-start gap-2">
+                    <StepIcon step={s} t={t} />
+                    <span className="min-w-0 flex-1 break-words">{describeAction(s.action, lang)}
+                      {s.detail && <span className="text-muted-foreground"> — {s.detail}</span>}</span>
+                    <RiskBadge risk={s.risk} t={t} />
+                  </li>
+                ))}
+              </ol>
+              {(task.trace?.length ?? 0) > 0 && (
+                <div>
+                  <p className="mb-1 text-[11px] text-muted-foreground">{t("card.trace")}</p>
+                  <ul className="space-y-0.5">
+                    {(task.trace ?? []).map((sp, i) => (
+                      <li key={i} className="grid grid-cols-[110px_1fr_56px] items-center gap-2 text-[11px]">
+                        <span className={cn("truncate", !sp.ok && "text-destructive")}>{sp.stage}</span>
+                        <span className="h-1 rounded-full bg-muted"><span className="block h-full rounded-full bg-primary/70"
+                          style={{ width: `${total ? Math.max(2, (sp.ms / total) * 100) : 2}%` }} /></span>
+                        <span className="text-right tabular-nums text-muted-foreground">{sp.ms} ms</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

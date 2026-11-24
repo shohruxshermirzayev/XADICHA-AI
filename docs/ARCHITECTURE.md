@@ -30,6 +30,27 @@ Brauzer — Next.js (:3000)                         Python backend — FastAPI (
   ishga tushgan) yangi holat qabul qilinadi. Sarlavha, yordamchi, vazifa paneli va dashboard bitta `phase`/`busy` dan o'qiydi.
 - Panelda `running` qolib, backend `idle` bo'lsa (`task_finished` yo'qolgan) — vazifa `/api/tasks/{id}` dan qayta olinadi.
 
+## Marshrutlash (router.py)
+
+```
+buyruq → suhbat konteksti (havola: "uni", "shu fayl", "birinchisi", "yana") → til (lang.py)
+      → fast        : ovoz/yorqinlik, ma'lum ilova, sayt, papka, "Google'da qidir" (brauzerda) — modelsiz
+      → tool        : web_search (DuckDuckGo/Wikipedia → natijalar → model faqat shulardan qisqa javob)
+                      find_file (workspace), reveal (Finder'da ko'rsatish)
+      → autonomous  : LLM sikli (ekran + OCR/AX + suhbat konteksti) → qadam → tekshiruv → tiklanish
+      → clarify     : obyekt yetishmaydi ("shu faylni top", kontekstda fayl yo'q) → savol
+```
+
+**Vositalar reyestri** (`models.TOOL_REGISTRY`): har harakat — `read_only`, `idempotent`, `timeout_s`, `verify`.
+Adapter chaqiruvi vaqt chegarasi bilan; yiqilgan va takrorlab bo'lmaydigan harakatni (type_text, click, …) model aynan
+qayta so'rasa — bajarilmaydi ("ko'r-ko'rona takrorlash" bloki). Model ixtiyoriy qobiq buyrug'i bera olmaydi.
+
+**Suhbat konteksti** (`conversation.py`): chegaralangan (20 navbat), sessiyali, matnlar `redact()` dan o'tadi; ekran,
+OCR yoki fayl tarkibi saqlanmaydi. SQLite `turns` jadvali — sessiyada maks. 200 navbat.
+
+**Vaqt izi** (`TaskRecord.trace`): `audio_capture`, `vad_endpoint`, `asr`, `route`, `screen`, `llm:decide`,
+`exec:<harakat>`, `tool:web_search`, `llm:summarize`, `tts` — ms, ok, provayder/model; matn tarkibisiz.
+
 ## Vazifa hayot sikli
 
 ```

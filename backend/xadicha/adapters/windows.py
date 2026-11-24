@@ -78,6 +78,13 @@ class WindowsAdapter(OSAdapter):
             return ExecResult(True, f"yorqinlik {r.stdout.strip()}%", verified=None)
         return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
 
+    def _do_reveal(self, a: Action) -> ExecResult:
+        p = Path(a.path or "").expanduser()
+        if not p.exists():
+            return ExecResult(False, f"Topilmadi: {p}", verified=False)
+        subprocess.run(["explorer", f"/select,{p}"], capture_output=True, timeout=10)   # explorer chiqish kodi ishonchsiz
+        return ExecResult(True, str(p), verified=None)
+
     def _to_trash(self, path: Path) -> None:
         try:
             from send2trash import send2trash

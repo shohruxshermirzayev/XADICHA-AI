@@ -18,6 +18,8 @@ from .models import Action, Mode, RiskLevel, TaskRecord
 from .providers import LLMProvider, ProviderError, RuleBasedProvider, make_provider
 from .speech.stt import Endpointer, Listener, Transcript
 from .understand import understand
+from .conversation import Conversation, Turn
+from .lang import refine_asr_language
 from .speech.tts import Speaker
 from .storage import Storage
 
@@ -168,6 +170,35 @@ class XadichaService:
         self.agent = Agent(cfg, self.provider, self.adapter, self.storage, confirm=self._confirm,
                            on_event=self.emit, screen_fn=screen_fn)
         self.agent.text_context = self._context_usable()
+        self.conversation = self._restore_conversation()
+        self.agent.conversation = self.conversation
+        self._voice_trace: list[dict[str, Any]] = []
+
+    # --- suhbat ---
+    def _restore_conversation(self) -> Conversation:
+        """Oxirgi suhbatni tiklaydi: navbatlar matni va (vazifalardan) obyektlar — "uni yana och" ishlashi uchun."""
+        sid = self.storage.latest_session()
+        conv = Conversation(sid)
+        if not sid:
+            return conv
+        for t in self.storage.list_turns(sid, 40):
+            if t["role"] == "assistant" and t.get("task_id"):
+                task = self.storage.get_task(t["task_id"])
+                if task is not None:
+                    conv.add_task(task)
+                    continue
+            conv.turns.append(Turn(t["role"], t["text"], t.get("lang") or "", t.get("task_id"), t.get("status"), t["ts"]))
+        return conv
+
+    def new_conversation(self) -> str:
+        self.conversation.clear()
+        self.agent.conversation = self.conversation
+        self.emit({"type": "conversation_reset", "session_id": self.conversation.session_id})
+        return self.conversation.session_id
+
+    def conversation_public(self) -> dict[str, Any]:
+        return {"session_id": self.conversation.session_id,
+                "turns": self.storage.list_turns(self.conversation.session_id, 200)}
 
     # --- ekran konteksti ---
     def _context_usable(self) -> bool:
@@ -231,7 +262,9 @@ class XadichaService:
             "stt": cap("not_tested" if self.stt_ready else "unavailable",
                        f"{self.listener.engine} · {self.cfg.whisper_model}" if self.stt_ready
                        else (self.stt_error or "model hali yuklanmagan")),
-            "tts": cap("not_tested", self.cfg.tts_engine) if (self.cfg.tts_enabled and tts_any)
+            "tts": cap("not_tested", f"{self.cfg.tts_engine}: " + ", ".join(
+                f"{lg}={self.speaker.voice_for(lg) or '—'}" for lg in ("uz", "ru", "en")))
+            if (self.cfg.tts_enabled and tts_any)
             else cap("unavailable", "o'chirilgan" if not self.cfg.tts_enabled else "ovoz topilmadi"),
             "windows_ui_automation": cap("not_implemented", "rejada"),
         }
@@ -323,17 +356,26 @@ class XadichaService:
                     self.current_task = e["task_id"]
 
             unsub = self.subscribe(track)
+            self.storage.save_turn(self.conversation.session_id, self.conversation.add_user(instruction, language))
+            voice_trace, self._voice_trace = self._voice_trace, []
             try:
                 task = self.agent.run(instruction, language, mode, clear_cancel=not _locked)
             finally:
                 unsub()
+            if voice_trace:
+                task.trace = voice_trace + task.trace   # ovoz bosqichlari (yozish, endpoint, ASR) vazifa iziga qo'shiladi
+            self.storage.save_turn(self.conversation.session_id, self.conversation.add_task(task))
             if speak and task.final_message:
                 self.speaking = True
                 self._emit_state()
+                t_tts = time.perf_counter()
                 try:
                     spoken = self.speaker.say(task.final_message, task.language)
                 finally:
                     self.speaking = False
+                task.trace.append({"stage": "tts", "ms": int((time.perf_counter() - t_tts) * 1000), "ok": bool(spoken),
+                                   "provider": self.speaker.engine})
+                self.storage.save_task(task)
                 self.emit({"type": "spoken", "task_id": task.id, "text": task.final_message, "audio": spoken})
             return task
         finally:
@@ -378,7 +420,8 @@ class XadichaService:
         self._emit_state()
 
     def start_listening(self, language: str | None = None, auto: bool = False,
-                        mode: Mode = Mode.multimodal) -> str:
+                        mode: Mode = Mode.multimodal, force_language: bool = False) -> str:
+        """language — tanlangan til: odatda "prior" (ustunlik), force_language=True bo'lsa — majburiy (CLI --lang)."""
         """Mikrofonni faqat backend (sounddevice) yozadi; interfeys ovoz darajasini `mic_level` hodisasidan oladi.
         Qaytaradi: joriy holat ("recording" yoki allaqachon ketayotgan holat)."""
         if self._listen_thread and self._listen_thread.is_alive():
@@ -401,15 +444,30 @@ class XadichaService:
 
         def work() -> None:
             try:
+                t_rec = time.perf_counter()
                 if endpointer is not None:
                     audio = self.listener.record_until(stop_ev, on_level=on_level, endpointer=endpointer)
                 else:
                     audio = self.listener.record_until(stop_ev, on_level=on_level)
+                trace = [{"stage": "audio_capture", "ms": int((time.perf_counter() - t_rec) * 1000), "ok": True}]
+                if endpointer is not None and endpointer.reason:
+                    trace.append({"stage": "vad_endpoint", "ms": int(endpointer.endpoint_delay_s * 1000), "ok": True,
+                                  "reason": endpointer.reason})
                 if self._listen_cancelled:
                     return
                 self._set_listening("transcribing")
-                self._listen_result = self.listener.transcribe(audio, language)
+                t_asr = time.perf_counter()
+                if force_language:
+                    self._listen_result = self.listener.transcribe(audio, language)
+                else:
+                    self._listen_result = self.listener.transcribe(audio, None, prior=language)
                 r = self._listen_result
+                trace.append({"stage": "asr", "ms": int((time.perf_counter() - t_asr) * 1000), "ok": bool(r.text),
+                              "provider": getattr(self.listener, "engine", None),
+                              "model": getattr(self.listener, "model_name", None)})
+                if r.text and not force_language:
+                    r.language = refine_asr_language(r.text, r.language, r.probability or None, language)
+                self._voice_trace = trace
                 if r.text:
                     self.emit({"type": "transcript", "text": r.text, "language": r.language,
                                "probability": r.probability, "supported": r.supported})

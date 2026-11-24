@@ -320,7 +320,7 @@ class FakeListener:
                 on_level(0.5)
         return np.ones(16_000, dtype=np.float32)
 
-    def transcribe(self, audio, language=None):
+    def transcribe(self, audio, language=None, prior=None):
         self.transcribed += 1
         return Transcript("Notes ni och", language or "uz", 1.0, True)
 

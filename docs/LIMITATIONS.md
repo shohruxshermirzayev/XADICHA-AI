@@ -13,7 +13,20 @@
 - Ovoz/yorqinlik boshqaruvi: macOS'da sinalmagan; yorqinlik tugmalari tashqi monitorda ishlamasligi mumkin va
   natijasini dasturiy tekshirib bo'lmaydi. Windows'da ovoz — multimedia tugmalari, yorqinlik — WMI (sinalmagan).
 
+- Internet qidiruvi (DuckDuckGo HTML — rasmiy API emas, sahifa tuzilishi o'zgarishi yoki CAPTCHA so'rashi mumkin;
+  Wikipedia — zaxira) real tarmoqda sinalmagan.
+- `lang.py`, `router.py`, `understand.py` — qoida asosida; 127 buyruqli korpusda 100% (lekin xatolar AYNAN shu korpusda
+  topilib tuzatilgan — bu regressiya testi, umumlashtirish aniqligi emas; tuzatishdan oldin: LID 92.1%, niyat 96.9%).
+- macOS `say` da o'zbek ovozi yo'q: o'zbekcha javob faqat `TTS_ENGINE=edge` bilan aytiladi (internet kerak); boshqa
+  tildagi ovoz bilan o'qitilmaydi. Talaffuz tinglash testidan o'tmagan.
+
 ## Amalga oshirilmagan
+
+- Javoblarni oqim (streaming) bilan chiqarish va gap-gap TTS (hozir — to'liq javob, "o'ylayapman" ko'rsatkichi).
+- Brauzerda DOM orqali boshqarish (Playwright) — brauzer vazifalari hozir open_url + ekran/koordinata.
+- Accessibility elementini to'g'ridan-to'g'ri bosish (AX daraxti faqat modelga matnli kontekst).
+- Mustaqil o'qish amallarini parallel bajarish (bog'liqlik grafigi) — hozir ketma-ket.
+- Ekran o'zgarmaganda suratni qayta olmaslik (har LLM qadamida yangi surat).
 
 - Windows OCR va UI Automation.
 - Accessibility daraxti orqali to'g'ridan-to'g'ri element bosish (hozir faqat matnli kontekst modelga beriladi).
