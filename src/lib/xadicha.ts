@@ -1,91 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parseEvent, reconnectDelay, upsertStep } from "./events";
+import { parseEvent, reconnectDelay } from "./events";
 import { translate, type Lang, type MsgKey } from "./i18n";
+import { applyEvent, applyStatus, initialState, isBusy, staleRunningTask, type UiState } from "./state";
 
 export type { Lang } from "./i18n";
 
 export const API = process.env.NEXT_PUBLIC_XADICHA_API ?? "http://127.0.0.1:8765";
 
-export type Mode = "A" | "B" | "C";
-export type Risk = "low" | "medium" | "high";
+import type { Action, ChatMessage, Mode, Status, Task, Transcript } from "./types";
 
-export interface Action {
-  type: string;
-  app?: string | null;
-  url?: string | null;
-  x?: number | null;
-  y?: number | null;
-  text?: string | null;
-  keys?: string[] | null;
-  path?: string | null;
-}
-
-export interface Step {
-  index: number;
-  action: Action;
-  expected_outcome: string;
-  risk: Risk;
-  status: "executed" | "verified" | "failed" | "denied" | "error";
-  detail: string;
-  verified: boolean | null;
-  duration_ms: number;
-}
-
-export interface Task {
-  id: string;
-  instruction: string;
-  language: string;
-  mode: Mode;
-  intent: string;
-  planner?: "rules" | "llm";
-  steps: Step[];
-  risk: Risk;
-  status: "running" | "success" | "failed" | "cancelled";
-  final_message: string;
-  retries: number;
-  recoveries: number;
-  llm_calls: number;
-  timings?: { screen_ms: number; llm_ms: number; exec_ms: number };
-  started_at: number;
-  finished_at: number | null;
-}
-
-export type Listening = "idle" | "recording" | "transcribing";
-
-export interface Status {
-  os: string;
-  adapter: string;
-  provider: { name: string; ok: boolean; detail: string; vision: boolean };
-  config: Record<string, string | number | boolean>;
-  stats: { total: number; success: number; failed: number; cancelled: number; success_rate: number | null };
-  busy: boolean;
-  current_task: string | null;
-  pending_confirmation: Confirmation | null;
-  listening?: Listening;
-  capabilities?: { screenshot_vision: boolean; ocr: boolean; accessibility_tree: boolean };
-  permissions: Record<string, boolean | null>;
-  tts: Record<Lang, boolean>;
-  stt_engine?: string;
-}
-
-export interface Confirmation {
-  id?: string;            // eski backend versiyalarida bo'lmasligi mumkin
-  task_id: string;
-  description: string;
-  risk: Risk;
-  reason: string;
-  expires_at?: number;    // unix soniya
-}
-
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "system";
-  text: string;
-  lang?: string;
-  status?: Task["status"];
-}
+export type * from "./types";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -93,15 +19,47 @@ export class ApiError extends Error {
   }
 }
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Mahalliy sessiya kaliti: backend ishga tushganda yaratadi, faqat localhost sahifasi /api/session orqali oladi.
+ * Har bir so'rov X-Xadicha-Token sarlavhasi bilan yuboriladi — boshqa saytdan CSRF so'rovi uni bila olmaydi,
+ * maxsus sarlavha esa CORS preflight'ni majburiy qiladi.
+ */
+let token: string | null = null;
+let tokenPromise: Promise<string> | null = null;
+
+async function getToken(): Promise<string> {
+  if (token) return token;
+  tokenPromise ??= fetch(`${API}/api/session`, { credentials: "omit" })
+    .then(async (r) => {
+      if (!r.ok) throw new ApiError(`session ${r.status}`, r.status);
+      const t = String((await r.json()).token ?? "");
+      token = t;
+      return t;
+    })
+    .finally(() => { tokenPromise = null; });
+  return tokenPromise;
+}
+
+export function wsUrl(t: string): string {
+  return API.replace(/^http/, "ws") + `/api/ws?token=${encodeURIComponent(t)}`;
+}
+
+async function call<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
   let r: Response;
   try {
+    const t = await getToken();
     r = await fetch(`${API}${path}`, {
       ...init,
-      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+      credentials: "omit",
+      headers: { "content-type": "application/json", "x-xadicha-token": t, ...(init?.headers ?? {}) },
     });
   } catch (e) {
+    if (e instanceof ApiError) throw e;
     throw new ApiError((e as Error).message || "network error", 0);   // backend ishlamayapti / tarmoq
+  }
+  if (r.status === 401 && !retried) {
+    token = null;   // backend qayta ishga tushgan — yangi kalit olib, bir marta qayta urinamiz
+    return call<T>(path, init, true);
   }
   if (!r.ok) {
     let msg = `${r.status}`;
@@ -135,38 +93,38 @@ export function describeAction(a: Action, lang: Lang = "uz"): string {
 
 /** Backend bilan butun aloqa: holat, vazifalar, WebSocket hodisalari, amallar. */
 export function useXadicha(uiLang: Lang = "uz") {
-  const [status, setStatus] = useState<Status | null>(null);
+  const [st, setSt] = useState<UiState>(initialState);
   const [online, setOnline] = useState<boolean | null>(null);
   const [wsOpen, setWsOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [current, setCurrent] = useState<Task | null>(null);
-  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  const [listening, setListening] = useState<Listening>("idle");
-  const [micLevel, setMicLevel] = useState(0);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const stRef = useRef(st);
   const wsRef = useRef<WebSocket | null>(null);
-  const currentRef = useRef<Task | null>(null);
   const announced = useRef(new Set<string>());     // javobi chatga qo'shilgan vazifalar (takrorlanmasin)
   const confirmBusyRef = useRef(false);
-  // Har bir WebSocket tasdiq/tinglash hodisasi "davr"ni oshiradi. Undan oldin boshlangan HTTP so'rov
-  // natijasi eskirgan hisoblanadi va yangi holatni bosib qo'ymaydi (polling ↔ WebSocket ziddiyati).
-  const confirmEpoch = useRef(0);
-  const listenEpoch = useRef(0);
   const langRef = useRef(uiLang);
 
-  useEffect(() => {
-    currentRef.current = current;
-  }, [current]);
   useEffect(() => {
     langRef.current = uiLang;
   }, [uiLang]);
 
-  const push = useCallback((m: Omit<ChatMessage, "id">) => {
-    setMessages((prev) => [...prev, { ...m, id: `${Date.now()}-${Math.random()}` }]);
+  /** Holatni o'zgartirish: ref darhol yangilanadi (keyingi hodisa eski holatni ko'rmasligi uchun). */
+  const update = useCallback((fn: (s: UiState) => UiState) => {
+    const next = fn(stRef.current);
+    if (next === stRef.current) return;
+    if ((next.confirmation?.id ?? next.confirmation?.task_id) !== (stRef.current.confirmation?.id ?? stRef.current.confirmation?.task_id)) {
+      setConfirmError(null);
+    }
+    stRef.current = next;
+    setSt(next);
+  }, []);
+
+  const push = useCallback((m: Omit<ChatMessage, "id" | "ts">) => {
+    setMessages((prev) => [...prev, { ...m, id: `${Date.now()}-${Math.random()}`, ts: Date.now() }]);
   }, []);
 
   const announce = useCallback((t: Task) => {
@@ -175,49 +133,31 @@ export function useXadicha(uiLang: Lang = "uz") {
     push({ role: "assistant", text: t.final_message || "—", status: t.status, lang: t.language });
   }, [push]);
 
-  const confirmRef = useRef<Confirmation | null>(null);
-  useEffect(() => {
-    confirmRef.current = confirmation;
-  }, [confirmation]);
+  /** Panelda "bajarilmoqda" qolib ketgan vazifani backend'dan qayta oladi. */
+  const syncTask = useCallback(async () => {
+    const id = staleRunningTask(stRef.current);
+    if (!id) return;
+    const task = await call<Task>(`/api/tasks/${id}`).catch(() => null);
+    if (!task) return;
+    update((s) => (s.current && s.current.id === task.id && s.current.status !== "running" && task.status === "running"
+      ? s : { ...s, current: task }));
+    announce(task);
+  }, [announce, update]);
 
-  const applyConfirmation = useCallback((p: Confirmation | null) => {
-    const prev = confirmRef.current;
-    if (prev && p && (prev.id ?? prev.task_id) === (p.id ?? p.task_id)) return;   // o'sha dialog — xato matni saqlanadi
-    confirmRef.current = p;
-    setConfirmation(p);
-    setConfirmError(null);
-  }, []);
-
-  /** Holatni HTTP orqali tiklaydi: qayta ulanganda, WebSocket o'chiq bo'lganda va vazifa tugaganda. */
+  /** HTTP orqali tiklash: qayta ulanganda, WebSocket yo'q paytda va vazifa tugaganda. */
   const refresh = useCallback(async (): Promise<boolean> => {
-    const ce = confirmEpoch.current;
-    const le = listenEpoch.current;
     try {
       const [s, t] = await Promise.all([call<Status>("/api/status"), call<Task[]>("/api/tasks?limit=100")]);
-      setStatus(s);
+      update((cur) => applyStatus(cur, s));   // eskirgan javob (seq kichik) band/tasdiq holatini bosmaydi
       setTasks(t);
       setOnline(true);
-      if (ce === confirmEpoch.current) applyConfirmation(s.pending_confirmation);
-      if (le === listenEpoch.current && s.listening) {
-        setListening(s.listening);
-        if (s.listening !== "recording") setMicLevel(0);
-      }
-      // Joriy vazifani tiklash: uzilish paytida boshlangan yoki tugagan bo'lishi mumkin
-      const cur = currentRef.current;
-      const id = s.current_task ?? (cur?.status === "running" ? cur.id : null);
-      if (id) {
-        const task = await call<Task>(`/api/tasks/${id}`).catch(() => null);
-        if (task) {
-          setCurrent((prev) => (prev && prev.id === task.id && prev.status !== "running" ? prev : task));
-          announce(task);
-        }
-      }
+      await syncTask();
       return true;
     } catch {
       setOnline(false);
       return false;
     }
-  }, [announce, applyConfirmation]);
+  }, [update, syncTask]);
 
   // WebSocket — bitta ulanish, eksponensial qayta ulanish, noto'g'ri xabarlarga chidamli
   useEffect(() => {
@@ -229,77 +169,54 @@ export function useXadicha(uiLang: Lang = "uz") {
     const handle = (raw: unknown) => {
       const e = parseEvent(raw);
       if (!e) return;   // noto'g'ri yoki noma'lum xabar — e'tiborsiz
+      const before = stRef.current;
+      update((s) => applyEvent(s, e));
+      const applied = stRef.current !== before || e.type === "hello";
       switch (e.type) {
-        case "hello": {
-          const s = e.status as Status;
-          setStatus(s);
-          confirmEpoch.current++;
-          applyConfirmation(s.pending_confirmation ?? null);
-          if (s.listening) {
-            listenEpoch.current++;
-            setListening(s.listening);
-          }
+        case "hello":
           refresh();   // tarix va joriy vazifani tiklash
           break;
-        }
-        case "task_started":
-          setCurrent(e.task as Task);
-          setStatus((s) => (s ? { ...s, busy: true, current_task: (e.task as Task).id } : s));
-          break;
-        case "step_started":
-        case "step_finished":
-        case "step_verified":
-          setCurrent((t) => upsertStep(t, e.task_id as string, e.step as Step));
-          break;
-        case "task_finished": {
-          const task = e.task as Task;
-          setCurrent(task);
-          announce(task);
+        case "task_finished":
+          if (applied) announce(e.task as Task);
           refresh();
           break;
-        }
-        case "confirm_request":
-          confirmEpoch.current++;
-          applyConfirmation(e as unknown as Confirmation);
-          break;
-        case "confirm_resolved": {
-          confirmEpoch.current++;
-          const c = confirmRef.current;
-          if (c && (e.id && c.id ? c.id === e.id : c.task_id === e.task_id)) applyConfirmation(null);
-          break;
-        }
-        case "listening":
-          listenEpoch.current++;
-          setListening(e.state as Listening);
-          if (e.state !== "recording") setMicLevel(0);
-          break;
-        case "mic_level":
-          setMicLevel(e.level as number);
+        case "state":
+          if (applied && !e.busy) {
+            syncTask();
+            call<Task[]>("/api/tasks?limit=100").then(setTasks).catch(() => {});
+          }
           break;
         case "transcript":
-          if (typeof e.text === "string" && e.text) push({ role: "user", text: e.text, lang: e.language as string });
+          if (applied && typeof e.text === "string" && e.text) push({ role: "user", text: e.text, lang: e.language as string });
           break;
         case "error":
-          setError(e.message as string);
-          push({ role: "system", text: e.message as string });
+          if (applied) {
+            setError(e.message as string);
+            push({ role: "system", text: e.message as string });
+          }
           break;
       }
     };
 
-    const connect = () => {
+    const connect = async () => {
       if (disposed) return;
       const prev = wsRef.current;
       if (prev && (prev.readyState === WebSocket.OPEN || prev.readyState === WebSocket.CONNECTING)) return;   // takroriy ulanish yo'q
       let ws: WebSocket;
       try {
-        ws = new WebSocket(API.replace(/^http/, "ws") + "/api/ws");
+        const t = await getToken();
+        if (disposed || wsRef.current) return;
+        ws = new WebSocket(wsUrl(t));
       } catch {
+        clearTimeout(retry);
         retry = setTimeout(connect, reconnectDelay(attempt++));
         return;
       }
       wsRef.current = ws;
+      let opened = false;
       ws.onopen = () => {
         if (wsRef.current !== ws) return;
+        opened = true;
         attempt = 0;
         setOnline(true);
         setWsOpen(true);
@@ -312,11 +229,14 @@ export function useXadicha(uiLang: Lang = "uz") {
         if (wsRef.current === ws) handle(ev.data);
       };
       ws.onerror = () => ws.close();
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         if (wsRef.current !== ws) return;   // eski ulanish — e'tiborsiz
         wsRef.current = null;
         clearInterval(ping);
         setWsOpen(false);
+        // Ulanish umuman ochilmagan bo'lsa — kalit eskirgan bo'lishi mumkin (backend qayta ishga tushgan);
+        // brauzer rad etish kodini (4401) ko'rsatmaydi, shuning uchun kalitni yangidan olamiz
+        if (!opened || ev.code === 4401) token = null;
         if (disposed) return;
         refresh();   // WebSocket uzilsa ham HTTP ishlashi mumkin
         clearTimeout(retry);
@@ -325,9 +245,9 @@ export function useXadicha(uiLang: Lang = "uz") {
     };
 
     connect();
-    // Zaxira: WebSocket ochiq bo'lmasa, holatni HTTP orqali yangilab turamiz (WebSocket ochiq bo'lsa — so'rov yo'q)
+    // Zaxira: WebSocket yo'q paytda holatni HTTP orqali yangilab turamiz (ochiq bo'lsa — so'rov yo'q)
     const poll = setInterval(async () => {
-      if (wsRef.current) return;   // ulanish ochiq yoki ulanmoqda — HTTP so'rov kerak emas
+      if (wsRef.current) return;
       if (await refresh() && !disposed && !wsRef.current) {
         // Backend qaytdi — WebSocket'ni navbatdagi kutish vaqtini kutmasdan darhol ulaymiz
         clearTimeout(retry);
@@ -344,7 +264,7 @@ export function useXadicha(uiLang: Lang = "uz") {
       wsRef.current = null;
       ws?.close();
     };
-  }, [refresh, push, announce, applyConfirmation]);
+  }, [refresh, push, announce, update, syncTask]);
 
   const run = useCallback(async (instruction: string, language: Lang, mode: Mode = "C", fromVoice = false) => {
     setError(null);
@@ -358,30 +278,36 @@ export function useXadicha(uiLang: Lang = "uz") {
     }
   }, [push]);
 
+  /** Buyruq matnini bajarmasdan tahlil qiladi (aniqlashtirish kerakmi). */
+  const analyze = useCallback(async (text: string, language: Lang) => {
+    try {
+      return await call<Transcript["analysis"]>("/api/understand", { method: "POST", body: JSON.stringify({ text, language }) });
+    } catch {
+      return undefined;
+    }
+  }, []);
+
   /** language — tanlangan til (o'zbek nutqi boshqa til deb adashib aniqlanmasligi uchun). */
   const startListening = useCallback(async (language?: Lang) => {
     setError(null);
     try {
-      const r = await call<{ ok: boolean; state?: Listening }>(
+      const r = await call<{ ok: boolean; state?: UiState["listening"] }>(
         `/api/listen/start${language ? `?language=${language}` : ""}`, { method: "POST" });
       // WebSocket uzilgan bo'lsa ham tugma holati haqiqiy yozuv bilan mos bo'lsin
-      listenEpoch.current++;
-      setListening(r.state ?? "recording");
+      update((s) => ({ ...s, listening: r.state ?? "recording" }));
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
       push({ role: "system", text: msg });
-      setListening("idle");
+      update((s) => ({ ...s, listening: "idle", micLevel: 0 }));
     }
-  }, [push]);
+  }, [push, update]);
 
-  /** Tinglashni to'xtatadi va aniqlangan matnni qaytaradi (xato bo'lsa null). */
+  /** Tinglashni to'xtatadi va aniqlangan matnni (tahlili bilan) qaytaradi; xato bo'lsa null. */
   const stopListening = useCallback(async () => {
-    listenEpoch.current++;
-    setListening("transcribing");
-    setMicLevel(0);
+    update((s) => ({ ...s, listening: "transcribing", micLevel: 0 }));
     try {
-      return await call<{ text: string; language: Lang; supported: boolean }>("/api/listen/stop", { method: "POST" });
+      return await call<Transcript>("/api/listen/stop", { method: "POST" });
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
@@ -389,31 +315,29 @@ export function useXadicha(uiLang: Lang = "uz") {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) push({ role: "system", text: msg });
       return null;
     } finally {
-      listenEpoch.current++;
-      setListening("idle");
+      update((s) => ({ ...s, listening: "idle", micLevel: 0 }));
     }
-  }, [push]);
+  }, [push, update]);
 
   /** Tasdiq javobi. Xato bo'lsa dialog ochiq qoladi va xato ko'rsatiladi; takroriy bosish e'tiborsiz. */
   const answer = useCallback(async (approve: boolean) => {
-    const c = confirmation;
+    const c = stRef.current.confirmation;
     if (!c || confirmBusyRef.current) return;
     confirmBusyRef.current = true;
     setConfirmBusy(true);
     setConfirmError(null);
+    const close = () => update((s) => (s.confirmation === c ? { ...s, confirmation: null } : s));
     try {
       await call(`/api/tasks/${c.task_id}/confirm`, {
         method: "POST",
         body: JSON.stringify({ approve, confirmation_id: c.id ?? null }),
       });
-      confirmEpoch.current++;
-      if (confirmRef.current === c) applyConfirmation(null);
+      close();
     } catch (e) {
       const err = e as ApiError;
       if (err.status === 404 || err.status === 409) {
         // Tasdiq endi mavjud emas (muddati tugagan / allaqachon javob berilgan) — dialogni yopamiz va aytamiz
-        confirmEpoch.current++;
-        if (confirmRef.current === c) applyConfirmation(null);
+        close();
         push({ role: "system", text: translate(langRef.current, err.status === 404 ? "confirm.expired" : "confirm.already") });
       } else {
         setConfirmError(translate(langRef.current, "confirm.failed", { msg: err.message }));
@@ -422,7 +346,7 @@ export function useXadicha(uiLang: Lang = "uz") {
       confirmBusyRef.current = false;
       setConfirmBusy(false);
     }
-  }, [confirmation, push, applyConfirmation]);
+  }, [push, update]);
 
   const stop = useCallback(() => call("/api/stop", { method: "POST" }).catch((e: Error) => {
     setError(e.message);
@@ -438,7 +362,9 @@ export function useXadicha(uiLang: Lang = "uz") {
   }, [refresh]);
 
   return {
-    status, online, wsOpen, tasks, current, confirmation, confirmBusy, confirmError, listening, micLevel, messages,
-    error, run, startListening, stopListening, answer, stop, clearHistory, refresh, push,
+    status: st.status, phase: st.phase, busy: isBusy(st), current: st.current, confirmation: st.confirmation,
+    listening: st.listening, micLevel: st.micLevel,
+    online, wsOpen, tasks, confirmBusy, confirmError, messages, error,
+    run, analyze, startListening, stopListening, answer, stop, clearHistory, refresh, push,
   };
 }

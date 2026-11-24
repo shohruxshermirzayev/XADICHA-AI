@@ -69,11 +69,12 @@ def history_text(history: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def user_turn(instruction: str, history: list[dict[str, Any]], has_screen: bool) -> str:
+def user_turn(instruction: str, history: list[dict[str, Any]], has_screen: bool, context: str = "") -> str:
     return (
         f"User instruction: {instruction}\n\n"
         f"Previous steps:\n{history_text(history)}\n\n"
         + ("The current screenshot is attached." if has_screen else "No screenshot is available.")
+        + (f"\n\nScreen context (exact data, prefer it over guessing from pixels):\n{context}" if context else "")
         + "\nReturn the JSON object now."
     )
 

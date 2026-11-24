@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 import platform
 import threading
@@ -20,6 +21,32 @@ from .speech.tts import Speaker
 from .storage import Storage
 
 
+_SECRET_PATTERNS = [
+    (re.compile(r"sk-ant-[A-Za-z0-9_\-]{8,}"), "sk-ant-***"),
+    (re.compile(r"\bsk-[A-Za-z0-9]{16,}"), "sk-***"),
+    (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{8,}"), r"\1***"),
+    (re.compile(r"(?i)((?:api[_-]?key|token|password|parol)\s*[=:]\s*)\S+"), r"\1***"),
+    (re.compile(r"data:image/[a-z]+;base64,[A-Za-z0-9+/=]{32,}"), "data:image/***"),
+]
+
+
+def redact(text: str) -> str:
+    """Log va xato matnlaridan kalit, token va rasm ma'lumotlarini olib tashlaydi."""
+    for pat, rep in _SECRET_PATTERNS:
+        text = pat.sub(rep, text)
+    return text
+
+
+class RedactFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            record.msg = redact(record.getMessage())
+            record.args = ()
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+
+
 def _setup_logging(path) -> None:
     """Xatolar backend/data/xadicha.log fayliga yoziladi (tahlil uchun)."""
     logger = logging.getLogger("xadicha")
@@ -31,6 +58,7 @@ def _setup_logging(path) -> None:
     except OSError:
         return
     h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    h.addFilter(RedactFilter())
     logger.addHandler(h)
     logger.setLevel(logging.INFO)
 
@@ -60,6 +88,18 @@ class PendingConfirmation:
                 "expires_at": self.expires_at}
 
 
+def microphone_state() -> dict[str, str]:
+    """Kirish qurilmasi bormi (yozmasdan tekshiradi). Ruxsat faqat yozish paytida aniqlanadi."""
+    try:
+        import sounddevice as sd
+
+        dev = sd.query_devices(kind="input")
+        name = dev.get("name", "") if isinstance(dev, dict) else ""
+        return {"state": "not_tested", "detail": f"qurilma: {name}" if name else "kirish qurilmasi bor"}
+    except Exception as e:  # noqa: BLE001
+        return {"state": "unavailable", "detail": mic_error_message(e)}
+
+
 def mic_error_message(e: Exception) -> str:
     """sounddevice/PortAudio xatosini foydalanuvchi tushunadigan matnga aylantiradi."""
     raw = f"{e.__class__.__name__}: {e}"
@@ -76,7 +116,8 @@ def mic_error_message(e: Exception) -> str:
 
 class XadichaService:
     def __init__(self, cfg: Config, provider: LLMProvider | None = None, adapter: OSAdapter | None = None,
-                 storage: Storage | None = None, screen_fn=None, confirm_timeout: float = 120):
+                 storage: Storage | None = None, screen_fn=None, confirm_timeout: float = 120,
+                 ocr=None, accessibility=None):
         self.cfg = cfg
         self.provider_error = ""
         if provider is None:
@@ -93,8 +134,16 @@ class XadichaService:
         self.speaker = Speaker(cfg.tts_engine, cfg.tts_rate,
                                {"uz": cfg.voice_uz, "ru": cfg.voice_ru, "en": cfg.voice_en}, cfg.tts_enabled)
         self.listener = Listener(cfg.whisper_model, cfg.stt_engine)
+        self.stt_ready = False
+        self.stt_error = ""
         self.confirm_timeout = confirm_timeout
         self.listeners: list[Callable[[dict[str, Any]], None]] = []
+        # Har bir hodisa tartib raqami oladi. /api/status ham joriy raqamni qaytaradi — interfeys eskirgan
+        # HTTP javobi yangi WebSocket hodisasini bosib qo'ymasligini shu bilan tekshiradi.
+        self._seq = 0
+        self.instance = uuid.uuid4().hex[:8]   # backend qayta ishga tushsa seq 0 dan boshlanadi — buni ajratish uchun
+        self._seq_lock = threading.Lock()
+        self.speaking = False
         self.pending: PendingConfirmation | None = None
         self.current_task: str | None = None
         self._run_lock = threading.Lock()
@@ -105,18 +154,95 @@ class XadichaService:
         self._listen_error = ""
         self._listen_cancelled = False
 
-        if screen_fn is None and self.adapter.name in ("macos", "windows"):
-            from .vision.screen import capture
+        from .vision.context import NullAccessibility, NullOCR, make_accessibility, make_ocr
 
-            screen_fn = lambda: capture(self.adapter.screen_size(), cfg.screen_max_side)  # noqa: E731
+        real_os = self.adapter.name in ("macos", "windows")
+        self.ocr = ocr if ocr is not None else (make_ocr() if real_os else NullOCR("dry-run: ekran yo'q"))
+        self.ax = accessibility if accessibility is not None else (
+            make_accessibility() if real_os else NullAccessibility("dry-run: ekran yo'q"))
+        self.screen_error = ""
+        if screen_fn is None and real_os:
+            screen_fn = self._capture_with_context
         self.agent = Agent(cfg, self.provider, self.adapter, self.storage, confirm=self._confirm,
                            on_event=self.emit, screen_fn=screen_fn)
+        self.agent.text_context = self._context_usable()
+
+    # --- ekran konteksti ---
+    def _context_usable(self) -> bool:
+        return self.ocr.availability()[0] != "unavailable" or self.ax.availability()[0] != "unavailable"
+
+    def _capture_with_context(self):
+        """Ekran surati + (bo'lsa) OCR va accessibility matni. Surat diskka yozilmaydi va logga chiqmaydi."""
+        from .vision.context import summarize
+        from .vision.screen import capture_image, encode
+
+        try:
+            img, lw, lh = capture_image(self.adapter.screen_size())
+        except Exception as e:  # noqa: BLE001 — Screen Recording ruxsati yo'q va h.k.
+            self.screen_error = f"{e.__class__.__name__}: {e}"
+            raise
+        self.screen_error = ""
+        shot = encode(img, lw, lh, self.cfg.screen_max_side)
+        texts, elements = [], []
+        if self.ocr.availability()[0] != "unavailable":
+            try:
+                texts = self.ocr.recognize(img, (lw, lh))
+            except Exception:  # noqa: BLE001
+                logging.getLogger("xadicha").exception("OCR xatosi")
+        if self.ax.availability()[0] != "unavailable":
+            try:
+                elements = self.ax.snapshot()
+            except Exception:  # noqa: BLE001
+                logging.getLogger("xadicha").exception("Accessibility xatosi")
+        shot.context = summarize(texts, elements, factor=1.0 / shot.scale)
+        return shot
+
+    def capabilities(self, health: tuple[bool, str] | None = None) -> dict[str, dict[str, str]]:
+        """Halol holat: available | unavailable | not_tested | not_implemented. Sozlama mavjudligi — "yoqilgan" emas."""
+        def cap(state: str, detail: str = "") -> dict[str, str]:
+            return {"state": state, "detail": detail}
+
+        real_os = self.adapter.name in ("macos", "windows")
+        ok, detail = health if health is not None else self.provider.health()
+        if self.provider_error:
+            ok, detail = False, self.provider_error
+        if not self.provider.supports_vision:
+            vision = cap("unavailable", f"{self.provider.name}: model ekranni ko'rmaydi")
+        elif not ok:
+            vision = cap("unavailable", detail)
+        else:
+            vision = cap("not_tested", "model ulangan; ekran tushunish sifati o'lchanmagan")
+        ocr_state, ocr_detail = self.ocr.availability()
+        ax_state, ax_detail = self.ax.availability()
+        mic = microphone_state()
+        tts_any = any(self.speaker.available(lang) for lang in ("uz", "ru", "en"))
+        return {
+            "os_adapter": cap("not_tested", f"{self.adapter.name}: real qurilmada avtomatik sinalmagan") if real_os
+            else cap("unavailable", "dry-run: harakatlar bajarilmaydi (simulyatsiya)"),
+            "screenshot": cap("unavailable", self.screen_error) if self.screen_error
+            else cap("not_tested", "mss orqali; real ekranda sinalmagan") if real_os
+            else cap("unavailable", "dry-run: ekran yo'q"),
+            "vision_model": vision,
+            "ocr": {"state": ocr_state, "detail": ocr_detail},
+            "accessibility_tree": {"state": ax_state, "detail": ax_detail},
+            "microphone": mic,
+            "stt": cap("not_tested" if self.stt_ready else "unavailable",
+                       f"{self.listener.engine} · {self.cfg.whisper_model}" if self.stt_ready
+                       else (self.stt_error or "model hali yuklanmagan")),
+            "tts": cap("not_tested", self.cfg.tts_engine) if (self.cfg.tts_enabled and tts_any)
+            else cap("unavailable", "o'chirilgan" if not self.cfg.tts_enabled else "ovoz topilmadi"),
+            "windows_ui_automation": cap("not_implemented", "rejada"),
+        }
 
     def warmup(self) -> None:
         """Model va nutqni aniqlashni fonda oldindan yuklash — birinchi buyruq tezroq bo'ladi."""
         def work() -> None:
             self.provider.warmup()
-            self.listener.warmup()
+            try:
+                self.listener.warmup()
+                self.stt_ready = getattr(self.listener, "_model", None) is not None or self.listener.engine == "mlx"
+            except Exception as e:  # noqa: BLE001
+                self.stt_error = f"{e.__class__.__name__}: {e}"
             self.emit({"type": "warm", "stt_engine": self.listener.engine})
         threading.Thread(target=work, daemon=True).start()
 
@@ -126,22 +252,46 @@ class XadichaService:
         return lambda: self.listeners.remove(fn) if fn in self.listeners else None
 
     def emit(self, event: dict[str, Any]) -> None:
+        with self._seq_lock:
+            self._seq += 1
+            event = {**event, "seq": self._seq}
         for fn in list(self.listeners):
             try:
                 fn(event)
             except Exception:  # noqa: BLE001
                 pass
 
+    # --- yagona holat ---
+    @property
+    def phase(self) -> str:
+        """idle | running | awaiting_confirmation | speaking — interfeysdagi barcha joylar shundan foydalanadi."""
+        if self.pending is not None:
+            return "awaiting_confirmation"
+        if self.speaking:
+            return "speaking"
+        if self.busy:
+            return "running"
+        return "idle"
+
+    def state_snapshot(self) -> dict[str, Any]:
+        return {"busy": self.busy, "phase": self.phase, "current_task": self.current_task,
+                "listening": self.listening}
+
+    def _emit_state(self) -> None:
+        self.emit({"type": "state", **self.state_snapshot()})
+
     # --- tasdiq ---
     def _confirm(self, task: TaskRecord, action: Action, risk: RiskLevel, reason: str) -> bool | str:
         p = PendingConfirmation(task.id, action, risk, reason, self.confirm_timeout)
         self.pending = p
         self.emit({"type": "confirm_request", **p.public()})
+        self._emit_state()
         if not p.event.wait(self.confirm_timeout):
             p.resolve("timeout")
         self.pending = None
         self.emit({"type": "confirm_resolved", "id": p.id, "task_id": task.id,
                    "approved": p.approved, "outcome": p.outcome})
+        self._emit_state()
         if p.approved:
             return True
         return p.outcome if p.outcome in ("timeout", "cancelled") else False
@@ -172,26 +322,36 @@ class XadichaService:
 
             unsub = self.subscribe(track)
             try:
-                task = self.agent.run(instruction, language, mode)
+                task = self.agent.run(instruction, language, mode, clear_cancel=not _locked)
             finally:
                 unsub()
             if speak and task.final_message:
-                spoken = self.speaker.say(task.final_message, task.language)
+                self.speaking = True
+                self._emit_state()
+                try:
+                    spoken = self.speaker.say(task.final_message, task.language)
+                finally:
+                    self.speaking = False
                 self.emit({"type": "spoken", "task_id": task.id, "text": task.final_message, "audio": spoken})
             return task
         finally:
             self.current_task = None
+            self.speaking = False
             self._run_lock.release()
+            # Vazifa to'liq tugadi (ovoz ham) — interfeys "band" holatida osilib qolmasligi uchun aniq e'lon
+            self._emit_state()
 
     def start_task(self, instruction: str, language: str = "uz", mode: Mode = Mode.multimodal) -> None:
         # Qulf shu yerda olinadi: ikki tez so'rov ikkalasi ham "bo'sh" deb ko'rib, ikki vazifa boshlamasligi uchun
         if not self._run_lock.acquire(blocking=False):
             raise RuntimeError("Boshqa vazifa bajarilmoqda.")
+        self.agent._cancel.clear()   # shu paytdan keyin bosilgan "To'xtatish" vazifaga yetib boradi
         try:
             threading.Thread(target=self._safe_run, args=(instruction, language, mode), daemon=True).start()
         except Exception:
             self._run_lock.release()
             raise
+        self._emit_state()
 
     def _safe_run(self, instruction: str, language: str, mode: Mode) -> None:
         try:
@@ -213,6 +373,7 @@ class XadichaService:
     def _set_listening(self, state: str, **extra: Any) -> None:
         self.listening = state
         self.emit({"type": "listening", "state": state, **extra})
+        self._emit_state()
 
     def start_listening(self, language: str | None = None) -> str:
         """Mikrofonni faqat backend (sounddevice) yozadi; interfeys ovoz darajasini `mic_level` hodisasidan oladi.
@@ -254,6 +415,7 @@ class XadichaService:
         self._listen_thread = threading.Thread(target=work, daemon=True)
         self._listen_thread.start()
         self.emit({"type": "listening", "state": "recording"})
+        self._emit_state()
         return "recording"
 
     def stop_listening(self, timeout: float = 120) -> Transcript | None:
@@ -277,6 +439,8 @@ class XadichaService:
 
     # --- holat ---
     def status(self) -> dict[str, Any]:
+        # seq avval o'qiladi: javobdagi ma'lumot shu raqamdagi holatdan eskiroq bo'lmaydi
+        seq = self._seq
         ok, detail = self.provider.health()
         if self.provider_error:
             ok, detail = False, self.provider_error
@@ -288,15 +452,13 @@ class XadichaService:
             "config": self.cfg.public(),
             "stats": self.storage.stats(),
             "busy": self.busy,
+            "phase": self.phase,
+            "seq": seq,
+            "instance": self.instance,
             "current_task": self.current_task,
             "pending_confirmation": self.pending.public() if self.pending else None,
             "listening": self.listening,
-            "capabilities": {
-                # Halol holat: faqat ekran surati + vision model. OCR va accessibility daraxti yo'q.
-                "screenshot_vision": bool(self.provider.supports_vision and self.agent.screen_fn is not None),
-                "ocr": False,
-                "accessibility_tree": False,
-            },
+            "capabilities": self.capabilities((ok, detail)),
             "permissions": self.adapter.permissions(),
             "tts": {lang: self.speaker.available(lang) for lang in ("uz", "ru", "en")},
             "stt_engine": self.listener.engine,

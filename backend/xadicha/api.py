@@ -7,21 +7,49 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hmac
 import json
-from typing import Any
+import re
+import secrets
+from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+from pydantic import BaseModel, Field
 
 from .config import load_config
 from .models import Mode
 from .service import XadichaService
+from .understand import understand
+
+
+# Faqat shu kompyuterdagi sahifalar. CORS — xavfsizlik chegarasi emas, shuning uchun qo'shimcha:
+# Host tekshiruvi (DNS rebinding), Origin tekshiruvi (CSRF, WebSocket) va sessiya kaliti (maxsus sarlavha).
+LOCAL_ORIGIN = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$")
+DEFAULT_HOSTS = ("127.0.0.1", "localhost", "[::1]")
+TOKEN_HEADER = "x-xadicha-token"
+
+
+def _host_ok(host_header: str | None, allowed: tuple[str, ...]) -> bool:
+    if not host_header:
+        return False
+    host = host_header.strip().lower()
+    if host.startswith("["):
+        name = host.split("]")[0] + "]"
+    else:
+        name = host.rsplit(":", 1)[0] if host.count(":") == 1 else host
+    return name in allowed
+
+
+def _origin_ok(origin: str | None) -> bool:
+    return origin is None or bool(LOCAL_ORIGIN.match(origin))   # Origin yo'q — brauzer emas (CLI, curl)
 
 
 class TaskIn(BaseModel):
-    instruction: str
-    language: str = "uz"
+    instruction: str = Field(max_length=2000)
+    language: Literal["uz", "ru", "en"] = "uz"
     mode: Mode = Mode.multimodal
 
 
@@ -30,20 +58,49 @@ class ConfirmIn(BaseModel):
     confirmation_id: str | None = None   # qaysi tasdiqqa javob — eski dialogdan kelgan kech javobni ajratish uchun
 
 
+class UnderstandIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    language: Literal["uz", "ru", "en"] = "uz"
+
+
 class SpeakIn(BaseModel):
-    text: str
-    language: str = "uz"
+    text: str = Field(min_length=1, max_length=2000)
+    language: Literal["uz", "ru", "en"] = "uz"
 
 
-def create_app(service: XadichaService | None = None) -> FastAPI:
-    app = FastAPI(title="XADICHA AI", version="0.1.0")
-    # Faqat shu kompyuterdagi interfeysdan so'rovlarga ruxsat (istalgan port)
-    app.add_middleware(CORSMiddleware, allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
-                       allow_methods=["*"], allow_headers=["*"])
+def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, ...] = DEFAULT_HOSTS,
+               token: str | None = None) -> FastAPI:
+    app = FastAPI(title="XADICHA AI", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
+    session_token = token or secrets.token_urlsafe(32)   # har ishga tushishda yangi; diskka yozilmaydi
+    app.state.session_token = session_token
+
+    async def guard(request: Request, call_next):
+        if not _host_ok(request.headers.get("host"), allowed_hosts):
+            return JSONResponse({"detail": "Ruxsat etilmagan Host."}, status_code=400)
+        if not _origin_ok(request.headers.get("origin")):
+            return JSONResponse({"detail": "Ruxsat etilmagan Origin."}, status_code=403)
+        path = request.url.path
+        if request.method != "OPTIONS" and path.startswith("/api/") and path != "/api/session":
+            given = request.headers.get(TOKEN_HEADER, "")
+            if not hmac.compare_digest(given.encode(), session_token.encode()):
+                return JSONResponse({"detail": "Sessiya kaliti noto'g'ri yoki yo'q."}, status_code=401)
+        return await call_next(request)
+
+    # Tartib muhim: CORS tashqi qatlam — 401/403 javoblari ham brauzerda o'qiladigan bo'lsin
+    app.add_middleware(BaseHTTPMiddleware, dispatch=guard)
+    app.add_middleware(CORSMiddleware, allow_origin_regex=LOCAL_ORIGIN.pattern,
+                       allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+                       allow_headers=["content-type", TOKEN_HEADER])
     svc = service or XadichaService(load_config())
     app.state.service = svc
     if service is None:
         svc.warmup()
+
+    @app.get("/api/session")
+    def session() -> JSONResponse:
+        """Sessiya kalitini faqat localhost sahifasiga beradi (Host+Origin tekshiruvidan o'tgan so'rov).
+        Boshqa sayt CORS sababli javobni o'qiy olmaydi."""
+        return JSONResponse({"token": session_token}, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
@@ -60,7 +117,7 @@ def create_app(service: XadichaService | None = None) -> FastAPI:
         return {"accepted": True}
 
     @app.get("/api/tasks")
-    def list_tasks(limit: int = 50) -> list[dict[str, Any]]:
+    def list_tasks(limit: int = Query(50, ge=1, le=500)) -> list[dict[str, Any]]:
         return [t.model_dump(mode="json") for t in svc.storage.list_tasks(limit)]
 
     @app.get("/api/tasks/{task_id}")
@@ -99,7 +156,14 @@ def create_app(service: XadichaService | None = None) -> FastAPI:
             raise HTTPException(409 if "boshlanmagan" in str(e) else 503, str(e)) from e
         if r is None:
             raise HTTPException(500, "Nutq aniqlanmadi.")
-        return {"text": r.text, "language": r.language, "probability": r.probability, "supported": r.supported}
+        analysis = understand(r.text, r.language, r.asr_confidence, llm_available=svc.provider.name != "rules")
+        return {"text": r.text, "language": r.language, "probability": r.probability, "supported": r.supported,
+                "asr_confidence": r.asr_confidence, "analysis": analysis.public() if r.text else None}
+
+    @app.post("/api/understand")
+    def understand_text(body: UnderstandIn) -> dict[str, Any]:
+        """Buyruqni BAJARMASDAN tahlil qiladi: niyat, ishonch, aniqlashtirish kerakmi."""
+        return understand(body.text, body.language, None, llm_available=svc.provider.name != "rules").public()
 
     @app.post("/api/speak")
     def speak(body: SpeakIn) -> dict[str, Any]:
@@ -111,6 +175,12 @@ def create_app(service: XadichaService | None = None) -> FastAPI:
 
     @app.websocket("/api/ws")
     async def ws(socket: WebSocket) -> None:
+        # WebSocket'ga CORS qo'llanmaydi — Origin, Host va kalitni qo'lda tekshiramiz
+        given = socket.query_params.get("token", "")
+        if (not _host_ok(socket.headers.get("host"), allowed_hosts) or not _origin_ok(socket.headers.get("origin"))
+                or not hmac.compare_digest(given.encode(), session_token.encode())):
+            await socket.close(code=4401)
+            return
         await socket.accept()
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)

@@ -34,13 +34,28 @@ def rms_level(samples: np.ndarray) -> float:
     return min(1.0, rms * 6.0)
 
 
+def asr_confidence(segments: list[tuple[float, float, int]]) -> float | None:
+    """Nutq tanish ishonchi 0..1: segmentlar avg_logprob'ining (matn uzunligi bo'yicha vaznli) eksponentasi,
+    "nutq yo'q" ehtimolligi bilan kamaytirilgan. Kiruvchi: [(avg_logprob, no_speech_prob, belgilar soni)].
+    Bu Whisper'ning o'z ishonch ko'rsatkichi — haqiqiy aniqlik (WER) emas."""
+    items = [(lp, ns, max(1, n)) for lp, ns, n in segments if lp is not None]
+    if not items:
+        return None
+    total = sum(n for _, _, n in items)
+    mean_lp = sum(lp * n for lp, _, n in items) / total
+    mean_ns = sum((ns or 0.0) * n for _, ns, n in items) / total
+    conf = float(np.exp(min(0.0, mean_lp))) * (1.0 - min(1.0, max(0.0, mean_ns)))
+    return round(max(0.0, min(1.0, conf)), 3)
+
+
 @dataclass
 class Transcript:
     text: str
     language: str
-    probability: float
+    probability: float        # til ehtimolligi
     supported: bool
     detected_raw: str = ""   # Whisper o'zi aniqlagan til (cheklovsiz) — tahlil uchun
+    asr_confidence: float | None = None   # nutq tanish ishonchi (0..1); noma'lum bo'lsa None
 
 
 def pick_language(all_probs: list[tuple[str, float]] | None, raw_lang: str,
@@ -96,12 +111,18 @@ class Listener:
             logging.getLogger("xadicha").exception("STT warmup xatosi")
 
     def _mlx(self, audio: np.ndarray, language: str | None) -> tuple[str, str]:
+        text, lang, _conf = self._mlx_full(audio, language)
+        return text, lang
+
+    def _mlx_full(self, audio: np.ndarray, language: str | None) -> tuple[str, str, float | None]:
         import mlx_whisper
 
         r = mlx_whisper.transcribe(audio, path_or_hf_repo=mlx_repo(self.model_name), language=language,
                                    initial_prompt=PROMPTS.get(language or ""), condition_on_previous_text=False,
                                    verbose=None)
-        return str(r.get("text", "")).strip(), str(r.get("language") or language or "")
+        segs = [(sg.get("avg_logprob"), sg.get("no_speech_prob", 0.0), len(str(sg.get("text", ""))))
+                for sg in (r.get("segments") or []) if isinstance(sg, dict)]
+        return str(r.get("text", "")).strip(), str(r.get("language") or language or ""), asr_confidence(segs)
 
     def _load(self):
         with self._lock:
@@ -166,18 +187,22 @@ class Listener:
             language, prob, raw = self.detect(audio)
         segments, _info = model.transcribe(audio, language=language, beam_size=5, vad_filter=True,
                                            initial_prompt=PROMPTS.get(language))
+        segments = list(segments)
         text = " ".join(s.text.strip() for s in segments).strip()
+        conf = asr_confidence([(getattr(s, "avg_logprob", None), getattr(s, "no_speech_prob", 0.0), len(s.text))
+                               for s in segments])
         if len(text) > 40 and text.rstrip(".") in PROMPTS.get(language, ""):
-            text = ""   # jimlikda Whisper ba'zan kontekst matnini takrorlaydi — bu nutq emas
-        return Transcript(text, language, prob, language in SUPPORTED, detected_raw=raw)
+            text, conf = "", None   # jimlikda Whisper ba'zan kontekst matnini takrorlaydi — bu nutq emas
+        return Transcript(text, language, prob, language in SUPPORTED, detected_raw=raw, asr_confidence=conf)
 
     def _transcribe_mlx(self, audio: np.ndarray, language: str | None) -> Transcript:
-        text, lang = self._mlx(audio, language)
+        text, lang, conf = self._mlx_full(audio, language)
         raw = ""
         if language is None and lang not in SUPPORTED:
             # MLX tilni cheklovsiz aniqlaydi — qo'llab-quvvatlanmaydigan til chiqsa, o'zbekcha deb qayta o'qiymiz
             raw = lang
-            text, lang = self._mlx(audio, "uz")
+            text, lang, conf = self._mlx_full(audio, "uz")
         if len(text) > 40 and text.rstrip(".") in PROMPTS.get(lang, ""):
-            text = ""
-        return Transcript(text, lang, 1.0, lang in SUPPORTED, detected_raw=raw)
+            text, conf = "", None
+        # MLX til ehtimolligini bermaydi — 1.0 emas, noma'lum deb belgilaymiz
+        return Transcript(text, lang, 0.0, lang in SUPPORTED, detected_raw=raw, asr_confidence=conf)

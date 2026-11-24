@@ -39,9 +39,13 @@ xadicha/
 ├── agent.py          # A/B/C rejimlari, tekshiruv va tiklanish sikli
 ├── models.py         # Pydantic: Action, Decision, TaskRecord, RiskLevel
 ├── safety.py         # xavf tasnifi, tasdiq siyosati, taqiqlangan harakatlar
+├── understand.py     # buyruqni tushunish, niyat ishonchi, aniqlashtirish
+├── metrics.py        # WER, CER, TSR va boshqa metrikalar
+├── benchmark.py      # A/B/C benchmark runner (xom JSONL loglar)
 ├── providers/        # Claude, Ollama, qoida asosidagi (A rejimi) — provayderdan mustaqil
 ├── adapters/         # macOS (open, AppleScript), Windows (start, UIA), dry-run
-├── vision/screen.py  # ekran surati (Retina koordinatalari bilan)
+├── vision/screen.py  # ekran surati, rasm → ekran koordinatasi (Retina)
+├── vision/context.py # OCR (Apple Vision) va accessibility daraxti (AXUIElement) — ixtiyoriy
 ├── speech/           # faster-whisper STT, ayol ovozi TTS
 ├── storage.py        # SQLite: tarix, statistika, sozlamalar
 ├── service.py        # agent + nutq + tasdiqlar + hodisalar
@@ -53,14 +57,23 @@ xadicha/
 
 | Qism | Holat |
 |---|---|
-| Agent sikli (A/B/C), xavfsizlik, tasdiq, to'xtatish | ✅ avtomatik testlardan o'tgan (simulyatsiya qilingan model va adapter bilan) |
-| FastAPI + WebSocket (tasdiq protokoli, ping/pong, noto'g'ri xabarlar) | ✅ testlardan o'tgan |
-| Mikrofon holati va xatolari (soxta mikrofon bilan) | ✅ testlardan o'tgan; real mikrofon bilan sinalmagan |
-| macOS adapteri | ⚠️ yozilgan, real Mac'da avtomatik sinalmagan |
-| Windows adapteri | ⚠️ yozilgan, Windows qurilmasida sinalmagan |
-| Claude / Ollama provayderlari | ⚠️ yozilgan, real model bilan avtomatik sinalmagan |
-| STT (faster-whisper / MLX), TTS | ⚠️ yozilgan; o'zbekcha aniqlik va talaffuz o'lchanmagan |
-| Ekran tushunish | ⚠️ faqat ekran surati → vision model. OCR va accessibility daraxti **amalga oshirilmagan** |
+| Agent sikli (A/B/C), xavfsizlik, tasdiq, to'xtatish | ✅ avtomatik testlar (simulyatsiya: soxta model, dry-run adapter) |
+| FastAPI + WebSocket (yagona holat, Host/Origin/token himoyasi) | ✅ testlardan o'tgan |
+| Nutq ishonchi va aniqlashtirish (`understand.py`) | ✅ testlar; aniqlik o'lchanmagan |
+| OCR / accessibility provayder interfeysi | ✅ soxta API bilan testlangan; real Mac'da sinalmagan |
+| macOS adapteri | ⚠️ real Mac'da avtomatik sinalmagan |
+| Windows adapteri | ⚠️ Windows qurilmasida sinalmagan |
+| Claude / Ollama provayderlari | ⚠️ real model bilan avtomatik sinalmagan |
+| STT (faster-whisper / MLX), TTS | ⚠️ o'zbekcha aniqlik va talaffuz o'lchanmagan |
+
+## Qo'shimcha vositalar
+
+```bash
+pip install -r requirements-macos-optional.txt   # OCR (Apple Vision) + accessibility (AXUIElement), ixtiyoriy
+python scripts/mac_selftest.py                   # real Mac tekshiruvi (har qadam ruxsat bilan)
+python -m xadicha.benchmark --dry-run            # benchmark harness tekshiruvi (SIMULYATSIYA)
+python -m xadicha.benchmark --modes A,B,C        # real benchmark (macOS + model)
+```
 
 ## Xavfsizlik siyosati (qisqacha)
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from conftest import ScriptedProvider
+from conftest import ScriptedProvider, api_client
 from fastapi.testclient import TestClient
 
 from xadicha import safety
@@ -156,7 +156,7 @@ def test_mode_b_denied_step_not_executed_and_reports_denial(cfg, storage, tmp_pa
 
 def make(cfg, storage, provider, timeout=5.0):
     svc = XadichaService(cfg, provider=provider, adapter=DryRunAdapter(), storage=storage, confirm_timeout=timeout)
-    return TestClient(create_app(svc)), svc
+    return api_client(svc), svc
 
 
 def wait_pending(client, timeout=3.0):
@@ -273,7 +273,7 @@ def test_two_fast_task_requests_only_one_starts(cfg, storage):
 
 def test_ws_ignores_malformed_client_messages_and_answers_ping(cfg, storage):
     client, svc = make(cfg, storage, ScriptedProvider([{"done": True, "success": True}]))
-    with client.websocket_connect("/api/ws") as ws:
+    with client.websocket_connect(f"ws://127.0.0.1:8765/api/ws?token={client.token}") as ws:
         hello = ws.receive_json()
         assert hello["type"] == "hello" and "listening" in hello["status"]
         ws.send_text("{not json")
@@ -286,7 +286,7 @@ def test_ws_ignores_malformed_client_messages_and_answers_ping(cfg, storage):
 def test_ws_disconnect_unsubscribes_without_waiting_for_event(cfg, storage):
     client, svc = make(cfg, storage, ScriptedProvider())
     for _ in range(3):
-        with client.websocket_connect("/api/ws") as ws:
+        with client.websocket_connect(f"ws://127.0.0.1:8765/api/ws?token={client.token}") as ws:
             ws.receive_json()
     assert svc.listeners == []
 
@@ -294,7 +294,10 @@ def test_ws_disconnect_unsubscribes_without_waiting_for_event(cfg, storage):
 def test_status_reports_honest_capabilities(cfg, storage):
     client, _ = make(cfg, storage, ScriptedProvider())
     caps = client.get("/api/status").json()["capabilities"]
-    assert caps["ocr"] is False and caps["accessibility_tree"] is False
+    # dry-run (Linux): hech narsa "available" deb ko'rsatilmaydi
+    assert caps["ocr"]["state"] == "unavailable" and caps["accessibility_tree"]["state"] == "unavailable"
+    assert caps["os_adapter"]["state"] == "unavailable" and caps["windows_ui_automation"]["state"] == "not_implemented"
+    assert all(c["state"] != "available" for c in caps.values())
 
 
 # ---------------------------------------------------------------- mikrofon

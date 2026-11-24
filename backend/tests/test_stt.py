@@ -86,16 +86,17 @@ def test_mlx_unsupported_language_reread_as_uzbek(monkeypatch):
 
     def fake(audio, language):
         calls.append(language)
-        return ("Safari ni och", "uz") if language == "uz" else ("Safari notch", "tr")
+        return ("Safari ni och", "uz", 0.8) if language == "uz" else ("Safari notch", "tr", 0.3)
 
-    monkeypatch.setattr(li, "_mlx", fake)
+    monkeypatch.setattr(li, "_mlx_full", fake)
     r = li.transcribe(np.ones(stt.SAMPLE_RATE, dtype=np.float32))
     assert r.language == "uz" and r.detected_raw == "tr" and calls == [None, "uz"]
+    assert r.asr_confidence == 0.8
 
 
 def test_mlx_failure_falls_back_to_faster(monkeypatch):
     li = _listener(_FakeModel("Открой Notes", [("ru", 0.9)]))
     li.engine = "mlx"
-    monkeypatch.setattr(li, "_mlx", lambda a, l: (_ for _ in ()).throw(RuntimeError("no mlx")))
+    monkeypatch.setattr(li, "_mlx_full", lambda a, l: (_ for _ in ()).throw(RuntimeError("no mlx")))
     r = li.transcribe(np.ones(stt.SAMPLE_RATE, dtype=np.float32))
     assert r.text == "Открой Notes" and li.engine == "faster"

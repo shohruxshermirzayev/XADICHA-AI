@@ -22,22 +22,38 @@ class Screenshot:
     png_base64: str  # (nomi tarixiy) — base64 kodlangan rasm; formati media_type'da
     width: int       # modelga yuborilgan rasm o'lchami
     height: int
-    scale: float     # rasm koordinatasi * scale = ekran koordinatasi (mantiqiy nuqta)
+    scale: float     # rasm koordinatasi * scale = ekran koordinatasi (mantiqiy nuqta) — agent.py qo'llaydi
     media_type: str = "image/jpeg"
+    context: str = ""   # OCR / accessibility daraxtidan matnli kontekst (bo'lsa)
+    logical_w: int = 0
+    logical_h: int = 0
 
 
-def capture(logical_size: tuple[int, int] | None = None, max_side: int = MAX_SIDE) -> Screenshot:
+def capture_image(logical_size: tuple[int, int] | None = None) -> tuple[Image.Image, int, int]:
+    """Asosiy monitor surati (to'liq piksel o'lchamida) va mantiqiy o'lcham. Diskka yozilmaydi."""
     if logical_size is None:
         import pyautogui
 
         logical_size = pyautogui.size()
     lw, lh = int(logical_size[0]), int(logical_size[1])
-
     with mss.mss() as sct:
         raw = sct.grab(sct.monitors[1])
         img = Image.frombytes("RGB", raw.size, raw.rgb)
+    return img, lw, lh
 
+
+def capture(logical_size: tuple[int, int] | None = None, max_side: int = MAX_SIDE) -> Screenshot:
+    img, lw, lh = capture_image(logical_size)
     return encode(img, lw, lh, max_side)
+
+
+def to_screen(x: float, y: float, shot: Screenshot) -> tuple[int, int]:
+    """Model qaytargan rasm koordinatasini mantiqiy ekran nuqtasiga o'tkazadi va ekran chegarasida ushlaydi."""
+    sx, sy = round(x * shot.scale), round(y * shot.scale)
+    if shot.logical_w and shot.logical_h:
+        sx = min(max(sx, 0), shot.logical_w - 1)
+        sy = min(max(sy, 0), shot.logical_h - 1)
+    return sx, sy
 
 
 def encode(img: Image.Image, logical_w: int, logical_h: int, max_side: int = MAX_SIDE) -> Screenshot:
@@ -55,4 +71,6 @@ def encode(img: Image.Image, logical_w: int, logical_h: int, max_side: int = MAX
         height=h,
         scale=1.0 / factor,
         media_type="image/jpeg",
+        logical_w=logical_w,
+        logical_h=logical_h,
     )

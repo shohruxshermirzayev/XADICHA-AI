@@ -22,16 +22,28 @@ const NAV = [
 
 type View = (typeof NAV)[number]["id"];
 
+const PHASE_STYLE = {
+  idle: "text-muted-foreground",
+  running: "text-secondary",
+  awaiting_confirmation: "text-warning",
+  speaking: "text-primary",
+} as const;
+
 export default function Home() {
   const l = useLang();
   const { t } = l;
   const x = useXadicha(l.lang);
   const [view, setView] = useState<View>("assistant");
   const title = t(`nav.${view}`);
+  // Sarlavha, yordamchi, panel va dashboard — barchasi bitta manbadan: x.phase / x.busy
+  const phase = x.online === false ? "idle" : x.phase;
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar p-4 md:flex">
+    <div className="flex min-h-screen text-foreground">
+      <a href="#main" className="sr-only z-50 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3">
+        {t("skip.main")}
+      </a>
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-sidebar/90 p-4 backdrop-blur md:flex">
         <div className="mb-8 px-1">
           <XadichaWordmark />
         </div>
@@ -43,14 +55,15 @@ export default function Home() {
                 view === id ? "text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
               )}>
               {view === id && (
-                <motion.span layoutId="nav-active" className="absolute inset-0 rounded-lg bg-accent" transition={{ type: "spring", stiffness: 400, damping: 34 }} />
+                <motion.span layoutId="nav-active" className="absolute inset-0 rounded-lg bg-accent ring-1 ring-primary/30 shadow-[0_0_24px_-8px_rgb(99_102_241/0.6)]"
+                  transition={{ type: "spring", stiffness: 400, damping: 34 }} />
               )}
-              <Icon className="relative size-4" />
+              <Icon className={cn("relative size-4", view === id && "text-primary")} aria-hidden />
               <span className="relative">{t(`nav.${id}`)}</span>
             </button>
           ))}
         </nav>
-        <div className="mt-auto rounded-xl border border-border bg-card/60 p-3 text-xs">
+        <div className="mt-auto rounded-xl border border-border bg-card/60 p-3 text-xs" role="status" aria-live="polite">
           <div className="flex items-center gap-2"><Dot ok={x.online} />
             <span>{x.online === false ? t("backend.offline") : x.online && x.wsOpen ? t("backend.connected")
               : x.online ? t("backend.reconnecting") : t("backend.connecting")}</span>
@@ -61,21 +74,16 @@ export default function Home() {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/80 px-6 py-4 backdrop-blur">
+      <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+        <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-border bg-background/70 px-4 py-3 backdrop-blur md:px-6 md:py-4">
           <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Activity className="size-3.5" />
-            {x.status?.busy ? t("header.busy") : t("header.idle")}
+          <div className={cn("flex items-center gap-2 text-xs", PHASE_STYLE[phase])} role="status" aria-live="polite">
+            <Activity className={cn("size-3.5", phase !== "idle" && "animate-pulse")} aria-hidden />
+            {t(`phase.${phase}`)}
           </div>
-          {/* mobil menyu */}
-          <select value={view} onChange={(e) => setView(e.target.value as View)} aria-label={t("nav.section")}
-            className="rounded-md border border-border bg-muted px-2 py-1 text-sm md:hidden">
-            {NAV.map((n) => <option key={n.id} value={n.id}>{t(`nav.${n.id}`)}</option>)}
-          </select>
         </header>
 
-        <main className="flex-1 p-6">
+        <main id="main" tabIndex={-1} className="flex-1 p-4 md:p-6">
           {x.online === false && (
             <div role="alert" className="mb-5 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
               {t("backend.offlineBanner")}{" "}
@@ -94,6 +102,18 @@ export default function Home() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Mobil navigatsiya — pastki panel */}
+      <nav aria-label={t("nav.menu")} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-border bg-sidebar/95 backdrop-blur md:hidden">
+        {NAV.map(({ id, icon: Icon }) => (
+          <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined} aria-label={t(`nav.${id}`)}
+            className={cn("flex flex-col items-center gap-0.5 py-2 text-[10px] focus-visible:outline-2 focus-visible:outline-ring",
+              view === id ? "text-primary" : "text-muted-foreground")}>
+            <Icon className="size-5" aria-hidden />
+            <span className="max-w-full truncate px-0.5">{t(`nav.${id}`)}</span>
+          </button>
+        ))}
+      </nav>
 
       <ConfirmDialog confirmation={x.confirmation} busy={x.confirmBusy} error={x.confirmError} onAnswer={x.answer} t={t} />
     </div>

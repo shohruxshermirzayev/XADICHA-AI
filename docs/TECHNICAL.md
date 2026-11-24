@@ -14,6 +14,9 @@ Brauzer (Next.js, :3000)  ──HTTP──▶  FastAPI (:8765)  ──▶  Xadic
 ```
 
 Backend — yagona haqiqat manbai. Interfeys holatni WebSocket hodisalaridan oladi, uzilishda esa HTTP orqali tiklaydi.
+Batafsil: [ARCHITECTURE.md](ARCHITECTURE.md) (holat modeli, vazifa sikli, ovoz va ekran quvurlari),
+[SECURITY.md](SECURITY.md), [TESTING.md](TESTING.md), [MACOS_TEST_PROTOCOL.md](MACOS_TEST_PROTOCOL.md),
+[RESEARCH_METHODOLOGY.md](RESEARCH_METHODOLOGY.md), [LIMITATIONS.md](LIMITATIONS.md).
 
 ## 2. Tasdiq protokoli
 
@@ -31,19 +34,17 @@ Sahifa yangilansa, kutilayotgan tasdiq `hello`/`status` orqali qayta ochiladi.
 
 Muddat: `XadichaService(confirm_timeout=120)` (soniya).
 
-## 3. WebSocket
+## 3. WebSocket va yagona holat
 
-- Server har bir ulanishda `hello` (to'liq `status`) yuboradi, keyin hodisalarni uzatadi.
-- Server mijoz xabarlarini o'qiydi: `{"type":"ping"}` → `{"type":"pong"}`; noto'g'ri JSON va noma'lum xabarlar e'tiborsiz qoldiriladi.
-  Mijoz uzilganda obuna darhol tozalanadi (avval keyingi hodisagacha osilib qolardi).
-- Sekin mijoz: navbat 1000 hodisa bilan cheklangan; to'lganda faqat `mic_level` tashlab yuboriladi.
-- Interfeys (`src/lib/xadicha.ts`, `src/lib/events.ts`):
-  - har bir xabar `parseEvent` orqali tekshiriladi — noto'g'ri xabar ilovani yiqitmaydi;
-  - bir vaqtda faqat bitta ulanish; eski ulanish hodisalari e'tiborsiz;
-  - qayta ulanish: 1 s, 2 s, 4 s … 30 s gacha (±20%); HTTP polling backend qaytganini sezsa — darhol ulanadi;
-  - polling faqat WebSocket yo'q paytda ishlaydi; WebSocket hodisasidan oldin boshlangan HTTP javobi tasdiq/tinglash
-    holatini bosib qo'ymaydi ("davr" hisoblagichi);
-  - qayta ulanganda joriy vazifa `/api/tasks/{id}` dan tiklanadi va uzilish paytida tugagan vazifa javobi chatga bir marta qo'shiladi.
+- Ulanish: `ws://127.0.0.1:8765/api/ws?token=<sessiya kaliti>`; Origin va Host tekshiriladi (aks holda 4401 bilan yopiladi).
+- Server har ulanishda `hello` (to'liq `status`, `seq`, `instance`) yuboradi, keyin har bir hodisa `seq` bilan.
+- `state` hodisasi: `{busy, phase, current_task, listening}` — vazifa boshlanganda, tasdiq kutilganda, gapirganda va
+  vazifa to'liq tugagach. Interfeysdagi barcha "band" belgilari faqat shundan o'qiladi (`src/lib/state.ts`).
+- Mijoz `{"type":"ping"}` → `pong`; noto'g'ri JSON/noma'lum xabar e'tiborsiz; uzilishda obuna darhol tozalanadi.
+- Sekin mijoz: navbat 1000 hodisa; to'lsa faqat `mic_level` tashlanadi.
+- Interfeys: `parseEvent` bilan tekshiruv; bitta ulanish; qayta ulanish 1→30 s (±20%), HTTP polling backend
+  qaytganini sezsa darhol ulanadi; polling faqat WebSocket yo'q paytda; eskirgan HTTP javobi (`seq` kichik)
+  band/tasdiq/tinglash holatini bosmaydi; `instance` o'zgarsa (backend qayta ishga tushgan) holat qabul qilinadi.
 
 ## 4. Mikrofon
 
@@ -58,65 +59,37 @@ Muddat: `XadichaService(confirm_timeout=120)` (soniya).
 
 ## 5. Xavfsizlik
 
-`backend/xadicha/safety.py`:
-
-| Tekshiruv | Natija |
-|---|---|
-| `delete_path` | har doim `high` (tasdiq) |
-| fayl amali workspace tashqarisida | `high` |
-| tizim papkalari (yechilgan yo'l bo'yicha), `C:\Program Files (x86)` | **taqiqlangan** |
-| `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config`, `~/Library`, `AppData`, shell rc fayllar | **taqiqlangan** |
-| uy papkasi, `~/Desktop`, `~/Documents` … ning o'zini o'chirish | **taqiqlangan** (ichidagi fayl — tasdiq bilan) |
-| `open_url`: `http/https` — `low`; `mailto/tel` — `medium`; boshqa sxema yoki yo'l | **taqiqlangan** |
-| `open_app` nomida `& | < > ^ % " \` $ ;` yoki `-` bilan boshlanadi | **taqiqlangan** |
-| Terminal, System Settings, Keychain … ochish | `high` |
-| yuborish/o'rnatish/to'lov/o'chirish so'zlari (uz/ru/en) | `high` |
-
-Taqiqlangan harakat tasdiq so'ralmasdan rad etiladi. Adapterlarda ham ikkinchi himoya bor (URL sxemasi, ilova nomi).
+To'liq tavsif: [SECURITY.md](SECURITY.md). Qisqacha: Host/Origin/sessiya kaliti himoyasi, harakat taqiqlari
+(yechilgan yo'l bo'yicha), model xavfni pasaytira olmaydi, o'chirish faqat tasdiq bilan va Savatga, log redaksiyasi.
 
 ## 6. Ekran tushunish — nima bor, nima yo'q
 
 | Imkoniyat | Holat |
 |---|---|
-| Ekran surati (mss) → vision modelga (Claude yoki Ollama vision) | ✅ amalga oshirilgan; sifati modelga bog'liq |
-| Koordinatalarni mantiqiy nuqtalarga moslash (Retina) | ✅ birlik test |
-| OCR (matnni aniq tanib olish) | ❌ yo'q |
-| Accessibility daraxti (AXUIElement / UI Automation) | ❌ yo'q |
-| Dasturiy tekshiruv: ilova old planda, fayl/papka mavjud | ✅ adapterlarda (real qurilmada sinalmagan) |
+| Ekran surati (mss) → vision model | ✅ yozilgan; real Mac'da sinalmagan; sifati modelga bog'liq |
+| Koordinatalarni ekran nuqtalariga o'tkazish (`to_screen`, Retina) | ✅ tuzatildi (avval masshtab qo'llanmasdi); birlik test |
+| OCR — Apple Vision (`vision/context.py`) | ⚠️ ixtiyoriy MVP (`requirements-macos-optional.txt`); real Mac'da sinalmagan |
+| Accessibility daraxti — AXUIElement (`vision/context.py`) | ⚠️ ixtiyoriy MVP; soxta daraxt bilan testlangan; real Mac'da sinalmagan |
+| Windows OCR / UI Automation | ❌ amalga oshirilmagan |
 
-`/api/status.capabilities` = `{screenshot_vision, ocr: false, accessibility_tree: false}`; interfeys shuni ko'rsatadi.
-Qoida asosidagi (`mock`) model ekranni ko'rmaydi.
+OCR va accessibility natijasi modelga **matnli kontekst** sifatida beriladi (koordinatalar rasm fazosida); vision'siz
+model ham undan foydalanadi. `/api/status.capabilities` har bir imkoniyat uchun `available | unavailable | not_tested |
+not_implemented` holatini va izohini qaytaradi; sozlama mavjudligi "yoqilgan" degani emas.
 
-## 7. Tillar
+## 7. Tillar va nutq ishonchi
 
-- Interfeys: `src/lib/i18n.ts` — o'zbek, rus, ingliz; barcha kalitlar uch tilda bir xil (test bilan tekshiriladi).
-  Tanlangan til `localStorage` (`xadicha.lang`) da saqlanadi; saqlash taqiqlangan bo'lsa ham sessiya ichida almashadi.
+- Interfeys: `src/lib/i18n.ts` — o'zbek, rus, ingliz; kalitlar uch tilda bir xil (test). Tanlov `localStorage` da.
 - Yozilgan buyruq tili: lotin — tanlangan til; kirill — `ў қ ғ ҳ` yoki o'zbekcha so'zlar bo'lsa `uz`, aks holda `ru`.
-- Qoida asosidagi tahlil o'zbek kirill buyruqlarini ham tushunadi ("Сафари ни оч", "папка яратинг").
-- Cheklov: backend xato matnlari (`HTTPException.detail`) hozircha faqat o'zbekcha.
+- Ovozli buyruq: `asr_confidence` (Whisper segmentlari) va `intent_confidence` (`understand.py`) alohida.
+  Aniqlashtirish kerak bo'lganda (`low_asr_confidence`, `unknown_app`, `normalized_particle`, `unknown_intent`)
+  interfeys eshitilgan matnni ko'rsatadi; buyruq faqat foydalanuvchi tanlagach bajariladi. `POST /api/understand` — tahlil, bajarmasdan.
+- Aralash til: "открой Telegramni", "open Telegram ni" — qo'llab-quvvatlanadi. Aniqlik o'lchanmagan.
+- Cheklov: backend xato matnlari faqat o'zbekcha.
 
 ## 8. Testlar
 
-| Buyruq | Nima tekshiriladi |
-|---|---|
-| `cd backend && python -m pytest -q` | agent, xavfsizlik, API, WebSocket, tasdiq, mikrofon holati (soxta), kirill tahlili |
-| `npm test` | tarjimalar to'liqligi, til aniqlash, WebSocket xabarlarini tekshirish, qayta ulanish kechikishi |
-| `npm run lint`, `npm run typecheck`, `npm run build` | statik tekshiruv va build |
+[TESTING.md](TESTING.md) — buyruqlar, fayllar xaritasi, simulyatsiya va real qurilma farqi.
 
-Barcha backend testlari `DryRunAdapter` va soxta model bilan ishlaydi.
+## 9. Real qurilmada sinash
 
-## 9. Real qurilmada sinash kerak bo'lganlar
-
-macOS (Apple Silicon):
-- `open -a`, AppleScript bilan old plandagi ilovani aniqlash, Finder orqali Savatga o'tkazish;
-- Accessibility / Screen Recording / Microphone ruxsatlari va ular berilmaganda chiqadigan xabarlar;
-- Retina'da bosish koordinatalari; `pyautogui` FAILSAFE (yuqori-chap burchak);
-- `sounddevice` bilan haqiqiy yozuv, `mic_level` animatsiyasi, MLX Whisper tezligi va o'zbekcha aniqlik;
-- clipboard orqali kirill/o'zbek matnini yozish.
-
-Windows:
-- butun adapter (`cmd /c start`, `webbrowser`, `send2trash`, oyna sarlavhasi orqali tekshiruv) — hali hech qachon ishga tushirilmagan;
-- `pyttsx3` ovozlari, `Ctrl` tugma xaritasi, `C:\` yo'llari bilan xavfsizlik qoidalari.
-
-Model:
-- Ollama `qwen3.5:9b` va Claude bilan C rejimining haqiqiy TSR, kechikish va tiklanish ko'rsatkichlari.
+[MACOS_TEST_PROTOCOL.md](MACOS_TEST_PROTOCOL.md) va `backend/scripts/mac_selftest.py`. Windows — hali sinalmagan.

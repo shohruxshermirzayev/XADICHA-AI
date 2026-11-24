@@ -1,6 +1,6 @@
 import time
 
-from conftest import ScriptedProvider
+from conftest import ScriptedProvider, api_client
 from fastapi.testclient import TestClient
 
 from xadicha.adapters.base import DryRunAdapter
@@ -10,7 +10,7 @@ from xadicha.service import XadichaService
 
 def make_client(cfg, storage, provider):
     svc = XadichaService(cfg, provider=provider, adapter=DryRunAdapter(), storage=storage, confirm_timeout=5)
-    return TestClient(create_app(svc)), svc
+    return api_client(svc), svc
 
 
 def wait_idle(svc, timeout=5):
@@ -66,12 +66,14 @@ def test_confirmation_over_api(cfg, storage, tmp_path):
 def test_websocket_events(cfg, storage):
     p = ScriptedProvider([{"done": True, "success": True, "final_message": "salom"}])
     client, svc = make_client(cfg, storage, p)
-    with client.websocket_connect("/api/ws") as ws:
+    with client.websocket_connect(f"ws://127.0.0.1:8765/api/ws?token={client.token}") as ws:
         assert ws.receive_json()["type"] == "hello"
         client.post("/api/tasks", json={"instruction": "salom"})
         kinds = []
-        for _ in range(10):
+        for _ in range(20):
             e = ws.receive_json()
+            if e["type"] == "state":   # holat e'lonlari alohida tekshiriladi (test_state.py)
+                continue
             kinds.append(e["type"])
             if e["type"] == "task_finished":
                 break

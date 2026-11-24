@@ -17,6 +17,7 @@ export interface TaskLike<S extends StepLike = StepLike> {
 export const EVENT_TYPES = [
   "hello", "pong", "warm", "task_started", "step_started", "step_finished", "step_verified", "task_finished",
   "confirm_request", "confirm_resolved", "listening", "mic_level", "transcript", "error", "stopped", "spoken",
+  "state",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -42,6 +43,7 @@ export function parseEvent(raw: unknown): BackendEvent | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   const e = data as Record<string, unknown>;
   if (typeof e.type !== "string" || !KNOWN.has(e.type)) return null;
+  if (e.seq !== undefined && (typeof e.seq !== "number" || !Number.isFinite(e.seq))) return null;
   const isObj = (v: unknown) => !!v && typeof v === "object" && !Array.isArray(v);
   switch (e.type) {
     case "task_started":
@@ -69,6 +71,9 @@ export function parseEvent(raw: unknown): BackendEvent | null {
       break;
     case "hello":
       if (!isObj(e.status)) return null;
+      break;
+    case "state":
+      if (typeof e.busy !== "boolean") return null;
       break;
   }
   return e as BackendEvent;

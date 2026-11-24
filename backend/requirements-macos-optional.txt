@@ -1,0 +1,5 @@
+# macOS uchun ixtiyoriy: OCR (Apple Vision) va accessibility daraxti (AXUIElement).
+# O'rnatish: pip install -r requirements-macos-optional.txt   (real Mac'da hali sinalmagan)
+pyobjc-framework-Vision>=10.0; sys_platform == "darwin"
+pyobjc-framework-Quartz>=10.0; sys_platform == "darwin"
+pyobjc-framework-ApplicationServices>=10.0; sys_platform == "darwin"

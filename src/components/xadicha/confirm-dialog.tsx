@@ -33,6 +33,7 @@ export function ConfirmDialog({ confirmation, busy, error, onAnswer, t }: {
   t: T;
 }) {
   const noRef = useRef<HTMLButtonElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const left = useSecondsLeft(confirmation?.expires_at);
   const expired = left === 0;
 
@@ -45,6 +46,16 @@ export function ConfirmDialog({ confirmation, busy, error, onAnswer, t }: {
     if (!confirmation) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) onAnswer(false);
+      if (e.key === "Tab" && boxRef.current) {
+        // Fokus dialog ichida qoladi (orqadagi sahifaga o'tib ketmaydi)
+        const items = [...boxRef.current.querySelectorAll<HTMLElement>("button:not([disabled])")];
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        else if (!boxRef.current.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -58,7 +69,7 @@ export function ConfirmDialog({ confirmation, busy, error, onAnswer, t }: {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         >
           <motion.div
-            role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-desc"
+            ref={boxRef} role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-desc"
             aria-busy={busy}
             className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
             initial={{ y: 16, scale: 0.98 }} animate={{ y: 0, scale: 1 }} exit={{ y: 8, opacity: 0 }}

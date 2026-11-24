@@ -16,7 +16,7 @@ export function Card({ className, children }: { className?: string; children: Re
 
 export function CardTitle({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex items-baseline justify-between gap-3">
+    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">{children}</h2>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>

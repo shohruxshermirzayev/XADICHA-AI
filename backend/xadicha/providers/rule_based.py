@@ -41,6 +41,19 @@ _CYR_APPS = {
 }
 
 
+# Mahalliy nomlar (aniq moslik, taxmin emas) va qisqartmalar → haqiqiy ilova nomi
+APP_ALIASES = {
+    "chrome": "Google Chrome", "xrom": "Google Chrome", "gugl xrom": "Google Chrome", "edge": "Microsoft Edge",
+    "kalkulyator": "Calculator", "kalkulator": "Calculator", "eslatmalar": "Notes", "qaydlar": "Notes",
+    "kalendar": "Calendar", "taqvim": "Calendar", "pochta": "Mail", "musiqa": "Music", "rasmlar": "Photos",
+    "sozlamalar": "System Settings", "settings": "System Settings", "terminal": "Terminal", "word": "Microsoft Word",
+    "vord": "Microsoft Word", "excel": "Microsoft Excel", "eksel": "Microsoft Excel", "vs code": "Visual Studio Code",
+    "vscode": "Visual Studio Code", "telegramm": "Telegram", "bloknot": "Notepad", "provodnik": "File Explorer",
+    "whatsap": "WhatsApp", "vatsap": "WhatsApp",
+    **_CYR_APPS,
+}
+
+
 def _reply(kind: str, lang: str, **kw: str) -> str:
     return _REPLY[kind].get(lang, _REPLY[kind]["en"]).format(**kw)
 
@@ -90,7 +103,7 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
     app = re.sub(r"^(the|app|application|ilova(?:si)?|приложение)\s+", "", app.strip(), flags=re.I)
     app = re.sub(r"\s+(app|ilovasi(?:ni)?|приложение)$", "", app, flags=re.I).strip(" '\"’")
     if app:
-        app = _CYR_APPS.get(app.lower(), app)
+        app = APP_ALIASES.get(app.lower(), app)   # faqat aniq moslik; o'xshashlik bo'yicha taxmin — understand.py
         app = app[0].upper() + app[1:]
         return "open_app", [Action(type="open_app", app=app)], _reply("open", language, x=app)
 

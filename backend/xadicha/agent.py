@@ -35,7 +35,7 @@ from .models import (
 from .providers.base import LLMProvider, ProviderError
 from .providers.rule_based import FAST_INTENTS, RuleBasedProvider, is_simple, parse_command
 from .storage import Storage
-from .vision.screen import Screenshot
+from .vision.screen import Screenshot, to_screen
 
 log = logging.getLogger("xadicha")
 
@@ -85,6 +85,7 @@ class Agent:
         self.confirm = confirm or (lambda task, action, risk, why: False)
         self.on_event = on_event or (lambda e: None)
         self.screen_fn = screen_fn
+        self.text_context = False   # OCR yoki accessibility mavjud bo'lsa — vision'siz model ham kontekst oladi
         self._cancel = threading.Event()
 
     # --- boshqaruv ---
@@ -100,8 +101,12 @@ class Agent:
             self.storage.save_task(task)
 
     # --- asosiy kirish nuqtasi ---
-    def run(self, instruction: str, language: str = "uz", mode: Mode = Mode.multimodal) -> TaskRecord:
-        self._cancel.clear()
+    def run(self, instruction: str, language: str = "uz", mode: Mode = Mode.multimodal,
+            clear_cancel: bool = True) -> TaskRecord:
+        """clear_cancel=False — xizmat to'xtatish bayrog'ini vazifa navbatga qo'yilganda o'zi tozalagan;
+        shunda vazifa boshlanishidan oldin bosilgan "To'xtatish" yo'qolmaydi."""
+        if clear_cancel:
+            self._cancel.clear()
         task = TaskRecord(instruction=instruction, language=language, mode=mode)
         self._save(task)
         self._emit("task_started", task, task=task.model_dump(mode="json"))
@@ -153,6 +158,14 @@ class Agent:
                 denied = DENY_STOPPED   # tasdiqlangan, lekin shu orada to'xtatish bosildi
         if denied:
             step.status, step.detail = StepStatus.denied, denied
+        elif action.type == "wait":
+            # Kutish to'xtatish bilan darhol uziladi (avval 10 s gacha uxlab qolardi)
+            self._emit("step_started", task, step=step.model_dump(mode="json"))
+            secs = min(max(action.seconds or 1.0, 0.0), 10.0)
+            if self._cancel.wait(secs):
+                step.status, step.detail = StepStatus.denied, DENY_STOPPED
+            else:
+                step.status, step.detail = StepStatus.executed, f"{secs:g} s"
         else:
             self._emit("step_started", task, step=step.model_dump(mode="json"))
             te = time.perf_counter()
@@ -266,10 +279,20 @@ class Agent:
                 return
 
             t0 = time.perf_counter()
-            screen = self.screen_fn() if (self.screen_fn and self.provider.supports_vision) else None
+            # Ekran surati: vision model uchun rasm, OCR/accessibility bo'lsa — matnli kontekst ham
+            want_shot = self.screen_fn and (self.provider.supports_vision or self.text_context)
+            shot = self.screen_fn() if want_shot else None
+            screen = shot if (shot is not None and self.provider.supports_vision) else None
             t1 = time.perf_counter()
-            decision: Decision = self.provider.decide(task.instruction, self._history(task), screen, task.language)
+            extra = {"context": shot.context} if (shot is not None and shot.context) else {}
+            decision: Decision = self.provider.decide(task.instruction, self._history(task), screen, task.language,
+                                                      **extra)
             t2 = time.perf_counter()
+            if shot is not None and decision.action is not None and decision.action.x is not None \
+                    and decision.action.y is not None:
+                # Model rasm koordinatasini qaytaradi; bosish mantiqiy ekran nuqtasida bo'ladi (Retina/masshtab)
+                sx, sy = to_screen(decision.action.x, decision.action.y, shot)
+                decision.action = decision.action.model_copy(update={"x": sx, "y": sy})
             task.timings["screen_ms"] += int((t1 - t0) * 1000)
             task.timings["llm_ms"] += int((t2 - t1) * 1000)
             task.llm_calls += 1
