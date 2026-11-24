@@ -37,12 +37,16 @@ class MacOSAdapter(OSAdapter):
         return ExecResult(True, f"ochildi, lekin old planda: {self.frontmost_app()}", verified=None)
 
     def _do_open_url(self, a: Action) -> ExecResult:
-        r = subprocess.run(["open", a.url or ""], capture_output=True, text=True, timeout=15)
+        url = a.url or ""
+        if not url.lower().startswith(("http://", "https://", "mailto:", "tel:")):
+            # Xavfsizlik qatlami buni allaqachon taqiqlaydi; bu — ikkinchi himoya (`open <yo'l>` ilovani ishga tushiradi)
+            return ExecResult(False, "Faqat http/https manzillar ochiladi", verified=False)
+        r = subprocess.run(["open", url], capture_output=True, text=True, timeout=15)
         return ExecResult(r.returncode == 0, a.url or "", verified=None if r.returncode == 0 else False)
 
     def _to_trash(self, path: Path) -> None:
         # Finder orqali Savatga — qaytarib olsa bo'ladi
-        posix = str(path.resolve()).replace('"', '\\"')
+        posix = str(path.resolve()).replace("\\", "\\\\").replace('"', '\\"')
         osascript(f'tell application "Finder" to delete (POSIX file "{posix}" as alias)')
 
     def frontmost_app(self) -> str:

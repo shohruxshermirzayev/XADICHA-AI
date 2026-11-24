@@ -1,58 +1,28 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
+import type { T } from "@/lib/use-lang";
 import type { Listening } from "@/lib/xadicha";
 import { cn } from "@/lib/utils";
 import { XadichaMark } from "./logo";
 
-/** Brauzer mikrofonidan haqiqiy ovoz balandligi (0..1) — faqat vizualizatsiya uchun; yozuvni backend qiladi. */
-function useMicLevel(active: boolean) {
-  const [level, setLevel] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    let raf = 0;
-    let stream: MediaStream | null = null;
-    let ctx: AudioContext | null = null;
-    let cancelled = false;
-    navigator.mediaDevices?.getUserMedia({ audio: true }).then((s) => {
-      if (cancelled) return s.getTracks().forEach((t) => t.stop());
-      stream = s;
-      ctx = new AudioContext();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 512;
-      ctx.createMediaStreamSource(s).connect(analyser);
-      const buf = new Float32Array(analyser.fftSize);
-      const tick = () => {
-        analyser.getFloatTimeDomainData(buf);
-        let sum = 0;
-        for (const v of buf) sum += v * v;
-        setLevel((prev) => prev * 0.6 + Math.min(1, Math.sqrt(sum / buf.length) * 6) * 0.4);
-        raf = requestAnimationFrame(tick);
-      };
-      tick();
-    }).catch(() => {});
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(raf);
-      stream?.getTracks().forEach((t) => t.stop());
-      ctx?.close().catch(() => {});
-    };
-  }, [active]);
-  return active ? level : 0;
-}
-
+/**
+ * Mikrofon faqat backend'da (Python sounddevice) ochiladi. Avval brauzer ham getUserMedia orqali mikrofonni
+ * alohida ochardi — bu ikki marta yozish, qo'shimcha ruxsat oynasi va haqiqiy yozuv bilan mos kelmaydigan
+ * animatsiyaga olib kelardi. Endi `level` backend'ning `mic_level` hodisasidan keladi (0..1).
+ */
 /** Asosiy ovoz tugmasi — XADICHA belgisi. Bosing — gapiring — yana bosing (yoki Space). */
-export function VoiceOrb({ state, busy, disabled, onToggle }: {
-  state: Listening; busy: boolean; disabled?: boolean; onToggle: () => void;
+export function VoiceOrb({ state, level: rawLevel, busy, disabled, onToggle, t }: {
+  state: Listening; level: number; busy: boolean; disabled?: boolean; onToggle: () => void; t: T;
 }) {
   const reduce = useReducedMotion();
   const recording = state === "recording";
   const transcribing = state === "transcribing";
   const thinking = transcribing || busy;
-  const level = useMicLevel(recording);
+  const level = recording ? Math.min(1, Math.max(0, rawLevel)) : 0;
   const btn = useRef<HTMLButtonElement>(null);
-  const label = recording ? "Tinglashni to'xtatish" : transcribing ? "Matnga aylantirilmoqda" : "XADICHA bilan gapirish";
+  const label = recording ? t("voice.stopListening") : transcribing ? t("voice.transcribing") : t("voice.talk");
 
   return (
     <div className="relative flex size-56 items-center justify-center">

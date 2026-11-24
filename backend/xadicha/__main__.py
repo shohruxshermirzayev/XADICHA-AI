@@ -76,7 +76,11 @@ def main() -> None:
                 svc.start_listening(args.lang)
                 input("   Tugatganda Enter bosing...")
                 print("   ⏳ Matnga aylantirilmoqda...")
-                r = svc.stop_listening()
+                try:
+                    r = svc.stop_listening()
+                except RuntimeError:
+                    print()   # sababi "error" hodisasi orqali yuqorida chop etilgan
+                    continue
                 if not r or not r.text:
                     print("   Hech narsa eshitilmadi.\n")
                     continue

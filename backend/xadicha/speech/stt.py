@@ -9,6 +9,7 @@ majburan berilishi mumkin (`--lang uz`).
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -23,6 +24,14 @@ PROMPTS = {
     "ru": "Открой Safari. Открой Telegram. Открой Notes. Создай папку. Найди в Google. Включи песню на YouTube.",
     "en": "Open Safari. Open Telegram. Open Notes. Create a folder. Search Google. Play a song on YouTube.",
 }
+
+
+def rms_level(samples: np.ndarray) -> float:
+    """Ovoz balandligi 0..1 (RMS * 6, yuqoridan kesilgan) — brauzerdagi eski hisob bilan bir xil shkala."""
+    if samples.size == 0:
+        return 0.0
+    rms = float(np.sqrt(np.mean(np.square(samples.astype(np.float32)))))
+    return min(1.0, rms * 6.0)
 
 
 @dataclass
@@ -102,14 +111,24 @@ class Listener:
                 self._model = WhisperModel(self.model_name, device="cpu", compute_type="int8")
         return self._model
 
-    def record_until(self, stop: threading.Event, max_seconds: float = 30.0) -> np.ndarray:
-        """`stop` hodisasigacha (yoki max_seconds) mikrofondan yozadi."""
+    def record_until(self, stop: threading.Event, max_seconds: float = 30.0,
+                     on_level: Callable[[float], None] | None = None) -> np.ndarray:
+        """`stop` hodisasigacha (yoki max_seconds) mikrofondan yozadi.
+
+        on_level — har bir bo'lak uchun ovoz balandligi (0..1, RMS asosida); interfeys vizualizatsiyasi uchun.
+        Mikrofon faqat shu yerda ochiladi — brauzer alohida yozib olmaydi.
+        """
         import sounddevice as sd
 
         chunks: list[np.ndarray] = []
 
         def callback(indata, frames, time_info, status):  # noqa: ARG001
             chunks.append(indata.copy())
+            if on_level is not None:
+                try:
+                    on_level(rms_level(indata))
+                except Exception:  # noqa: BLE001 — vizualizatsiya xatosi yozuvni buzmasin
+                    pass
 
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback):
             stop.wait(timeout=max_seconds)

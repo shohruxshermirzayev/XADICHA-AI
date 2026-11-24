@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { LOCALE, type Lang } from "@/lib/i18n";
+import type { T } from "@/lib/use-lang";
 import type { Risk, Step, Task } from "@/lib/xadicha";
 import { CheckCircle2, CircleDashed, Loader2, ShieldAlert, XCircle, MinusCircle } from "lucide-react";
 
@@ -26,25 +28,24 @@ const riskStyle: Record<Risk, string> = {
   medium: "bg-warning/10 text-warning ring-warning/25",
   high: "bg-destructive/10 text-destructive ring-destructive/30",
 };
-const riskLabel: Record<Risk, string> = { low: "Past xavf", medium: "O'rta xavf", high: "Yuqori xavf" };
-
-export function RiskBadge({ risk }: { risk: Risk }) {
+export function RiskBadge({ risk, t }: { risk: Risk; t: T }) {
   return (
     <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1", riskStyle[risk])}>
-      {riskLabel[risk]}
+      {t(`risk.${risk}`)}
     </span>
   );
 }
 
-const taskStyle: Record<Task["status"], [string, string]> = {
-  running: ["text-secondary", "Bajarilmoqda"],
-  success: ["text-success", "Muvaffaqiyatli"],
-  failed: ["text-destructive", "Bajarilmadi"],
-  cancelled: ["text-muted-foreground", "To'xtatildi"],
+const taskStyle: Record<Task["status"], string> = {
+  running: "text-secondary",
+  success: "text-success",
+  failed: "text-destructive",
+  cancelled: "text-muted-foreground",
 };
 
-export function TaskStatus({ status }: { status: Task["status"] }) {
-  const [c, label] = taskStyle[status];
+export function TaskStatus({ status, t }: { status: Task["status"]; t: T }) {
+  const c = taskStyle[status];
+  const label = t(`status.${status}`);
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-xs font-medium", c)}>
       {status === "running" && <Loader2 className="size-3.5 animate-spin" />}
@@ -56,17 +57,17 @@ export function TaskStatus({ status }: { status: Task["status"] }) {
   );
 }
 
-export function StepIcon({ step }: { step: Step }) {
+export function StepIcon({ step, t }: { step: Step; t: T }) {
   switch (step.status) {
     case "verified":
-      return <CheckCircle2 className="size-4 text-success" aria-label="tasdiqlandi" />;
+      return <CheckCircle2 className="size-4 text-success" aria-label={t("stepIcon.verified")} />;
     case "executed":
-      return <CircleDashed className="size-4 text-secondary" aria-label="bajarildi, tekshirilmoqda" />;
+      return <CircleDashed className="size-4 text-secondary" aria-label={t("stepIcon.executed")} />;
     case "failed":
     case "error":
-      return <XCircle className="size-4 text-destructive" aria-label="xato" />;
+      return <XCircle className="size-4 text-destructive" aria-label={t("stepIcon.failed")} />;
     case "denied":
-      return <ShieldAlert className="size-4 text-warning" aria-label="rad etildi" />;
+      return <ShieldAlert className="size-4 text-warning" aria-label={t("stepIcon.denied")} />;
   }
 }
 
@@ -98,8 +99,8 @@ export function Button({
   );
 }
 
-export function formatTime(ts: number) {
-  return new Date(ts * 1000).toLocaleString("uz-UZ", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+export function formatTime(ts: number, lang: Lang = "uz") {
+  return new Date(ts * 1000).toLocaleString(LOCALE[lang], { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
 }
 
 export function latency(t: Task) {

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -26,6 +27,7 @@ class TaskIn(BaseModel):
 
 class ConfirmIn(BaseModel):
     approve: bool
+    confirmation_id: str | None = None   # qaysi tasdiqqa javob — eski dialogdan kelgan kech javobni ajratish uchun
 
 
 class SpeakIn(BaseModel):
@@ -70,8 +72,11 @@ def create_app(service: XadichaService | None = None) -> FastAPI:
 
     @app.post("/api/tasks/{task_id}/confirm")
     def confirm(task_id: str, body: ConfirmIn) -> dict[str, Any]:
-        if not svc.answer_confirmation(task_id, body.approve):
-            raise HTTPException(404, "Kutilayotgan tasdiq yo'q.")
+        result = svc.answer_confirmation(task_id, body.approve, body.confirmation_id)
+        if result == "none":
+            raise HTTPException(404, "Kutilayotgan tasdiq yo'q (muddati tugagan yoki allaqachon yopilgan).")
+        if result == "already":
+            raise HTTPException(409, "Bu tasdiqqa allaqachon javob berilgan.")
         return {"ok": True}
 
     @app.post("/api/stop")
@@ -81,12 +86,17 @@ def create_app(service: XadichaService | None = None) -> FastAPI:
 
     @app.post("/api/listen/start")
     def listen_start(language: str | None = None) -> dict[str, Any]:
-        svc.start_listening(language if language in ("uz", "ru", "en") else None)
-        return {"ok": True}
+        if svc.busy:
+            raise HTTPException(409, "Vazifa bajarilmoqda — tugashini kuting yoki to'xtating.")
+        state = svc.start_listening(language if language in ("uz", "ru", "en") else None)
+        return {"ok": True, "state": state}
 
     @app.post("/api/listen/stop")
     def listen_stop() -> dict[str, Any]:
-        r = svc.stop_listening()
+        try:
+            r = svc.stop_listening()
+        except RuntimeError as e:
+            raise HTTPException(409 if "boshlanmagan" in str(e) else 503, str(e)) from e
         if r is None:
             raise HTTPException(500, "Nutq aniqlanmadi.")
         return {"text": r.text, "language": r.language, "probability": r.probability, "supported": r.supported}
@@ -103,16 +113,43 @@ def create_app(service: XadichaService | None = None) -> FastAPI:
     async def ws(socket: WebSocket) -> None:
         await socket.accept()
         loop = asyncio.get_running_loop()
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-        unsub = svc.subscribe(lambda e: loop.call_soon_threadsafe(queue.put_nowait, e))
-        try:
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=1000)
+
+        def deliver(e: dict[str, Any]) -> None:
+            def put() -> None:
+                if queue.full() and e.get("type") == "mic_level":
+                    return   # sekin mijoz: vizualizatsiya hodisalarini tashlab yuboramiz, muhimlarini emas
+                with contextlib.suppress(asyncio.QueueFull):
+                    queue.put_nowait(e)
+            with contextlib.suppress(RuntimeError):   # loop yopilgan bo'lsa
+                loop.call_soon_threadsafe(put)
+
+        unsub = svc.subscribe(deliver)
+
+        async def reader() -> None:
+            # Mijoz xabarlarini o'qiymiz: uzilishni darhol sezish uchun. Noto'g'ri xabarlar e'tiborsiz qoldiriladi.
+            while True:
+                raw = await socket.receive_text()
+                with contextlib.suppress(ValueError, TypeError):
+                    msg = json.loads(raw)
+                    if isinstance(msg, dict) and msg.get("type") == "ping":
+                        await socket.send_json({"type": "pong"})
+
+        async def writer() -> None:
             await socket.send_json({"type": "hello", "status": svc.status()})
             while True:
                 event = await queue.get()
                 await socket.send_json(event)
-        except (WebSocketDisconnect, RuntimeError):
-            pass
+
+        tasks = [asyncio.create_task(reader()), asyncio.create_task(writer())]
+        try:
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         finally:
+            for t in tasks:
+                t.cancel()
+            for t in tasks:
+                with contextlib.suppress(asyncio.CancelledError, WebSocketDisconnect, RuntimeError, Exception):
+                    await t
             unsub()
             with contextlib.suppress(Exception):
                 await socket.close()

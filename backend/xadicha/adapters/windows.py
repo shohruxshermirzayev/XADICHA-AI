@@ -29,6 +29,9 @@ class WindowsAdapter(OSAdapter):
 
     def _do_open_app(self, a: Action) -> ExecResult:
         name = (a.app or "").strip()
+        if not name or any(c in name for c in '&|<>^%"`\n\r'):
+            # `cmd /c start` qobiq orqali ishlaydi — maxsus belgilar buyruq in'eksiyasiga olib keladi
+            return ExecResult(False, "Ilova nomida ruxsat etilmagan belgilar bor", verified=False)
         target = _APP_ALIASES.get(name.lower(), name)
         r = subprocess.run(["cmd", "/c", "start", "", target], capture_output=True, text=True, timeout=15)
         if r.returncode != 0:
@@ -39,7 +42,10 @@ class WindowsAdapter(OSAdapter):
         return ExecResult(True, front, verified=True if ok else None)
 
     def _do_open_url(self, a: Action) -> ExecResult:
-        ok = webbrowser.open(a.url or "")
+        url = a.url or ""
+        if not url.lower().startswith(("http://", "https://", "mailto:", "tel:")):
+            return ExecResult(False, "Faqat http/https manzillar ochiladi", verified=False)
+        ok = webbrowser.open(url)
         return ExecResult(ok, a.url or "", verified=None if ok else False)
 
     def _to_trash(self, path: Path) -> None:

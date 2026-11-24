@@ -15,6 +15,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from . import safety
@@ -38,7 +39,13 @@ from .vision.screen import Screenshot
 
 log = logging.getLogger("xadicha")
 
-ConfirmFn = Callable[[TaskRecord, Action, RiskLevel, str], bool]
+# Tasdiq funksiyasi True (ruxsat) yoki rad etish sababini qaytaradi: False/"denied", "timeout", "cancelled".
+ConfirmFn = Callable[[TaskRecord, Action, RiskLevel, str], "bool | str"]
+
+DENY_USER = "foydalanuvchi rad etdi"
+DENY_TIMEOUT = "tasdiq muddati tugadi — bajarilmadi"
+DENY_STOPPED = "to'xtatildi"
+_DENY_DETAIL = {"timeout": DENY_TIMEOUT, "cancelled": DENY_STOPPED}
 EventFn = Callable[[dict[str, Any]], None]
 ScreenFn = Callable[[], Screenshot]
 
@@ -52,6 +59,9 @@ _MSG = {
                           "en": "I could not complete it even after several attempts."},
     "provider": {"uz": "AI modeliga ulanib bo'lmadi.", "ru": "Не удалось подключиться к AI-модели.",
                  "en": "Could not reach the AI model."},
+    "timeout": {"uz": "Tasdiq kutish muddati tugadi, harakatni bajarmadim.",
+                "ru": "Время ожидания подтверждения истекло, действие не выполнено.",
+                "en": "The confirmation timed out, so I did not perform the action."},
     "denied": {"uz": "Siz rad etdingiz, bu harakatni bajarmadim.", "ru": "Вы отказали, я не выполнила это действие.",
                "en": "You declined, so I did not perform this action."},
     "done": {"uz": "Bajarildi.", "ru": "Готово.", "en": "Done."},
@@ -120,18 +130,29 @@ class Agent:
 
     # --- bitta harakatni xavfsiz bajarish ---
     def _execute(self, task: TaskRecord, action: Action, proposed: RiskLevel, expected: str) -> StepRecord:
+        if action.path and action.type in ("create_folder", "create_file", "delete_path"):
+            # Nisbiy yo'l jarayonning joriy papkasiga emas, workspace'ga nisbatan olinadi
+            p = Path(action.path.strip()).expanduser()
+            if not p.is_absolute() and not safety._is_windows_path(action.path.strip()):
+                action = action.model_copy(update={"path": str(self.cfg.workspace.expanduser() / p)})
         step = StepRecord(index=len(task.steps) + 1, action=action, expected_outcome=expected)
         step.risk = safety.final_risk(action, proposed, self.cfg.workspace, context=expected + " " + task.instruction)
         t0 = time.time()
 
         blocked = safety.blocked_reason(action, self.cfg.workspace)
+        denied: str | None = None
         if blocked:
-            step.status, step.detail = StepStatus.denied, blocked
-        elif safety.needs_confirmation(step.risk, self.cfg.confirm_risk) and not self.confirm(
-                task, action, step.risk, expected):
-            step.status, step.detail = StepStatus.denied, "foydalanuvchi rad etdi"
+            denied = blocked
         elif self._cancel.is_set():
-            step.status, step.detail = StepStatus.denied, "to'xtatildi"
+            denied = DENY_STOPPED
+        elif safety.needs_confirmation(step.risk, self.cfg.confirm_risk):
+            answer = self.confirm(task, action, step.risk, expected)
+            if answer is not True:   # faqat aniq True ruxsat; satr yoki boshqa qiymat — rad
+                denied = _DENY_DETAIL.get(answer, DENY_USER) if isinstance(answer, str) else DENY_USER
+            elif self._cancel.is_set():
+                denied = DENY_STOPPED   # tasdiqlangan, lekin shu orada to'xtatish bosildi
+        if denied:
+            step.status, step.detail = StepStatus.denied, denied
         else:
             self._emit("step_started", task, step=step.model_dump(mode="json"))
             te = time.perf_counter()
@@ -151,6 +172,20 @@ class Agent:
         self._emit("step_finished", task, step=step.model_dump(mode="json"))
         return step
 
+    def _finish_denied(self, task: TaskRecord, step: StepRecord, cancel_status: bool = True) -> None:
+        """Rad etilgan qadamdan keyingi yakun: sababga mos xabar (rad / muddat / to'xtatish / siyosat)."""
+        lang = task.language
+        if step.detail == DENY_STOPPED:
+            task.status, task.final_message = TaskStatus.cancelled, msg("cancelled", lang)
+            return
+        task.status = TaskStatus.cancelled if cancel_status else TaskStatus.failed
+        if step.detail == DENY_USER:
+            task.final_message = msg("denied", lang)
+        elif step.detail == DENY_TIMEOUT:
+            task.final_message = msg("timeout", lang)
+        else:
+            task.final_message = step.detail   # xavfsizlik siyosati sababi
+
     # --- A rejimi ---
     def _run_single(self, task: TaskRecord) -> None:
         rb = RuleBasedProvider()
@@ -162,8 +197,12 @@ class Agent:
         step = self._execute(task, d.action, d.risk, "")
         ok = step.status in (StepStatus.executed, StepStatus.verified)
         task.status = TaskStatus.success if ok else TaskStatus.failed
-        task.final_message = d.final_message if ok else (msg("denied", task.language)
-                                                         if step.status == StepStatus.denied else step.detail)
+        if ok:
+            task.final_message = d.final_message
+        elif step.status == StepStatus.denied:
+            self._finish_denied(task, step, cancel_status=False)
+        else:
+            task.final_message = step.detail
 
     # --- B rejimi ---
     def _run_plan(self, task: TaskRecord) -> None:
@@ -182,9 +221,11 @@ class Agent:
             if d.action is None:
                 continue
             step = self._execute(task, d.action, d.risk, d.expected_outcome)
-            if step.status in (StepStatus.failed, StepStatus.denied):
-                task.status = TaskStatus.failed
-                task.final_message = msg("denied", task.language) if step.status == StepStatus.denied else step.detail
+            if step.status == StepStatus.denied:
+                self._finish_denied(task, step, cancel_status=False)
+                return
+            if step.status == StepStatus.failed:
+                task.status, task.final_message = TaskStatus.failed, step.detail
                 return
         task.status = TaskStatus.success
         task.final_message = plan.final_message or msg("done", task.language)
@@ -211,8 +252,7 @@ class Agent:
             task.status, task.final_message = TaskStatus.success, reply
             return True
         if step.status == StepStatus.denied:
-            task.status = TaskStatus.cancelled
-            task.final_message = msg("denied", task.language) if "rad" in step.detail else step.detail
+            self._finish_denied(task, step)
             return True
         return False   # masalan, ilova nomi noto'g'ri tanildi — model davom ettiradi
 
@@ -271,8 +311,7 @@ class Agent:
                     return
             if step.status == StepStatus.denied:
                 # Foydalanuvchi rad etgan yoki siyosat taqiqlagan harakatdan keyin vazifa to'xtatiladi
-                task.status = TaskStatus.cancelled
-                task.final_message = msg("denied", task.language) if "rad" in step.detail else step.detail
+                self._finish_denied(task, step)
                 return
 
         task.status, task.final_message = TaskStatus.failed, msg("max_steps", task.language)

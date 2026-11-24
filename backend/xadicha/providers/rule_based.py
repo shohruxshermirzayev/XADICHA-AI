@@ -14,7 +14,9 @@ from ..models import Action, Decision, Plan, RiskLevel
 from ..vision.screen import Screenshot
 from .base import LLMProvider
 
-_OPEN = r"(?:open|launch|start|och(?:ib\s*ber)?|ishga\s*tushir|откро(?:й|йте)|открыть|запусти)"
+# Lotin va kirill o'zbek yozuvi, rus va ingliz tillari
+_OPEN = (r"(?:open|launch|start|och(?:ib\s*ber)?|ishga\s*tushir|откро(?:й|йте)|открыть|запусти"
+         r"|(?<![а-яёўқғҳ])оч(?:иб\s*бер)?(?![а-яёўқғҳ])|ишга\s*тушир)")
 _FOLDER = r"(?:folder|papka|папк[уа])"
 
 _REPLY = {
@@ -28,6 +30,15 @@ _REPLY = {
 _URL_RE = re.compile(r"(https?://\S+|\b[\w-]+\.(?:com|uz|ru|org|net|dev|io)\b\S*)", re.I)
 _SEARCH_RE = re.compile(
     r"(?:google|search|qidir|izla|найди|поищи)\s*(?:da|for|в\s*google)?\s*[:\-]?\s*(.+)$", re.I)
+
+
+# Kirillda aytilgan/yozilgan ilova nomlari — tizimdagi haqiqiy nomga (macOS `open -a` lotin nomni kutadi)
+_CYR_APPS = {
+    "сафари": "Safari", "телеграм": "Telegram", "телеграмм": "Telegram", "хром": "Google Chrome",
+    "гугл хром": "Google Chrome", "заметки": "Notes", "нотс": "Notes", "калькулятор": "Calculator",
+    "файндер": "Finder", "музыка": "Music", "почта": "Mail", "календарь": "Calendar",
+    "ютуб": "YouTube", "ворд": "Microsoft Word", "эксель": "Microsoft Excel",
+}
 
 
 def _reply(kind: str, lang: str, **kw: str) -> str:
@@ -63,7 +74,7 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
         return "web_search", [Action(type="open_url", url=f"https://www.google.com/search?q={quote_plus(q)}")], \
             _reply("url", language)
 
-    if re.search(_FOLDER, low) and re.search(r"(?:create|make|yarat|och|созда)", low):
+    if re.search(_FOLDER, low) and re.search(r"(?:create|make|yarat|och|созда|ярат)", low):
         name_m = re.search(r"[\"«“']([^\"»”']+)[\"»”']", t)
         name = name_m.group(1) if name_m else "Yangi papka"
         return "create_folder", [Action(type="create_folder", path=f"~/Desktop/{name}")], \
@@ -74,11 +85,12 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
     if m:
         app = m.group(1)
     else:
-        m = re.search(r"^(.+?)(?:\s*['’‘]?\s*(?:ni|ni\s+ham|-ni))\s+" + _OPEN, t, re.I)
+        m = re.search(r"^(.+?)(?:\s*['’‘]?\s*(?:ni|ni\s+ham|-ni|ни|ни\s+ҳам|-ни))\s+" + _OPEN, t, re.I)
         app = m.group(1) if m else ""
     app = re.sub(r"^(the|app|application|ilova(?:si)?|приложение)\s+", "", app.strip(), flags=re.I)
     app = re.sub(r"\s+(app|ilovasi(?:ni)?|приложение)$", "", app, flags=re.I).strip(" '\"’")
     if app:
+        app = _CYR_APPS.get(app.lower(), app)
         app = app[0].upper() + app[1:]
         return "open_app", [Action(type="open_app", app=app)], _reply("open", language, x=app)
 

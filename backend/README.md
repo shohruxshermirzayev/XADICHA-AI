@@ -54,9 +54,21 @@ xadicha/
 | Qism | Holat |
 |---|---|
 | Agent sikli (A/B/C), xavfsizlik, tasdiq, to'xtatish | ✅ avtomatik testlardan o'tgan (simulyatsiya qilingan model va adapter bilan) |
-| FastAPI + WebSocket | ✅ testlardan o'tgan |
-| macOS adapteri | ⚠️ yozilgan, real Mac'da hali sinalmagan |
+| FastAPI + WebSocket (tasdiq protokoli, ping/pong, noto'g'ri xabarlar) | ✅ testlardan o'tgan |
+| Mikrofon holati va xatolari (soxta mikrofon bilan) | ✅ testlardan o'tgan; real mikrofon bilan sinalmagan |
+| macOS adapteri | ⚠️ yozilgan, real Mac'da avtomatik sinalmagan |
 | Windows adapteri | ⚠️ yozilgan, Windows qurilmasida sinalmagan |
-| Claude / Ollama provayderlari | ⚠️ yozilgan, real model bilan hali sinalmagan |
-| STT (faster-whisper), TTS | ⚠️ yozilgan; o'zbekcha aniqlik va talaffuz sinalmagan |
-| OCR, Accessibility daraxti | ⏳ rejada |
+| Claude / Ollama provayderlari | ⚠️ yozilgan, real model bilan avtomatik sinalmagan |
+| STT (faster-whisper / MLX), TTS | ⚠️ yozilgan; o'zbekcha aniqlik va talaffuz o'lchanmagan |
+| Ekran tushunish | ⚠️ faqat ekran surati → vision model. OCR va accessibility daraxti **amalga oshirilmagan** |
+
+## Xavfsizlik siyosati (qisqacha)
+
+- Model xavfni faqat **oshira oladi**, pasaytira olmaydi.
+- Tasdiq funksiyasi aniq `True` qaytarmasa — harakat **bajarilmaydi** (rad, muddat tugashi, to'xtatish).
+- Tasdiq bilan ham bajarilmaydi: tizim papkalari (`/System`, `/etc`, `/private`, `C:\Windows`, `C:\Program Files (x86)` …),
+  `~/.ssh`, `~/Library`, `~/.config` kabi sezgir joylar, uy papkasi va `~/Documents` kabi asosiy papkalarning o'zini o'chirish,
+  `http/https` bo'lmagan manzillar (`file:`, ilova yo'li), maxsus qobiq belgilari bor ilova nomlari.
+- Yo'llar `..` va symlinklar yechilgandan keyin tekshiriladi; nisbiy yo'l workspace'ga nisbatan olinadi.
+
+Batafsil: [../docs/TECHNICAL.md](../docs/TECHNICAL.md).
