@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { detectCommandLanguage, LANG_LABEL, LANGS, LOCALE, type Lang, type MsgKey } from "@/lib/i18n";
 import type { T } from "@/lib/use-lang";
 import {
-  describeAction, type Capability, type ChatMessage, type CommandAnalysis, type Mode, type Status, type Task,
+  describeAction, type Capability, type ChatMessage, type Mode, type PendingVoice, type Status, type Task,
   type useXadicha,
 } from "@/lib/xadicha";
 import { Button, Card, CardTitle, Dot, RiskBadge, StepIcon, TaskStatus, formatTime, latency } from "./ui";
@@ -48,13 +48,14 @@ export function activity(x: X): { key: MsgKey; tone: "idle" | "live" | "warn" | 
 
 /* ---------------- Ovozli yordamchi (asosiy ekran) ---------------- */
 
-interface Pending { transcript: string; language: Lang; asr: number | null; analysis: CommandAnalysis }
+type Pending = PendingVoice;
 
 export function AssistantView({ x, l }: { x: X; l: L }) {
   const { lang, t } = l;
   const [mode, setMode] = useState<Mode>("C");
   const [text, setText] = useState("");
-  const [pending, setPending] = useState<Pending | null>(null);
+  const pending = x.clarify;
+  const setPending = (p: Pending | null) => { if (!p) x.clearClarify(); };
   const inputRef = useRef<HTMLInputElement>(null);
   const busy = x.busy;
   const offline = x.online === false;
@@ -73,17 +74,12 @@ export function AssistantView({ x, l }: { x: X; l: L }) {
   const toggleVoice = async () => {
     if (x.listening === "transcribing") return;
     if (x.listening === "recording") {
-      const r = await x.stopListening();
-      if (!r) return;
-      if (!r.supported) x.push({ role: "system", text: t("voice.unsupported") });
-      else if (!r.text) x.push({ role: "system", text: t("voice.nothingHeard") });
-      else if (r.analysis?.needs_clarification) {
-        // Hech narsa bajarilmaydi: foydalanuvchi eshitilgan matnni ko'radi va o'zi tanlaydi
-        setPending({ transcript: r.text, language: r.language, asr: r.asr_confidence, analysis: r.analysis });
-      } else x.run(r.text, r.language, mode, true);
+      // Erta to'xtatish. Natija (bajarish / aniqlashtirish / "eshitilmadi") backend hodisalari orqali keladi
+      await x.stopListening();
     } else {
       setPending(null);
-      x.startListening(lang);
+      // Gapirib bo'linganini backend o'zi sezadi va aniq buyruqni darhol bajaradi
+      x.startListening(lang, mode, true);
     }
   };
 

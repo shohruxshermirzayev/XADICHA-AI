@@ -44,6 +44,34 @@ class MacOSAdapter(OSAdapter):
         r = subprocess.run(["open", url], capture_output=True, text=True, timeout=15)
         return ExecResult(r.returncode == 0, a.url or "", verified=None if r.returncode == 0 else False)
 
+    # --- tizim boshqaruvi: ovoz va yorqinlik (faqat sonli qiymatlar — ixtiyoriy matn AppleScript'ga tushmaydi) ---
+    def _volume(self) -> int:
+        return int(osascript("output volume of (get volume settings)", timeout=5))
+
+    def _do_system(self, a: Action) -> ExecResult:
+        c = a.control
+        step = int(a.amount) if a.amount is not None else 10
+        if c in ("volume_up", "volume_down", "volume_set"):
+            cur = self._volume()
+            target = step if c == "volume_set" else cur + step if c == "volume_up" else cur - step
+            target = max(0, min(100, int(target)))
+            osascript(f"set volume output volume {target} without output muted", timeout=5)
+            now = self._volume()
+            return ExecResult(True, f"ovoz: {cur}% → {now}%", verified=abs(now - target) <= 2)
+        if c in ("mute", "unmute"):
+            want = c == "mute"
+            osascript(f"set volume output muted {'true' if want else 'false'}", timeout=5)
+            state = osascript("output muted of (get volume settings)", timeout=5).strip().lower() == "true"
+            return ExecResult(True, "ovoz o'chirildi" if want else "ovoz yoqildi", verified=state == want)
+        if c in ("brightness_up", "brightness_down"):
+            # Yorqinlik tugmalari (key code 144/145) — Accessibility ruxsati kerak; har bosish ~6%
+            presses = max(1, min(16, round(step / 6.25)))
+            code = 144 if c == "brightness_up" else 145
+            osascript(f'tell application "System Events"\nrepeat {presses} times\nkey code {code}\n'
+                      f'delay 0.05\nend repeat\nend tell', timeout=10)
+            return ExecResult(True, f"yorqinlik {'+' if code == 144 else '-'}{presses} qadam", verified=None)
+        return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
+
     def _to_trash(self, path: Path) -> None:
         # Finder orqali Savatga — qaytarib olsa bo'ladi
         posix = str(path.resolve()).replace("\\", "\\\\").replace('"', '\\"')

@@ -202,6 +202,10 @@ class Agent:
     # --- A rejimi ---
     def _run_single(self, task: TaskRecord) -> None:
         rb = RuleBasedProvider()
+        intent, actions, reply = parse_command(task.instruction, task.language)
+        if intent == "system" and actions:
+            self._run_system(task, actions, reply)
+            return
         d = rb.decide(task.instruction, [], None, task.language)
         task.intent = d.intent
         if d.action is None:
@@ -254,10 +258,13 @@ class Agent:
         Muvaffaqiyatli bo'lsa True. Aks holda bajarilgan qadam tarixda qoladi va
         model to'liq siklda (ekran + tekshiruv) davom ettiradi.
         """
-        if not self.cfg.fast_path or not is_simple(task.instruction):
+        if not self.cfg.fast_path:
             return False
         intent, actions, reply = parse_command(task.instruction, task.language)
-        if intent not in FAST_INTENTS or len(actions) != 1:
+        if intent == "system" and actions:
+            # Ovoz / yorqinlik: aniq tanilgan buyruq — modelsiz, darhol; faqat aytilgan amallar bajariladi
+            return self._run_system(task, actions, reply)
+        if not is_simple(task.instruction) or intent not in FAST_INTENTS or len(actions) != 1:
             return False
         step = self._execute(task, actions[0], RiskLevel.low, "")
         if step.status in (StepStatus.verified, StepStatus.executed):
@@ -268,6 +275,19 @@ class Agent:
             self._finish_denied(task, step)
             return True
         return False   # masalan, ilova nomi noto'g'ri tanildi — model davom ettiradi
+
+    def _run_system(self, task: TaskRecord, actions: list[Action], reply: str) -> bool:
+        task.intent, task.planner = "system", "rules"
+        for a in actions:
+            step = self._execute(task, a, RiskLevel.low, "")
+            if step.status == StepStatus.denied:
+                self._finish_denied(task, step)
+                return True
+            if step.status == StepStatus.failed:
+                task.status, task.final_message = TaskStatus.failed, step.detail
+                return True
+        task.status, task.final_message = TaskStatus.success, reply
+        return True
 
     def _run_loop(self, task: TaskRecord) -> None:
         if self._try_fast_path(task):

@@ -48,6 +48,36 @@ class WindowsAdapter(OSAdapter):
         ok = webbrowser.open(url)
         return ExecResult(ok, a.url or "", verified=None if ok else False)
 
+    def _do_system(self, a: Action) -> ExecResult:
+        """DIQQAT: Windows'da sinalmagan. Ovoz — multimedia tugmalari (har bosish ~2%), yorqinlik — WMI."""
+        c = a.control
+        step = int(a.amount) if a.amount is not None else 10
+        gui = self._gui()
+        if c == "volume_up":
+            gui.press("volumeup", presses=max(1, step // 2))
+            return ExecResult(True, f"ovoz +{step}%", verified=None)
+        if c == "volume_down":
+            gui.press("volumedown", presses=max(1, step // 2))
+            return ExecResult(True, f"ovoz -{step}%", verified=None)
+        if c == "volume_set":
+            gui.press("volumedown", presses=50)
+            gui.press("volumeup", presses=max(0, min(100, step)) // 2)
+            return ExecResult(True, f"ovoz ≈{step}%", verified=None)
+        if c in ("mute", "unmute"):
+            gui.press("volumemute")   # Windows'da holatni o'qib bo'lmaydi — almashtirish tugmasi
+            return ExecResult(True, "ovoz o'chirish/yoqish tugmasi bosildi", verified=None)
+        if c in ("brightness_up", "brightness_down"):
+            delta = step if c == "brightness_up" else -step
+            ps = ("$b=(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness).CurrentBrightness;"
+                  f"$n=[Math]::Max(0,[Math]::Min(100,$b+({int(delta)})));"
+                  "(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods)"
+                  ".WmiSetBrightness(1,$n) | Out-Null; $n")
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=10)
+            if r.returncode != 0:
+                return ExecResult(False, "Yorqinlikni o'zgartirib bo'lmadi (tashqi monitor?)", verified=False)
+            return ExecResult(True, f"yorqinlik {r.stdout.strip()}%", verified=None)
+        return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
+
     def _to_trash(self, path: Path) -> None:
         try:
             from send2trash import send2trash

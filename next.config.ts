@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Pastki chap burchakdagi Next.js "N" belgisini (dev indicator) ko'rsatmaslik
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

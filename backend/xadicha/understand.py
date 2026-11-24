@@ -123,6 +123,13 @@ def understand(text: str, language: str = "uz", asr_confidence: float | None = N
     """llm_available — murakkab buyruqni model bajara oladimi (qoida asosidagi rejimda — yo'q)."""
     original = text
     norm, notes = normalize(text)
+    if parse_command(norm, language)[0] == "system":
+        # Ovoz / yorqinlik buyrug'i aniq tanildi — darhol bajariladi (ASR ishonchi past bo'lsa — so'raladi)
+        a = Analysis(original=original, normalized=norm, intent="system", intent_confidence=0.95,
+                     needs_clarification=False, reason="ok", suggestion=norm)
+        if asr_confidence is not None and asr_confidence < ASR_LOW:
+            a.needs_clarification, a.reason = True, "low_asr_confidence"
+        return a
     if not is_simple(norm) or (llm_available and parse_command(norm, language)[0] == "unknown"
                                and not _extract_app(norm)):
         # Ko'p qadamli yoki qoida tushunmaydigan buyruq — modelga topshiriladi (aniqlashtirish faqat ASR past bo'lsa)

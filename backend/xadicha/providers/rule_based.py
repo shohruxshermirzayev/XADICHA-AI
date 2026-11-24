@@ -58,8 +58,85 @@ def _reply(kind: str, lang: str, **kw: str) -> str:
     return _REPLY[kind].get(lang, _REPLY[kind]["en"]).format(**kw)
 
 
+# ---------------- Tizim boshqaruvi: ovoz va yorqinlik ----------------
+_VOL = r"(?:ovoz\w*|tovush\w*|овоз\w*|товуш\w*|звук\w*|громкост\w*|volume|sound)"
+_BRI = r"(?:yorug'lik\w*|yorqinlik\w*|ravshanlik\w*|ёруғлик\w*|ёрқинлик\w*|равшанлик\w*|яркост\w*|brightness)"
+_UP = (r"(?:ko'tar\w*|oshir\w*|balan\w*|kuchaytir\w*|ko'paytir\w*|кўтар\w*|ошир\w*|баланд\w*|кучайтир\w*"
+       r"|увелич\w*|прибав\w*|подним\w*|up|increase|raise|higher)")
+_DOWN = (r"(?:pasaytir\w*|kamaytir\w*|past\w*|sekin\w*|tushir\w*|пасайтир\w*|камайтир\w*|паст\w*|тушир\w*"
+         r"|уменьш\w*|убав\w*|сниз\w*|down|decrease|lower|reduce)")
+_OFF = r"(?:o'chir\w*|ўчир\w*|выключ\w*|отключ\w*|off)"
+_ON = r"(?:yoq\b|yoqib\w*|yoqing|ёқ\b|ёқиб\w*|ёқинг|включ\w*|on)"
+
+_SYS_REPLY = {
+    "volume_up": {"uz": "Ovoz balandlatildi.", "ru": "Громкость увеличена.", "en": "Volume turned up."},
+    "volume_down": {"uz": "Ovoz pasaytirildi.", "ru": "Громкость уменьшена.", "en": "Volume turned down."},
+    "volume_set": {"uz": "Ovoz {n}% ga o'rnatildi.", "ru": "Громкость установлена на {n}%.", "en": "Volume set to {n}%."},
+    "mute": {"uz": "Ovoz o'chirildi.", "ru": "Звук выключен.", "en": "Sound muted."},
+    "unmute": {"uz": "Ovoz yoqildi.", "ru": "Звук включён.", "en": "Sound unmuted."},
+    "brightness_up": {"uz": "Ekran yorqinligi oshirildi.", "ru": "Яркость увеличена.", "en": "Brightness turned up."},
+    "brightness_down": {"uz": "Ekran yorqinligi pasaytirildi.", "ru": "Яркость уменьшена.", "en": "Brightness turned down."},
+}
+
+
+def _one_system(part: str) -> Action | None:
+    t = re.sub(r"[ʻʼ’‘`´]", "'", part.lower()).strip(" .!?")
+    num = re.search(r"(\d{1,3})\s*(?:%|foiz|фоиз|процент\w*|percent)?", t)
+    n = int(num.group(1)) if num and int(num.group(1)) <= 100 else None
+    vol, bri = re.search(_VOL, t), re.search(_BRI, t)
+    # Bir so'zli iboralar
+    if re.fullmatch(r"(?:сделай\s+)?громче|louder|turn (?:it )?up", t):
+        return Action(type="system", control="volume_up")
+    if re.fullmatch(r"(?:сделай\s+)?тише|quieter|turn (?:it )?down", t):
+        return Action(type="system", control="volume_down")
+    if re.fullmatch(r"mute|без звука|ovozsiz(?: qil\w*)?|овозсиз(?: қил\w*)?", t):
+        return Action(type="system", control="mute")
+    if re.fullmatch(r"unmute", t):
+        return Action(type="system", control="unmute")
+    if re.fullmatch(r"(?:сделай\s+)?(?:экран\s+)?ярче|brighter|(?:ekran\w*\s+)?yorqinroq(?: qil\w*)?|(?:экран\w*\s+)?ёрқинроқ(?: қил\w*)?", t):
+        return Action(type="system", control="brightness_up")
+    if re.fullmatch(r"(?:сделай\s+)?(?:экран\s+)?темнее|dimmer|darker|(?:ekran\w*\s+)?xiraroq(?: qil\w*)?|(?:экран\w*\s+)?хирароқ(?: қил\w*)?", t):
+        return Action(type="system", control="brightness_down")
+    if bri or re.search(r"ekran\w*\s+(?:yorug'|yorq)|экран\w*\s+(?:ёруғ|ёрқ)", t):
+        if re.search(_UP, t):
+            return Action(type="system", control="brightness_up", amount=n)
+        if re.search(_DOWN, t):
+            return Action(type="system", control="brightness_down", amount=n)
+        return None
+    if vol:
+        if n is not None and not re.search(_UP + "|" + _DOWN, t):
+            return Action(type="system", control="volume_set", amount=n)
+        if re.search(_OFF, t):
+            return Action(type="system", control="mute")
+        if re.search(_ON, t):
+            return Action(type="system", control="unmute")
+        if re.search(_UP, t):
+            return Action(type="system", control="volume_up", amount=n)
+        if re.search(_DOWN, t):
+            return Action(type="system", control="volume_down", amount=n)
+    return None
+
+
+def parse_system(text: str) -> list[Action] | None:
+    """"ovozni ko'tar", "сделай тише", "brightness up", "ovozni ko'tar va yorug'likni oshir" — har bir qism
+    tizim buyrug'i bo'lsagina natija qaytaradi (aks holda None — boshqa tahlilga o'tadi)."""
+    parts = [p for p in re.split(r"\s+(?:va|hamda|and|и|ва)\s+|[,;]", text.strip()) if p.strip()]
+    if not parts:
+        return None
+    actions = [_one_system(p) for p in parts]
+    return actions if all(actions) else None  # type: ignore[return-value]
+
+
+def system_reply(actions: list[Action], lang: str) -> str:
+    out = []
+    for a in actions:
+        r = _SYS_REPLY[a.control or ""]
+        out.append(r.get(lang, r["en"]).format(n=a.amount))
+    return " ".join(out)
+
+
 _MULTI = re.compile(r"(\s(va|and|и|keyin|then|потом|затем)\s|[,;]|\bdeb\b|\byoz\b|\btype\b|\bнапиши\b)", re.I)
-FAST_INTENTS = {"open_app", "open_url", "web_search", "create_folder"}
+FAST_INTENTS = {"open_app", "open_url", "web_search", "create_folder", "system"}
 
 
 def is_simple(text: str) -> bool:
@@ -71,6 +148,10 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
     """(niyat, harakatlar, javob) qaytaradi."""
     t = text.strip().rstrip(".!?")
     low = t.lower()
+
+    sys_actions = parse_system(t)
+    if sys_actions:
+        return "system", sys_actions, system_reply(sys_actions, language)
 
     m = _URL_RE.search(t)
     if m and re.search(_OPEN + r"|sayt|site|сайт|zayti", low):

@@ -10,7 +10,7 @@ import re
 from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse
 
-from .models import RISK_ORDER, Action, RiskLevel, max_risk
+from .models import RISK_ORDER, SYSTEM_CONTROLS, Action, RiskLevel, max_risk
 
 # Xabar yuborish, o'rnatish, to'lov, o'chirish bilan bog'liq kalit so'zlar (uz/ru/en)
 _SENSITIVE_WORDS = [
@@ -90,6 +90,9 @@ def classify(action: Action, workspace: Path | None = None) -> RiskLevel:
         return RiskLevel.high
     if t in ("wait", "scroll"):
         return RiskLevel.low
+    if t == "system":
+        # Ovoz va yorqinlik — qaytariladigan, zararsiz; tasdiqsiz darhol bajariladi
+        return RiskLevel.low if action.control in SYSTEM_CONTROLS else RiskLevel.high
     if t == "open_app":
         return RiskLevel.high if (action.app or "").strip().lower() in _SENSITIVE_APPS else RiskLevel.low
     if t == "open_url":
@@ -173,6 +176,12 @@ def _home_reason(resolved: Path, action_type: str) -> str | None:
 
 def blocked_reason(action: Action, workspace: Path) -> str | None:
     """Tasdiq bilan ham bajarilmaydigan harakatlar."""
+    if action.type == "system":
+        if action.control not in SYSTEM_CONTROLS:
+            return "Noma'lum tizim boshqaruvi."
+        if action.amount is not None and not (0 <= action.amount <= 100):
+            return "Qiymat 0–100 oralig'ida bo'lishi kerak."
+        return None
     if action.type == "open_url":
         return check_url(action.url or "")[1]
     if action.type == "open_app":

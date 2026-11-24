@@ -48,7 +48,11 @@ ActionType = Literal[
     "create_file",
     "delete_path",
     "wait",
+    "system",
 ]
+
+# Tizim boshqaruvi: faqat shu oldindan belgilangan, xavfsiz amallar (ixtiyoriy buyruq yo'q)
+SYSTEM_CONTROLS = ("volume_up", "volume_down", "volume_set", "mute", "unmute", "brightness_up", "brightness_down")
 
 
 class Action(BaseModel):
@@ -63,6 +67,7 @@ class Action(BaseModel):
     path: str | None = None
     content: str | None = None
     seconds: float | None = None
+    control: str | None = None      # type="system" uchun: SYSTEM_CONTROLS dan biri; amount — qadam yoki daraja
 
     def describe(self) -> str:
         t = self.type
@@ -86,6 +91,8 @@ class Action(BaseModel):
             return f"O'CHIRISH: {self.path}"
         if t == "wait":
             return f"Kutish: {self.seconds} s"
+        if t == "system":
+            return f"Tizim: {self.control}" + (f" {self.amount}" if self.amount is not None else "")
         return t
 
 

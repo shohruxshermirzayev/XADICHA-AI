@@ -56,6 +56,10 @@ Muddat: `XadichaService(confirm_timeout=120)` (soniya).
 - Xatolar: `error` hodisasi (`code: "microphone"`) va `POST /api/listen/stop` → `503` tushunarli matn bilan
   (mikrofon topilmadi / ruxsat yo'q / PortAudio). `stop` siz `listen/stop` → `409`. Vazifa bajarilayotganda `listen/start` → `409`.
 - Favqulodda to'xtatish yozuvni matnga aylantirmasdan bekor qiladi.
+- Avtomatik rejim (`POST /api/listen/start?auto=true&mode=C`, interfeys standarti): `Endpointer` gapirib bo'linganini
+  sezadi, backend matnni tahlil qiladi va aniq buyruqni darhol bajaradi (`voice_result: started`); noaniq bo'lsa —
+  `clarify` hodisasi (hech narsa bajarilmaydi); bo'sh yoki "uydirma" matn — `voice_result: empty`.
+  Erta to'xtatish (`/api/listen/stop`) ham shu yo'ldan o'tadi (`handled: true`).
 
 ## 5. Xavfsizlik
 

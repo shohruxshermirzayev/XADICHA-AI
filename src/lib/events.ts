@@ -17,7 +17,7 @@ export interface TaskLike<S extends StepLike = StepLike> {
 export const EVENT_TYPES = [
   "hello", "pong", "warm", "task_started", "step_started", "step_finished", "step_verified", "task_finished",
   "confirm_request", "confirm_resolved", "listening", "mic_level", "transcript", "error", "stopped", "spoken",
-  "state",
+  "state", "clarify", "voice_result",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -74,6 +74,12 @@ export function parseEvent(raw: unknown): BackendEvent | null {
       break;
     case "state":
       if (typeof e.busy !== "boolean") return null;
+      break;
+    case "clarify":
+      if (typeof e.text !== "string" || !isObj(e.analysis)) return null;
+      break;
+    case "voice_result":
+      if (e.status !== "empty" && e.status !== "unsupported" && e.status !== "started") return null;
       break;
   }
   return e as BackendEvent;

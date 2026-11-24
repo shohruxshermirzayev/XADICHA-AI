@@ -142,10 +142,11 @@ def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, 
         return {"ok": True}
 
     @app.post("/api/listen/start")
-    def listen_start(language: str | None = None) -> dict[str, Any]:
+    def listen_start(language: str | None = None, auto: bool = False, mode: Mode = Mode.multimodal) -> dict[str, Any]:
+        """auto=true — gapirib bo'linganini o'zi sezadi va aniq buyruqni darhol bajaradi."""
         if svc.busy:
             raise HTTPException(409, "Vazifa bajarilmoqda — tugashini kuting yoki to'xtating.")
-        state = svc.start_listening(language if language in ("uz", "ru", "en") else None)
+        state = svc.start_listening(language if language in ("uz", "ru", "en") else None, auto=auto, mode=mode)
         return {"ok": True, "state": state}
 
     @app.post("/api/listen/stop")
@@ -158,7 +159,8 @@ def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, 
             raise HTTPException(500, "Nutq aniqlanmadi.")
         analysis = understand(r.text, r.language, r.asr_confidence, llm_available=svc.provider.name != "rules")
         return {"text": r.text, "language": r.language, "probability": r.probability, "supported": r.supported,
-                "asr_confidence": r.asr_confidence, "analysis": analysis.public() if r.text else None}
+                "asr_confidence": r.asr_confidence, "analysis": analysis.public() if r.text else None,
+                "handled": svc.listen_handled}
 
     @app.post("/api/understand")
     def understand_text(body: UnderstandIn) -> dict[str, Any]:

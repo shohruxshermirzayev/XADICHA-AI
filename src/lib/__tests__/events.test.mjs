@@ -52,3 +52,10 @@ test("confirmation countdown", () => {
   assert.equal(secondsLeft(100, 90_000), 10);
   assert.equal(secondsLeft(100, 100_500), 0);
 });
+
+test("voice events: clarify and voice_result are validated", () => {
+  assert.equal(parseEvent('{"type":"clarify","text":"Staffar in och","analysis":{"needs_clarification":true}}').type, "clarify");
+  assert.equal(parseEvent('{"type":"clarify","text":"x"}'), null);
+  assert.equal(parseEvent('{"type":"voice_result","status":"empty"}').status, "empty");
+  assert.equal(parseEvent('{"type":"voice_result","status":"hacked"}'), null);
+});

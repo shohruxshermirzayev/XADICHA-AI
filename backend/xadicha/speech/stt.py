@@ -34,6 +34,65 @@ def rms_level(samples: np.ndarray) -> float:
     return min(1.0, rms * 6.0)
 
 
+class Endpointer:
+    """Gapirib bo'lganini sezish (energiya asosida, sof — testlanadi).
+
+    - Birinchi `calib_s` soniyada fon shovqini o'lchanadi.
+    - Nutq: RMS > max(min_level, shovqin × ratio) kamida `min_speech_s` davomida.
+    - Nutqdan keyin `silence_s` jimlik — to'xtash. Umuman nutq bo'lmasa — `no_speech_s` dan keyin to'xtash.
+    Qiymatlar real mikrofonda sozlanmagan (docs/LIMITATIONS.md).
+    """
+
+    def __init__(self, silence_s: float = 0.9, min_speech_s: float = 0.25, no_speech_s: float = 6.0,
+                 calib_s: float = 0.3, ratio: float = 3.0, min_level: float = 0.012):
+        self.silence_s, self.min_speech_s, self.no_speech_s = silence_s, min_speech_s, no_speech_s
+        self.calib_s, self.ratio, self.min_level = calib_s, ratio, min_level
+        self.t = 0.0
+        self.noise: list[float] = []
+        self.speech_run = 0.0
+        self.silence_run = 0.0
+        self.heard = False
+        self.reason = ""
+
+    @property
+    def threshold(self) -> float:
+        floor = sorted(self.noise)[len(self.noise) // 2] if self.noise else 0.0
+        return max(self.min_level, floor * self.ratio)
+
+    def feed(self, rms: float, dt: float) -> bool:
+        """Bitta bo'lak (RMS, davomiyligi). True — yozishni to'xtatish vaqti keldi."""
+        self.t += dt
+        if self.t <= self.calib_s and not self.heard:
+            self.noise.append(rms)
+            return False
+        if rms > self.threshold:
+            self.speech_run += dt
+            self.silence_run = 0.0
+            if self.speech_run >= self.min_speech_s:
+                self.heard = True
+        else:
+            self.speech_run = 0.0
+            self.silence_run += dt
+        if self.heard and self.silence_run >= self.silence_s:
+            self.reason = "silence"
+            return True
+        if not self.heard and self.t >= self.no_speech_s:
+            self.reason = "no_speech"
+            return True
+        return False
+
+
+# Whisper jimlikda ba'zan "o'ylab topadigan" iboralar — buyruq emas, bajarilmaydi
+_HALLUCINATIONS = ("продолжение следует", "субтитры", "спасибо за просмотр", "редактор субтитров",
+                   "thank you for watching", "thanks for watching", "subtitles by", "please subscribe",
+                   "obuna bo'ling", "rahmat tomosha")
+
+
+def is_hallucination(text: str) -> bool:
+    low = text.lower().strip(" .!?…")
+    return bool(low) and any(h in low for h in _HALLUCINATIONS)
+
+
 def asr_confidence(segments: list[tuple[float, float, int]]) -> float | None:
     """Nutq tanish ishonchi 0..1: segmentlar avg_logprob'ining (matn uzunligi bo'yicha vaznli) eksponentasi,
     "nutq yo'q" ehtimolligi bilan kamaytirilgan. Kiruvchi: [(avg_logprob, no_speech_prob, belgilar soni)].
@@ -133,7 +192,8 @@ class Listener:
         return self._model
 
     def record_until(self, stop: threading.Event, max_seconds: float = 30.0,
-                     on_level: Callable[[float], None] | None = None) -> np.ndarray:
+                     on_level: Callable[[float], None] | None = None,
+                     endpointer: Endpointer | None = None) -> np.ndarray:
         """`stop` hodisasigacha (yoki max_seconds) mikrofondan yozadi.
 
         on_level — har bir bo'lak uchun ovoz balandligi (0..1, RMS asosida); interfeys vizualizatsiyasi uchun.
@@ -150,6 +210,10 @@ class Listener:
                     on_level(rms_level(indata))
                 except Exception:  # noqa: BLE001 — vizualizatsiya xatosi yozuvni buzmasin
                     pass
+            if endpointer is not None:
+                rms = float(np.sqrt(np.mean(np.square(indata.astype(np.float32))))) if len(indata) else 0.0
+                if endpointer.feed(rms, frames / SAMPLE_RATE):
+                    stop.set()   # gapirib bo'lindi — yozish avtomatik to'xtaydi
 
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback):
             stop.wait(timeout=max_seconds)
@@ -191,8 +255,8 @@ class Listener:
         text = " ".join(s.text.strip() for s in segments).strip()
         conf = asr_confidence([(getattr(s, "avg_logprob", None), getattr(s, "no_speech_prob", 0.0), len(s.text))
                                for s in segments])
-        if len(text) > 40 and text.rstrip(".") in PROMPTS.get(language, ""):
-            text, conf = "", None   # jimlikda Whisper ba'zan kontekst matnini takrorlaydi — bu nutq emas
+        if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(language, "")) or is_hallucination(text):
+            text, conf = "", None   # jimlikda Whisper ba'zan matn "o'ylab topadi" — bu nutq emas, bajarilmaydi
         return Transcript(text, language, prob, language in SUPPORTED, detected_raw=raw, asr_confidence=conf)
 
     def _transcribe_mlx(self, audio: np.ndarray, language: str | None) -> Transcript:
@@ -202,7 +266,7 @@ class Listener:
             # MLX tilni cheklovsiz aniqlaydi — qo'llab-quvvatlanmaydigan til chiqsa, o'zbekcha deb qayta o'qiymiz
             raw = lang
             text, lang, conf = self._mlx_full(audio, "uz")
-        if len(text) > 40 and text.rstrip(".") in PROMPTS.get(lang, ""):
+        if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(lang, "")) or is_hallucination(text):
             text, conf = "", None
         # MLX til ehtimolligini bermaydi — 1.0 emas, noma'lum deb belgilaymiz
         return Transcript(text, lang, 0.0, lang in SUPPORTED, detected_raw=raw, asr_confidence=conf)

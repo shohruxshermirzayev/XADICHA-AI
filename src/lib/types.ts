@@ -13,6 +13,8 @@ export interface Action {
   text?: string | null;
   keys?: string[] | null;
   path?: string | null;
+  control?: string | null;   // type="system": volume_up | volume_down | volume_set | mute | unmute | brightness_up | brightness_down
+  amount?: number | null;
 }
 
 export interface Step {
@@ -112,4 +114,12 @@ export interface Transcript {
   asr_confidence: number | null;     // nutq tanish ishonchi (0..1), noma'lum bo'lsa null
   supported: boolean;
   analysis?: CommandAnalysis;
+}
+
+/** Aniqlashtirish kutilayotgan ovozli buyruq (backend `clarify` hodisasi). */
+export interface PendingVoice {
+  transcript: string;
+  language: Lang;
+  asr: number | null;
+  analysis: CommandAnalysis;
 }

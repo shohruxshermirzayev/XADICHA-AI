@@ -44,6 +44,9 @@ Ikki Terminal: `python -m xadicha serve` va `npm run dev`, brauzerda http://loca
 
 1. **Ulanish** — chap pastda "Backend ulangan".
 2. **Ovoz** — belgini bosing, "Safari ni och" deng, yana bosing. Kutiladi: animatsiya ovozga mos harakatlanadi; Safari ochiladi.
+2a. **Tizim buyruqlari** — "Ovozini ko'tar", "Ovozni 30 ga qo'y", "Ovozni o'chir", "Yorug'likni oshir", "Сделай тише",
+   "Brightness down". Kutiladi: gapirib bo'lishingiz bilan (tugmani qayta bosmasdan) darhol bajariladi; tasdiq so'ralmaydi.
+   Gapirmasangiz — ~6 s dan keyin "Hech narsa eshitilmadi", hech narsa bajarilmaydi.
 3. **Noaniq buyruq** — g'ayrioddiy talaffuz bilan ayting (yoki "open sufari" deb yozing va ovoz bilan takrorlang).
    Kutiladi: aniqlashtirish kartasi, eshitilgan matn, taklif; o'zicha hech narsa bajarilmaydi.
 4. **Tasdiq** — "Desktopda \"Sinov\" papka yarat": dialog, qolgan soniyalar; "Yo'q" → bajarilmaydi; qayta "Ha" → papka yaratiladi.

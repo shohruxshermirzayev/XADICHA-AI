@@ -9,7 +9,7 @@ export type { Lang } from "./i18n";
 
 export const API = process.env.NEXT_PUBLIC_XADICHA_API ?? "http://127.0.0.1:8765";
 
-import type { Action, ChatMessage, Mode, Status, Task, Transcript } from "./types";
+import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, Status, Task, Transcript } from "./types";
 
 export type * from "./types";
 
@@ -83,6 +83,10 @@ export function describeAction(a: Action, lang: Lang = "uz"): string {
       case "create_folder":
       case "create_file":
       case "delete_path": return a.path ?? "";
+      case "system": {
+        const c = a.control ? translate(lang, `control.${a.control}` as MsgKey) : "";
+        return `${c.startsWith("control.") ? a.control : c}${a.amount != null ? ` ${a.amount}%` : ""}`;
+      }
       default: return "";
     }
   })();
@@ -101,6 +105,7 @@ export function useXadicha(uiLang: Lang = "uz") {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [clarify, setClarify] = useState<PendingVoice | null>(null);
 
   const stRef = useRef(st);
   const wsRef = useRef<WebSocket | null>(null);
@@ -188,6 +193,15 @@ export function useXadicha(uiLang: Lang = "uz") {
           break;
         case "transcript":
           if (applied && typeof e.text === "string" && e.text) push({ role: "user", text: e.text, lang: e.language as string });
+          break;
+        case "clarify":
+          // Backend buyruqni aniq tushunmadi — hech narsa bajarilmagan; foydalanuvchi tanlaydi
+          if (applied) setClarify({ transcript: e.text as string, language: (e.language as Lang) ?? "uz",
+            asr: typeof e.asr_confidence === "number" ? e.asr_confidence : null, analysis: e.analysis as CommandAnalysis });
+          break;
+        case "voice_result":
+          if (applied && e.status === "empty") push({ role: "system", text: translate(langRef.current, "voice.nothingHeard") });
+          if (applied && e.status === "unsupported") push({ role: "system", text: translate(langRef.current, "voice.unsupported") });
           break;
         case "error":
           if (applied) {
@@ -287,12 +301,17 @@ export function useXadicha(uiLang: Lang = "uz") {
     }
   }, []);
 
-  /** language — tanlangan til (o'zbek nutqi boshqa til deb adashib aniqlanmasligi uchun). */
-  const startListening = useCallback(async (language?: Lang) => {
+  /**
+   * Tinglashni boshlaydi. auto=true: gapirib bo'linganini backend o'zi sezadi, aniq buyruqni darhol bajaradi,
+   * noaniq bo'lsa `clarify` hodisasini yuboradi. language — tanlangan til (o'zbek nutqi adashib aniqlanmasligi uchun).
+   */
+  const startListening = useCallback(async (language?: Lang, mode: Mode = "C", auto = true) => {
     setError(null);
+    setClarify(null);
+    const q = new URLSearchParams({ mode, auto: String(auto) });
+    if (language) q.set("language", language);
     try {
-      const r = await call<{ ok: boolean; state?: UiState["listening"] }>(
-        `/api/listen/start${language ? `?language=${language}` : ""}`, { method: "POST" });
+      const r = await call<{ ok: boolean; state?: UiState["listening"] }>(`/api/listen/start?${q}`, { method: "POST" });
       // WebSocket uzilgan bo'lsa ham tugma holati haqiqiy yozuv bilan mos bo'lsin
       update((s) => ({ ...s, listening: r.state ?? "recording" }));
     } catch (e) {
@@ -364,7 +383,8 @@ export function useXadicha(uiLang: Lang = "uz") {
   return {
     status: st.status, phase: st.phase, busy: isBusy(st), current: st.current, confirmation: st.confirmation,
     listening: st.listening, micLevel: st.micLevel,
-    online, wsOpen, tasks, confirmBusy, confirmError, messages, error,
+    online, wsOpen, tasks, confirmBusy, confirmError, messages, error, clarify,
     run, analyze, startListening, stopListening, answer, stop, clearHistory, refresh, push,
+    clearClarify: () => setClarify(null),
   };
 }

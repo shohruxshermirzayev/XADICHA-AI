@@ -37,8 +37,12 @@ Action types and fields:
 - create_file {{"path": "~/Desktop/a.txt", "content": "..."}}
 - delete_path {{"path": "..."}}           ALWAYS risk "high"
 - wait {{"seconds": 1.5}}
+- system {{"control": "volume_up"|"volume_down"|"volume_set"|"mute"|"unmute"|"brightness_up"|"brightness_down", "amount": 10}}
+                                         volume / screen brightness; amount = step in % (or the level for volume_set)
 
 Rules:
+- Do ONLY what the user explicitly asked. Never add extra actions, never open, close, type or change anything
+  the user did not request, and stop (done=true) as soon as the requested goal is reached.
 - Prefer open_app / open_url / create_folder over clicking when possible: they are more reliable.
 - Web search shortcuts (skip typing into search boxes): YouTube -> open_url "https://www.youtube.com/results?search_query=<words joined by +>";
   Google -> "https://www.google.com/search?q=<words joined by +>". On a YouTube results page, click the title of the first real video (not an ad or Shorts) to play it.
@@ -56,7 +60,9 @@ Produce a complete plan for the instruction as ONE JSON object only:
 {{"intent": "...", "steps": [{{"action": {{...}}, "expected_outcome": "...", "risk": "low|medium|high"}}],
   "final_message": "short reply in {language}"}}
 Use the same action types as: open_app, open_url, click, double_click, type_text, hotkey, scroll,
-create_folder, create_file, delete_path, wait. Avoid click (you cannot see coordinates)."""
+create_folder, create_file, delete_path, wait, system (control: volume_up|volume_down|volume_set|mute|unmute|
+brightness_up|brightness_down, amount). Avoid click (you cannot see coordinates).
+Plan ONLY the steps needed for exactly what the user asked — no extra actions."""
 
 
 def history_text(history: list[dict[str, Any]]) -> str:

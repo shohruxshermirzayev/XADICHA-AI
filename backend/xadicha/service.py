@@ -16,7 +16,8 @@ from .agent import Agent
 from .config import Config
 from .models import Action, Mode, RiskLevel, TaskRecord
 from .providers import LLMProvider, ProviderError, RuleBasedProvider, make_provider
-from .speech.stt import Listener, Transcript
+from .speech.stt import Endpointer, Listener, Transcript
+from .understand import understand
 from .speech.tts import Speaker
 from .storage import Storage
 
@@ -153,6 +154,7 @@ class XadichaService:
         self._listen_result: Transcript | None = None
         self._listen_error = ""
         self._listen_cancelled = False
+        self.listen_handled = False
 
         from .vision.context import NullAccessibility, NullOCR, make_accessibility, make_ocr
 
@@ -375,7 +377,8 @@ class XadichaService:
         self.emit({"type": "listening", "state": state, **extra})
         self._emit_state()
 
-    def start_listening(self, language: str | None = None) -> str:
+    def start_listening(self, language: str | None = None, auto: bool = False,
+                        mode: Mode = Mode.multimodal) -> str:
         """Mikrofonni faqat backend (sounddevice) yozadi; interfeys ovoz darajasini `mic_level` hodisasidan oladi.
         Qaytaradi: joriy holat ("recording" yoki allaqachon ketayotgan holat)."""
         if self._listen_thread and self._listen_thread.is_alive():
@@ -386,6 +389,8 @@ class XadichaService:
         self._listen_result = None
         self._listen_error = ""
         self._listen_cancelled = False
+        self.listen_handled = False
+        endpointer = Endpointer() if auto else None
         last = [0.0]
 
         def on_level(level: float) -> None:
@@ -396,14 +401,20 @@ class XadichaService:
 
         def work() -> None:
             try:
-                audio = self.listener.record_until(stop_ev, on_level=on_level)
+                if endpointer is not None:
+                    audio = self.listener.record_until(stop_ev, on_level=on_level, endpointer=endpointer)
+                else:
+                    audio = self.listener.record_until(stop_ev, on_level=on_level)
                 if self._listen_cancelled:
                     return
                 self._set_listening("transcribing")
                 self._listen_result = self.listener.transcribe(audio, language)
                 r = self._listen_result
-                self.emit({"type": "transcript", "text": r.text, "language": r.language,
-                           "probability": r.probability, "supported": r.supported})
+                if r.text:
+                    self.emit({"type": "transcript", "text": r.text, "language": r.language,
+                               "probability": r.probability, "supported": r.supported})
+                if auto:
+                    self._auto_handle(r, mode)
             except Exception as e:  # noqa: BLE001 — mikrofon ruxsati yo'q, qurilma topilmadi va h.k.
                 self._listen_error = mic_error_message(e)
                 logging.getLogger("xadicha").warning("mikrofon xatosi: %s", e)
@@ -417,6 +428,27 @@ class XadichaService:
         self.emit({"type": "listening", "state": "recording"})
         self._emit_state()
         return "recording"
+
+    def _auto_handle(self, r: Transcript, mode: Mode) -> None:
+        """Avtomatik rejim: aniq buyruq — darhol bajariladi; noaniq — aniqlashtirish; bo'sh — hech narsa."""
+        self.listen_handled = True
+        if not r.text:
+            self.emit({"type": "voice_result", "status": "empty"})
+            return
+        if not r.supported:
+            self.emit({"type": "voice_result", "status": "unsupported", "language": r.language})
+            return
+        analysis = understand(r.text, r.language, r.asr_confidence, llm_available=self.provider.name != "rules")
+        if analysis.needs_clarification:
+            # Aytilgani aniq emas — o'zicha hech narsa qilinmaydi, foydalanuvchi tanlaydi
+            self.emit({"type": "clarify", "text": r.text, "language": r.language,
+                       "asr_confidence": r.asr_confidence, "analysis": analysis.public()})
+            return
+        try:
+            self.start_task(r.text, r.language, mode)
+            self.emit({"type": "voice_result", "status": "started", "text": r.text})
+        except RuntimeError as e:
+            self.emit({"type": "error", "message": str(e)})
 
     def stop_listening(self, timeout: float = 120) -> Transcript | None:
         """Yozishni to'xtatib, matnni qaytaradi. Xato bo'lsa RuntimeError (sababi bilan)."""

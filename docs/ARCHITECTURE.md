@@ -47,10 +47,16 @@ POST /api/tasks → start_task (qulf, to'xtatish bayrog'i tozalanadi) → state(
 
 ```
 sounddevice (backend, yagona yozuv) → mic_level hodisalari (vizualizatsiya)
-  → Whisper (MLX yoki faster-whisper) → Transcript{text, language, asr_confidence}
+  → Endpointer: fon shovqini → nutq → ~0.9 s jimlik = gapirib bo'lindi (avtomatik to'xtash)
+  → Whisper (MLX yoki faster-whisper) → Transcript{text, language, asr_confidence}; jimlikdagi "uydirma" iboralar o'chiriladi
   → understand(): niyat, ilova nomi, intent_confidence, needs_clarification, suggestion
-  → interfeys: aniq bo'lsa — bajaradi; aks holda aniqlashtirish kartasi (asl matn ko'rsatiladi)
+  → backend: aniq bo'lsa — darhol start_task; aks holda `clarify` hodisasi → interfeysda aniqlashtirish kartasi
 ```
+
+Tizim buyruqlari (`system` harakati: ovoz, ovozsiz, yorqinlik) qoida tahlili bilan taniladi va fast path orqali
+modelsiz bajariladi; xavf — past (tasdiq so'ralmaydi). macOS: AppleScript (ovoz qayta o'qib tekshiriladi), yorqinlik —
+yorqinlik tugmalari (natijani o'qib bo'lmaydi). Model ham `system` harakatini ishlatishi mumkin; unga "faqat aytilganini
+bajar, qo'shimcha harakat qilma" qoidasi berilgan. XADICHA hech qachon o'zicha vazifa boshlamaydi — faqat buyruq bilan.
 
 - `asr_confidence` (Whisper segmentlari `avg_logprob`, `no_speech_prob`) va `intent_confidence` (matn tahlili) alohida.
 - Hech qachon jim almashtirilmaydi: "Staffar in och" → taklif "Safari ni och", foydalanuvchi tanlaydi.

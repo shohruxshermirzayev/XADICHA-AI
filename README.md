@@ -36,8 +36,11 @@ Interfeys: Next.js 16, Tailwind CSS 4, Motion, lucide-react; shadcn/ui, Magic UI
 ## Asosiy imkoniyatlar (hozirgi kod)
 
 - **A / B / C rejimlari** — tadqiqot uchun solishtiriladi (A: qoida, B: LLM reja, C: ekran + tekshiruv + tiklanish).
-- **Ovoz** — mikrofonni faqat backend yozadi; Whisper (MLX / faster-whisper). Nutq ishonchi va buyruq aniqligi alohida
+- **Ovoz** — mikrofonni faqat backend yozadi; Whisper (MLX / faster-whisper). Belgini bir marta bosasiz va gapirasiz:
+  gapirib bo'lganingizni o'zi sezadi (jimlik) va aniq buyruqni darhol bajaradi. Nutq ishonchi va buyruq aniqligi alohida
   baholanadi; noaniq buyruqda eshitilgan matn ko'rsatiladi va foydalanuvchi tanlaydi (jimgina almashtirish yo'q).
+- **Tizim boshqaruvi** — "ovozini ko'tar", "ovozni o'chir", "ovozni 40 ga qo'y", "yorug'likni oshir", "сделай тише",
+  "brightness down" (uz lotin/kirill, ru, en): modelsiz, tasdiqsiz, darhol. Faqat aytilgan amal bajariladi.
 - **Yagona holat** — sarlavha, yordamchi, vazifa paneli va dashboard bir manbadan (`phase`, `seq`).
 - **Xavfsizlik** — Host/Origin/sessiya kaliti, xavf tasnifi, tasdiq, taqiqlangan yo'llar, log redaksiyasi ([docs/SECURITY.md](docs/SECURITY.md)).
 - **Ekran** — surat + vision model; macOS'da ixtiyoriy OCR (Apple Vision) va accessibility daraxti (AXUIElement) — sinalmagan MVP.
@@ -49,8 +52,8 @@ macOS uchun ixtiyoriy OCR/accessibility: `pip install -r backend/requirements-ma
 ## Tekshirish (testlar)
 
 ```bash
-cd backend && source .venv/bin/activate && python -m pytest -q   # backend: 167 ta test (simulyatsiya)
-cd .. && npm test              # interfeys mantiqi: holat modeli, hodisalar, tarjimalar (22 ta test)
+cd backend && source .venv/bin/activate && python -m pytest -q   # backend: 210 ta test (simulyatsiya)
+cd .. && npm test              # interfeys mantiqi: holat modeli, hodisalar, tarjimalar (23 ta test)
 npm run lint                   # ESLint
 npm run typecheck              # TypeScript
 npm run build                  # production build

@@ -9,6 +9,10 @@
 - Ollama / Claude provayderlari bilan to'liq C sikli.
 - Windows adapteri — umuman ishga tushirilmagan.
 
+- Gapirib bo'linganini sezish (`Endpointer`) chegaralari real mikrofon va shovqinli xonada sozlanmagan.
+- Ovoz/yorqinlik boshqaruvi: macOS'da sinalmagan; yorqinlik tugmalari tashqi monitorda ishlamasligi mumkin va
+  natijasini dasturiy tekshirib bo'lmaydi. Windows'da ovoz — multimedia tugmalari, yorqinlik — WMI (sinalmagan).
+
 ## Amalga oshirilmagan
 
 - Windows OCR va UI Automation.
