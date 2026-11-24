@@ -43,3 +43,16 @@
 - Ekran surati faqat asosiy monitordan.
 - Interfeys mahalliy foydalanish uchun; masofadan kirish nazarda tutilmagan.
 - Hech bir qism "production-ready" emas.
+
+## Ko'rilmagan to'plamda topilgan zaif joylar (matn, ASR'siz)
+
+`python -m xadicha.validate speech --text-only` — 60 ta yangi buyruq (sozlashda ishlatilmagan): til aniqlash 100%,
+niyat 90,0%, obyekt 86,7%. Bu real nutq natijasi emas (ASR yo'q) — tushunish qatlamining yuqori chegarasi.
+Tezkor yo'l tanimagan buyruqlar modelga (LLM) o'tadi, lekin model yo'q yoki sekin bo'lsa bu sezilarli:
+
+- ingliz: "Make it quieter", "Dim the screen", "Find the contract file" — tezkor yo'lda tanilmaydi;
+- rus: "Сделай потише", "Сделай громче, iltimos", "Открой Telegram, iltimos" — tanilmaydi;
+- aralash: "Calculatorni open qil" — ilova nomi noto'g'ri ("Qil") olinadi, ochish yiqiladi, keyin modelga o'tadi.
+
+To'plam ataylab tuzatilmadi: real nutq sinovi ham shu to'plamda o'tkaziladi. Tuzatishdan keyin u regressiya
+to'plamiga aylanadi va yakuniy baholash uchun yangi ko'rilmagan to'plam kerak bo'ladi.

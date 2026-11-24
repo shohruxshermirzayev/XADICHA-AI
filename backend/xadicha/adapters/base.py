@@ -20,6 +20,7 @@ class ExecResult:
     ok: bool
     detail: str = ""
     verified: bool | None = None   # dasturiy tekshiruv natijasi; None = dasturiy tekshirib bo'lmaydi
+    verify_ms: int | None = None   # tekshiruvga ketgan vaqt (ms) — tezlik tahlili uchun; o'lchanmasa None
 
 
 class OSAdapter(ABC):

@@ -66,6 +66,8 @@ npm run build                  # production build
 ```
 
 Real Mac'da tekshirish: `python backend/scripts/mac_selftest.py` — [docs/MACOS_TEST_PROTOCOL.md](docs/MACOS_TEST_PROTOCOL.md).
+Interfeys dizayni (Liquid Glass, orb holatlari, vaqt chizig'i): [docs/DESIGN.md](docs/DESIGN.md).
+Real o'lchovlar (nutq, ovoz, qidiruv, amallar, tezlik, A/B/C) va hisobot: `python -m xadicha.validate <qadam>` — [docs/REAL_VALIDATION.md](docs/REAL_VALIDATION.md).
 Benchmark: `cd backend && python -m xadicha.benchmark --dry-run` (harness tekshiruvi, natija emas).
 
 Testlar simulyatsiya qilingan model va **dry-run** adapter bilan ishlaydi — ular real Mac yoki Windows'da

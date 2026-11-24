@@ -25,6 +25,7 @@ export interface Step {
   status: "executed" | "verified" | "failed" | "denied" | "error";
   detail: string;
   verified: boolean | null;
+  verification?: string;     // qaysi usul bilan tekshiriladi (backend TOOL_REGISTRY)
   duration_ms: number;
 }
 
@@ -146,6 +147,20 @@ export interface Transcript {
   asr_confidence: number | null;     // nutq tanish ishonchi (0..1), noma'lum bo'lsa null
   supported: boolean;
   analysis?: CommandAnalysis;
+}
+
+/** Ekran holati (foydalanuvchi so'raganda olinadi; surat faqat javobda, saqlanmaydi). */
+export interface ScreenSnapshot {
+  available: boolean;
+  captured_at: number;
+  app: string | null;
+  window: string | null;
+  preview: string | null;              // data:image/jpeg;base64,… — faqat xotirada
+  size: [number, number] | null;
+  timings: { capture_ms?: number; ocr_ms?: number; ax_ms?: number };
+  error: string | null;
+  ocr: { state: CapabilityState; lines: { text: string; confidence: number }[]; error?: string };
+  ax: { state: CapabilityState; elements: { role: string; name: string; enabled: boolean }[]; error?: string };
 }
 
 /** Aniqlashtirish kutilayotgan ovozli buyruq (backend `clarify` hodisasi). */

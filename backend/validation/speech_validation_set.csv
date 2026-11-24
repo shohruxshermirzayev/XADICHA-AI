@@ -1,0 +1,65 @@
+id,lang,script,kind,text,intent,entity
+v_uzl_01,uz,latn,command,Kalkulyatorni ishga tushir,open_app,Calculator
+v_uzl_02,uz,latn,command,Notes ilovasini ochib ber,open_app,Notes
+v_uzl_03,uz,latn,command,Finderni och,open_app,Finder
+v_uzl_04,uz,latn,command,Telegramni ochib qo'y,open_app,Telegram
+v_uzl_05,uz,latn,command,youtube.com saytiga kir,open_url,youtube.com
+v_uzl_06,uz,latn,command,Googledan ob-havo qidir,browser_search,ob-havo
+v_uzl_07,uz,latn,command,Toshkent haqida ma'lumot qidir,web_search,Toshkent
+v_uzl_08,uz,latn,command,ovozni 70 ga qo'y,system,volume_set
+v_uzl_09,uz,latn,command,ovozni biroz pasaytir,system,volume_down
+v_uzl_10,uz,latn,command,ekran yorug'ligini kamaytir,system,brightness_down
+v_uzl_11,uz,latn,command,shartnoma faylini topib ber,find_file,shartnoma
+v_uzl_12,uz,latn,command,ovozni butunlay o'chir,system,mute
+v_uzl_13,uz,latn,command,ekrandagi matnni o'qib ber,autonomous,
+v_uzl_14,uz,latn,command,Safarini ochib yubor,open_app,Safari
+v_uzc_01,uz,cyrl,command,Калькуляторни ишга тушир,open_app,Calculator
+v_uzc_02,uz,cyrl,command,Телеграмни очиб бер,open_app,Telegram
+v_uzc_03,uz,cyrl,command,Сафарини ишга тушир,open_app,Safari
+v_uzc_04,uz,cyrl,command,kun.uz сайтига кир,open_url,kun.uz
+v_uzc_05,uz,cyrl,command,Тошкент ҳақида қидир,web_search,Тошкент
+v_uzc_06,uz,cyrl,command,овозни 30 га қўй,system,volume_set
+v_uzc_07,uz,cyrl,command,ёруғликни пасайтир,system,brightness_down
+v_uzc_08,uz,cyrl,command,овозни қайта ёқ,system,unmute
+v_uzc_09,uz,cyrl,command,шартнома файлини топ,find_file,шартнома
+v_uzc_10,uz,cyrl,command,Гуглдан футбол қидир,browser_search,футбол
+v_uzc_11,uz,cyrl,command,экранда нима борлигини айт,autonomous,
+v_uzc_12,uz,cyrl,command,овозни кўтар ва ёруғликни камайтир,system,volume_up+brightness_down
+v_uzc_13,uz,cyrl,command,Файндерни оч,open_app,Finder
+v_uzc_14,uz,cyrl,command,овозни озгина пасайтир,system,volume_down
+v_ru_01,ru,cyrl,command,Запусти калькулятор,open_app,Calculator
+v_ru_02,ru,cyrl,command,Запусти Finder,open_app,Finder
+v_ru_03,ru,cyrl,command,Открой заметки,open_app,Notes
+v_ru_04,ru,cyrl,command,Зайди на сайт kun.uz,open_url,kun.uz
+v_ru_05,ru,cyrl,command,Найди в интернете информацию о Ташкенте,web_search,Ташкент
+v_ru_06,ru,cyrl,command,Поставь громкость на 25,system,volume_set
+v_ru_07,ru,cyrl,command,Сделай потише,system,volume_down
+v_ru_08,ru,cyrl,command,Сделай экран ярче,system,brightness_up
+v_ru_09,ru,cyrl,command,Найди файл договор,find_file,договор
+v_ru_10,ru,cyrl,command,Найди на YouTube новости,browser_search,новости
+v_ru_11,ru,cyrl,command,Включи звук обратно,system,unmute
+v_ru_12,ru,cyrl,command,Расскажи что сейчас на экране,autonomous,
+v_en_01,en,latn,command,Start the Calculator app,open_app,Calculator
+v_en_02,en,latn,command,Launch Finder,open_app,Finder
+v_en_03,en,latn,command,Open the Notes app,open_app,Notes
+v_en_04,en,latn,command,Go to github.com,open_url,github.com
+v_en_05,en,latn,command,Search the web for Tashkent,web_search,Tashkent
+v_en_06,en,latn,command,Set the volume to 60,system,volume_set
+v_en_07,en,latn,command,Make it quieter,system,volume_down
+v_en_08,en,latn,command,Dim the screen,system,brightness_down
+v_en_09,en,latn,command,Find the contract file,find_file,contract
+v_en_10,en,latn,command,Search YouTube for news,browser_search,news
+v_en_11,en,latn,command,Turn the sound back on,system,unmute
+v_en_12,en,latn,command,Describe what is on my screen,autonomous,
+v_mix_01,uz,latn,mixed,Calculatorni open qil,open_app,Calculator
+v_mix_02,uz,latn,mixed,YouTube'da music qidir,browser_search,music
+v_mix_03,uz,latn,mixed,Brauzerda kun.uz ni och,open_url,kun.uz
+v_mix_04,uz,latn,mixed,Google'da weather qidir,browser_search,weather
+v_mix_05,ru,mixed,mixed,"Сделай громче, iltimos",system,volume_up
+v_mix_06,uz,latn,mixed,Finder'ni open qil,open_app,Finder
+v_mix_07,ru,mixed,mixed,"Открой Telegram, iltimos",open_app,Telegram
+v_mix_08,uz,latn,mixed,Please ovozni pasaytir,system,volume_down
+v_sil_01,,,silence,,,
+v_sil_02,,,silence,,,
+v_sil_03,,,silence,,,
+v_sil_04,,,silence,,,

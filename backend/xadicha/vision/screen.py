@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import base64
 import io
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import mss
 from PIL import Image
@@ -27,6 +27,7 @@ class Screenshot:
     context: str = ""   # OCR / accessibility daraxtidan matnli kontekst (bo'lsa)
     logical_w: int = 0
     logical_h: int = 0
+    timings: dict[str, int] = field(default_factory=dict)   # capture / encode / ocr / ax (ms) — tezlik tahlili
 
 
 def capture_image(logical_size: tuple[int, int] | None = None) -> tuple[Image.Image, int, int]:

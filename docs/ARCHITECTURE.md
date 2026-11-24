@@ -7,7 +7,7 @@ Bu hujjat **hozirgi kodni** tasvirlaydi. Rejadagi narsalar [LIMITATIONS.md](LIMI
 ```
 Brauzer — Next.js (:3000)                         Python backend — FastAPI (:8765, faqat 127.0.0.1)
 ┌──────────────────────────────┐   HTTP + token   ┌─────────────────────────────────────────────┐
-│ page.tsx / views.tsx         │ ───────────────▶ │ api.py   Host/Origin/token himoyasi          │
+│ page.tsx + components/xadicha│ ───────────────▶ │ api.py   Host/Origin/token himoyasi          │
 │ useXadicha (xadicha.ts)      │                  │ service.py  XadichaService                   │
 │   └ state.ts  (yagona holat) │ ◀── WebSocket ── │   ├ agent.py      A / B / C rejimlari        │
 │   └ events.ts (tekshiruv)    │   (seq, state)   │   ├ safety.py     xavf + taqiqlar            │

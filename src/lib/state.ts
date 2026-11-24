@@ -21,11 +21,13 @@ export interface UiState {
   confirmation: Confirmation | null;
   listening: Listening;
   micLevel: number;
+  /** Hozir bajarilayotgan qadam (step_started → step_finished oralig'i); vaqt chizig'i uchun. */
+  activeStep: number | null;
 }
 
 export const initialState: UiState = {
   status: null, seq: 0, instance: null, busy: false, phase: "idle", currentTaskId: null,
-  current: null, confirmation: null, listening: "idle", micLevel: 0,
+  current: null, confirmation: null, listening: "idle", micLevel: 0, activeStep: null,
 };
 
 const PHASES = new Set<Phase>(["idle", "running", "awaiting_confirmation", "speaking"]);
@@ -81,6 +83,7 @@ export function applyEvent(st: UiState, e: BackendEvent): UiState {
       const task = e.task as Task;
       next.current = task;
       next.currentTaskId = task.id;
+      next.activeStep = null;
       next.busy = true;
       if (next.phase === "idle") next.phase = "running";
       return next;
@@ -92,12 +95,15 @@ export function applyEvent(st: UiState, e: BackendEvent): UiState {
       const step = e.step as Step;
       if (t && t.id === e.task_id) {
         next.current = { ...t, steps: [...t.steps.filter((s) => s.index !== step.index), step].sort((a, b) => a.index - b.index) };
+        if (e.type === "step_started") next.activeStep = step.index;
+        else if (next.activeStep === step.index) next.activeStep = null;
       }
       return next;
     }
     case "task_finished":
       // Vazifa tugadi; "band" holati esa backend `state` hodisasi bilan yopiladi (ovoz gapirib bo'lgach)
       next.current = e.task as Task;
+      next.activeStep = null;
       return next;
     case "confirm_request":
       next.confirmation = keepSameConfirmation(st.confirmation, e as unknown as Confirmation);

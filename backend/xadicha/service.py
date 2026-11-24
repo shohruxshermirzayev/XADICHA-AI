@@ -209,26 +209,85 @@ class XadichaService:
         from .vision.context import summarize
         from .vision.screen import capture_image, encode
 
+        def ms(t: float) -> int:
+            return int((time.perf_counter() - t) * 1000)
+
+        t0 = time.perf_counter()
         try:
             img, lw, lh = capture_image(self.adapter.screen_size())
         except Exception as e:  # noqa: BLE001 — Screen Recording ruxsati yo'q va h.k.
             self.screen_error = f"{e.__class__.__name__}: {e}"
             raise
+        timings = {"capture": ms(t0)}
         self.screen_error = ""
+        t1 = time.perf_counter()
         shot = encode(img, lw, lh, self.cfg.screen_max_side)
+        timings["encode"] = ms(t1)
         texts, elements = [], []
         if self.ocr.availability()[0] != "unavailable":
+            t2 = time.perf_counter()
             try:
                 texts = self.ocr.recognize(img, (lw, lh))
             except Exception:  # noqa: BLE001
                 logging.getLogger("xadicha").exception("OCR xatosi")
+            timings["ocr"] = ms(t2)
         if self.ax.availability()[0] != "unavailable":
+            t3 = time.perf_counter()
             try:
                 elements = self.ax.snapshot()
             except Exception:  # noqa: BLE001
                 logging.getLogger("xadicha").exception("Accessibility xatosi")
+            timings["ax"] = ms(t3)
         shot.context = summarize(texts, elements, factor=1.0 / shot.scale)
+        shot.timings = timings
         return shot
+
+    def screen_snapshot(self, preview: bool = True, max_items: int = 80) -> dict[str, Any]:
+        """Foydalanuvchi so'raganda ekran holati: old plandagi ilova, oyna sarlavhasi, kichik ko'rinish, OCR va
+        accessibility elementlari. Hech narsa diskka yozilmaydi va logga chiqmaydi; ruxsat bo'lmasa — sababi bilan."""
+        from .vision.screen import capture_image, encode
+
+        real_os = self.adapter.name in ("macos", "windows")
+        out: dict[str, Any] = {"available": real_os, "captured_at": time.time(), "app": None, "window": None,
+                               "preview": None, "size": None, "timings": {}, "error": None,
+                               "ocr": {"state": self.ocr.availability()[0], "lines": []},
+                               "ax": {"state": self.ax.availability()[0], "elements": []}}
+        if not real_os:
+            out["error"] = "dry-run: ekran yo'q (simulyatsiya)"
+            return out
+        out["app"] = self.adapter.frontmost_app() or None
+        title = getattr(self.adapter, "front_window_title", None)
+        out["window"] = (title() if callable(title) else "") or None
+        t0 = time.perf_counter()
+        try:
+            img, lw, lh = capture_image(self.adapter.screen_size())
+        except Exception as e:  # noqa: BLE001 — Screen Recording ruxsati yo'q va h.k.
+            self.screen_error = f"{e.__class__.__name__}: {e}"
+            out["error"] = self.screen_error
+            return out
+        out["timings"]["capture_ms"] = int((time.perf_counter() - t0) * 1000)
+        out["size"] = [lw, lh]
+        if preview:
+            shot = encode(img, lw, lh, 640)   # kichik ko'rinish — faqat javobda, diskka yozilmaydi
+            out["preview"] = "data:image/jpeg;base64," + shot.png_base64
+        if out["ocr"]["state"] != "unavailable":
+            t1 = time.perf_counter()
+            try:
+                boxes = sorted(self.ocr.recognize(img, (lw, lh)), key=lambda b: (b.y, b.x))[:max_items]
+                out["ocr"]["lines"] = [{"text": b.text[:160], "confidence": round(b.confidence, 2),
+                                        "x": b.x, "y": b.y, "w": b.w, "h": b.h} for b in boxes]
+            except Exception as e:  # noqa: BLE001
+                out["ocr"]["error"] = e.__class__.__name__
+            out["timings"]["ocr_ms"] = int((time.perf_counter() - t1) * 1000)
+        if out["ax"]["state"] != "unavailable":
+            t2 = time.perf_counter()
+            try:
+                out["ax"]["elements"] = [{"role": e.role, "name": e.name[:120], "enabled": e.enabled,
+                                          "x": e.x, "y": e.y, "w": e.w, "h": e.h} for e in self.ax.snapshot()[:max_items]]
+            except Exception as e:  # noqa: BLE001
+                out["ax"]["error"] = e.__class__.__name__
+            out["timings"]["ax_ms"] = int((time.perf_counter() - t2) * 1000)
+        return out
 
     def capabilities(self, health: tuple[bool, str] | None = None) -> dict[str, dict[str, str]]:
         """Halol holat: available | unavailable | not_tested | not_implemented. Sozlama mavjudligi — "yoqilgan" emas."""
@@ -466,7 +525,9 @@ class XadichaService:
                               "provider": getattr(self.listener, "engine", None),
                               "model": getattr(self.listener, "model_name", None)})
                 if r.text and not force_language:
+                    t_lang = time.perf_counter()
                     r.language = refine_asr_language(r.text, r.language, r.probability or None, language)
+                    trace.append({"stage": "lang_detect", "ms": int((time.perf_counter() - t_lang) * 1000), "ok": True})
                 self._voice_trace = trace
                 if r.text:
                     self.emit({"type": "transcript", "text": r.text, "language": r.language,
@@ -496,7 +557,10 @@ class XadichaService:
         if not r.supported:
             self.emit({"type": "voice_result", "status": "unsupported", "language": r.language})
             return
+        t_u = time.perf_counter()
         analysis = understand(r.text, r.language, r.asr_confidence, llm_available=self.provider.name != "rules")
+        self._voice_trace.append({"stage": "understand", "ms": int((time.perf_counter() - t_u) * 1000), "ok": True,
+                                  "clarify": analysis.needs_clarification})
         if analysis.needs_clarification:
             # Aytilgani aniq emas — o'zicha hech narsa qilinmaydi, foydalanuvchi tanlaydi
             self.emit({"type": "clarify", "text": r.text, "language": r.language,

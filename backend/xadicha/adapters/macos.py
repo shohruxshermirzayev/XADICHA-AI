@@ -28,13 +28,16 @@ class MacOSAdapter(OSAdapter):
         r = subprocess.run(["open", "-a", app], capture_output=True, text=True, timeout=15)
         if r.returncode != 0:
             return ExecResult(False, f"'{app}' ilovasi topilmadi", verified=False)
-        # Dasturiy tekshiruv: ilova old planga chiqdimi
+        # Dasturiy tekshiruv: ilova old planga chiqdimi (0,25 s oraliqda, 5 s gacha). Tezlashtirish faqat
+        # real o'lchovdan keyin (validation: profile) — hozircha tekshiruv vaqti alohida o'lchanadi.
+        tv = time.perf_counter()
         for _ in range(20):
             time.sleep(0.25)
             front = self.frontmost_app()
             if front and (app.lower() in front.lower() or front.lower() in app.lower()):
-                return ExecResult(True, front, verified=True)
-        return ExecResult(True, f"ochildi, lekin old planda: {self.frontmost_app()}", verified=None)
+                return ExecResult(True, front, verified=True, verify_ms=int((time.perf_counter() - tv) * 1000))
+        return ExecResult(True, f"ochildi, lekin old planda: {self.frontmost_app()}", verified=None,
+                          verify_ms=int((time.perf_counter() - tv) * 1000))
 
     def _do_open_url(self, a: Action) -> ExecResult:
         url = a.url or ""
@@ -56,8 +59,10 @@ class MacOSAdapter(OSAdapter):
             target = step if c == "volume_set" else cur + step if c == "volume_up" else cur - step
             target = max(0, min(100, int(target)))
             osascript(f"set volume output volume {target} without output muted", timeout=5)
+            tv = time.perf_counter()
             now = self._volume()
-            return ExecResult(True, f"ovoz: {cur}% → {now}%", verified=abs(now - target) <= 2)
+            return ExecResult(True, f"ovoz: {cur}% → {now}%", verified=abs(now - target) <= 2,
+                              verify_ms=int((time.perf_counter() - tv) * 1000))
         if c in ("mute", "unmute"):
             want = c == "mute"
             osascript(f"set volume output muted {'true' if want else 'false'}", timeout=5)
@@ -89,6 +94,13 @@ class MacOSAdapter(OSAdapter):
             return osascript('tell application "System Events" to get name of first application process '
                              'whose frontmost is true', timeout=5)
         except Exception:  # noqa: BLE001
+            return ""
+
+    def front_window_title(self) -> str:
+        try:
+            return osascript('tell application "System Events" to get name of front window of '
+                             '(first application process whose frontmost is true)', timeout=5)
+        except Exception:  # noqa: BLE001 — oyna yo'q yoki Accessibility ruxsati yo'q
             return ""
 
     def screen_size(self) -> tuple[int, int]:

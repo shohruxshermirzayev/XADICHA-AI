@@ -3,11 +3,58 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * XADICHA — Liquid Glass dizayn tokenlari (yagona manba).
+ * Ranglar, shisha materiallari, soyalar va harakat shu yerda; komponentlar faqat shu nomlardan foydalanadi.
+ */
+.xadicha {
+  --background: #070a12;
+  --surface: #0b1020;
+  --surface-raised: #10162b;
+  --foreground: #f8fafc;
+  --muted-foreground: #9caac0;
+  --faint-foreground: #6b7891;
+
+  --primary: #7775ff;          /* binafsha */
+  --primary-foreground: #ffffff;
+  --secondary: #37d9f5;        /* elektr moviy */
+  --secondary-foreground: #04131a;
+  --blue: #4285ff;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --destructive: #fb7185;
+
+  /* Shisha materiallari */
+  --glass: rgb(255 255 255 / 0.055);
+  --glass-strong: rgb(255 255 255 / 0.085);
+  --glass-subtle: rgb(255 255 255 / 0.035);
+  --glass-border: rgb(255 255 255 / 0.12);
+  --glass-border-soft: rgb(255 255 255 / 0.07);
+  --glass-highlight: rgb(255 255 255 / 0.14);
+  --glass-blur: 28px;
+  --glass-fallback: rgb(15 20 37 / 0.94);
+  --shadow-float: 0 30px 80px -36px rgb(0 0 0 / 0.85), 0 10px 24px -18px rgb(0 0 0 / 0.6);
+
+  /* shadcn / Tailwind nomlari (mavjud sinflar ishlashda davom etadi) */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--foreground);
+  --muted: rgb(255 255 255 / 0.06);
+  --accent: rgb(255 255 255 / 0.08);
+  --accent-foreground: var(--foreground);
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.1);
+  --ring: #8f8dff;
+  --sidebar: var(--surface);
+  --radius: 0.875rem;
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -16,92 +63,26 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-blue: var(--blue);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-}
-
-/* XADICHA — Premium Dark palitrasi */
-.xadicha {
-  --background: #080b12;
-  --foreground: #f8fafc;
-  --card: #111827;
-  --card-foreground: #f8fafc;
-  --popover: #111827;
-  --popover-foreground: #f8fafc;
-  --primary: #6366f1;
-  --primary-foreground: #f8fafc;
-  --secondary: #06b6d4;
-  --secondary-foreground: #04131a;
-  --muted: #1a2233;
-  --muted-foreground: #94a3b8;
-  --accent: #1a2233;
-  --accent-foreground: #f8fafc;
-  --destructive: #ef4444;
-  --border: rgb(148 163 184 / 0.12);
-  --input: rgb(148 163 184 / 0.18);
-  --ring: #6366f1;
-  --sidebar: #0d1220;
-  --success: #10b981;
-  --warning: #f59e0b;
-}
-
-@theme inline {
   --color-sidebar: var(--sidebar);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
 }
 
 @layer base {
@@ -110,28 +91,142 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
   }
 }
 
-/* Shisha effekti — cheklangan, o'qilishi buzilmaydi */
-.glass {
-  background: linear-gradient(180deg, rgb(17 24 39 / 0.82), rgb(17 24 39 / 0.68));
-  backdrop-filter: blur(14px) saturate(1.2);
-  box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -24px rgb(0 0 0 / 0.6);
-}
-
+/* Fon: chuqur qorong'ilik, ikki yumshoq yorug'lik manbai (statik — GPU yuklamaydi) */
 .xadicha body {
   background:
-    radial-gradient(900px 500px at 85% -10%, rgb(99 102 241 / 0.10), transparent 60%),
-    radial-gradient(700px 400px at -10% 110%, rgb(6 182 212 / 0.07), transparent 60%),
+    radial-gradient(1100px 700px at 88% -12%, rgb(119 117 255 / 0.16), transparent 62%),
+    radial-gradient(900px 620px at -8% 108%, rgb(55 217 245 / 0.10), transparent 60%),
+    radial-gradient(700px 500px at 50% 120%, rgb(66 133 255 / 0.08), transparent 70%),
     var(--background);
   background-attachment: fixed;
 }
 
-/* Klaviatura bilan yurganda fokus doim ko'rinsin */
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+@layer components {
+  /* Asosiy shisha material: shaffof gradient, kuchli lekin nafis xiralik, yupqa qirra, ichki yorug'lik */
+  .glass,
+  .glass-strong {
+    position: relative;
+    isolation: isolate;
+    border: 1px solid var(--glass-border);
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.03)), rgb(11 16 32 / 0.42);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    box-shadow: inset 0 1px 0 0 var(--glass-highlight), inset 0 -1px 0 0 rgb(255 255 255 / 0.02), var(--shadow-float);
+  }
+  .glass-strong {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04)), rgb(11 16 32 / 0.62);
+  }
+  /* Yorug'lik aksi — yuqori chap burchakdan, matn ostida (z-index: -1) */
+  .glass::before,
+  .glass-strong::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 60% at 0% 0%, rgb(255 255 255 / 0.08), transparent 55%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent 30%);
+  }
+  /* Ichki sirt: shisha ichidagi qatlam — qayta xiralashtirilmaydi (GPU tejaladi) */
+  .glass-subtle {
+    border: 1px solid var(--glass-border-soft);
+    background: var(--glass-subtle);
+  }
+  .glass-hover {
+    transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+  }
+  .glass-hover:hover {
+    border-color: rgb(255 255 255 / 0.18);
+    background-color: rgb(255 255 255 / 0.06);
+  }
+  /* Faol element ostidagi nozik shisha yoritish (navigatsiya, segmentlar) */
+  .glass-active {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0.05));
+    box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.22), 0 8px 24px -12px rgb(119 117 255 / 0.55);
+    border: 1px solid rgb(255 255 255 / 0.14);
+  }
+  .text-gradient {
+    background: linear-gradient(92deg, #ffffff 10%, #c9c8ff 45%, #8ee9fb 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .scroll-soft {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.14) transparent;
+  }
+}
+
+/* backdrop-filter qo'llab-quvvatlanmasa — o'qilishi uchun deyarli to'liq to'q fon */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-strong {
+    background: var(--glass-fallback);
+  }
+}
+
+/* "Shaffoflikni kamaytirish" (Sozlamalar → Mavzu yoki tizim sozlamasi): shisha o'rniga to'q sirt */
+.solid-ui .glass,
+.solid-ui .glass-strong {
+  background: #0e1427;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.solid-ui .glass::before,
+.solid-ui .glass-strong::before {
+  display: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-strong {
+    background: #0e1427;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ---------- AI orb animatsiyalari (faqat transform/opacity — arzon) ---------- */
+@keyframes orb-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+@keyframes orb-ripple {
+  0% { transform: scale(0.85); opacity: 0.55; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+@keyframes orb-drift {
+  0%, 100% { transform: translate3d(-4%, -2%, 0) scale(1); }
+  50% { transform: translate3d(5%, 4%, 0) scale(1.08); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-orb-spin { animation: orb-spin 9s linear infinite; }
+.animate-orb-spin-fast { animation: orb-spin 2.4s linear infinite; }
+.animate-orb-breathe { animation: orb-breathe 4.8s ease-in-out infinite; }
+.animate-orb-ripple { animation: orb-ripple 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
+.animate-orb-drift { animation: orb-drift 14s ease-in-out infinite; }
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: shimmer 2.2s linear infinite;
+}
+
+/* Klaviatura bilan yurganda fokus doim ko'rinsin (base qatlamda — komponent o'z fokus uslubini bera oladi) */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
 /* Harakatni kamaytirish so'ralgan bo'lsa — animatsiyalar o'chiriladi */
@@ -144,11 +239,17 @@
   }
 }
 
-/* Yuqori kontrast so'ralgan bo'lsa — chegara va ikkinchi darajali matn kuchaytiriladi */
+/* Yuqori kontrast so'ralgan bo'lsa — qirralar va ikkinchi darajali matn kuchaytiriladi */
 @media (prefers-contrast: more) {
   .xadicha {
-    --border: rgb(148 163 184 / 0.45);
-    --muted-foreground: #cbd5e1;
+    --glass-border: rgb(255 255 255 / 0.4);
+    --border: rgb(255 255 255 / 0.3);
+    --muted-foreground: #d5deea;
   }
-  .glass { backdrop-filter: none; background: var(--card); }
+  .glass,
+  .glass-strong {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: #0e1427;
+  }
 }

@@ -9,7 +9,7 @@ export type { Lang } from "./i18n";
 
 export const API = process.env.NEXT_PUBLIC_XADICHA_API ?? "http://127.0.0.1:8765";
 
-import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, Status, Task, Transcript, Turn } from "./types";
+import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, ScreenSnapshot, Status, Task, Transcript, Turn } from "./types";
 
 export type * from "./types";
 
@@ -408,6 +408,12 @@ export function useXadicha(uiLang: Lang = "uz") {
     }
   }, []);
 
+  /** Ekran holatini olish (foydalanuvchi bosganda). Surat faqat javobda keladi, hech qayerda saqlanmaydi. */
+  const screenSnapshot = useCallback(
+    (preview = true) => call<ScreenSnapshot>("/api/screen/snapshot", { method: "POST", body: JSON.stringify({ preview }) }),
+    [],
+  );
+
   const clearHistory = useCallback(async () => {
     try {
       await call("/api/history", { method: "DELETE" });
@@ -419,9 +425,9 @@ export function useXadicha(uiLang: Lang = "uz") {
 
   return {
     status: st.status, phase: st.phase, busy: isBusy(st), current: st.current, confirmation: st.confirmation,
-    listening: st.listening, micLevel: st.micLevel,
+    listening: st.listening, micLevel: st.micLevel, activeStep: st.activeStep,
     online, wsOpen, tasks, confirmBusy, confirmError, messages, error, clarify,
     run, analyze, startListening, stopListening, answer, stop, clearHistory, refresh, push,
-    clearClarify: () => setClarify(null), newConversation,
+    clearClarify: () => setClarify(null), newConversation, screenSnapshot,
   };
 }

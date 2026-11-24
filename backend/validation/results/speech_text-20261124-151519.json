@@ -1,0 +1,1621 @@
+{
+  "step": "speech_text",
+  "run_id": "20261124-151519",
+  "saved_at": "2026-11-24T15:15:19+0500",
+  "platform": "Linux-6.18.44-fc-v819-x86_64-with-glibc2.39",
+  "kind": "text-only on held-out set (no ASR, no audio)",
+  "real": false,
+  "selected_language_prior": "uz",
+  "summary": {
+    "overall": {
+      "n": 60,
+      "n_commands": 60,
+      "wer_mean": 0.0,
+      "cer_mean": 0.0,
+      "lid_accuracy": 100.0,
+      "intent_accuracy": 90.0,
+      "entity_accuracy": 86.7,
+      "asr_ms_median": null,
+      "asr_ms_p90": null,
+      "eos_ms_median": null,
+      "eos_ms_p90": null,
+      "silence_trials": 0,
+      "silence_false_transcriptions": 0,
+      "error_counts": {
+        "app_name": 3
+      }
+    },
+    "by_group": {
+      "uz_latn": {
+        "n": 14,
+        "n_commands": 14,
+        "wer_mean": 0.0,
+        "cer_mean": 0.0,
+        "lid_accuracy": 100.0,
+        "intent_accuracy": 100.0,
+        "entity_accuracy": 100.0,
+        "asr_ms_median": null,
+        "asr_ms_p90": null,
+        "eos_ms_median": null,
+        "eos_ms_p90": null,
+        "silence_trials": 0,
+        "silence_false_transcriptions": 0,
+        "error_counts": {}
+      },
+      "uz_cyrl": {
+        "n": 14,
+        "n_commands": 14,
+        "wer_mean": 0.0,
+        "cer_mean": 0.0,
+        "lid_accuracy": 100.0,
+        "intent_accuracy": 100.0,
+        "entity_accuracy": 100.0,
+        "asr_ms_median": null,
+        "asr_ms_p90": null,
+        "eos_ms_median": null,
+        "eos_ms_p90": null,
+        "silence_trials": 0,
+        "silence_false_transcriptions": 0,
+        "error_counts": {}
+      },
+      "ru": {
+        "n": 12,
+        "n_commands": 12,
+        "wer_mean": 0.0,
+        "cer_mean": 0.0,
+        "lid_accuracy": 100.0,
+        "intent_accuracy": 91.7,
+        "entity_accuracy": 91.7,
+        "asr_ms_median": null,
+        "asr_ms_p90": null,
+        "eos_ms_median": null,
+        "eos_ms_p90": null,
+        "silence_trials": 0,
+        "silence_false_transcriptions": 0,
+        "error_counts": {}
+      },
+      "en": {
+        "n": 12,
+        "n_commands": 12,
+        "wer_mean": 0.0,
+        "cer_mean": 0.0,
+        "lid_accuracy": 100.0,
+        "intent_accuracy": 75.0,
+        "entity_accuracy": 75.0,
+        "asr_ms_median": null,
+        "asr_ms_p90": null,
+        "eos_ms_median": null,
+        "eos_ms_p90": null,
+        "silence_trials": 0,
+        "silence_false_transcriptions": 0,
+        "error_counts": {}
+      },
+      "mixed": {
+        "n": 8,
+        "n_commands": 8,
+        "wer_mean": 0.0,
+        "cer_mean": 0.0,
+        "lid_accuracy": 100.0,
+        "intent_accuracy": 75.0,
+        "entity_accuracy": 50.0,
+        "asr_ms_median": null,
+        "asr_ms_p90": null,
+        "eos_ms_median": null,
+        "eos_ms_p90": null,
+        "silence_trials": 0,
+        "silence_false_transcriptions": 0,
+        "error_counts": {
+          "app_name": 3
+        }
+      }
+    }
+  },
+  "items": [
+    {
+      "id": "v_uzl_01",
+      "group": "uz_latn",
+      "reference": "Kalkulyatorni ishga tushir",
+      "hypothesis": "Kalkulyatorni ishga tushir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 4.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Calculator"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Calculator"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_02",
+      "group": "uz_latn",
+      "reference": "Notes ilovasini ochib ber",
+      "hypothesis": "Notes ilovasini ochib ber",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.5,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Notes"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Notes"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_03",
+      "group": "uz_latn",
+      "reference": "Finderni och",
+      "hypothesis": "Finderni och",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Finder"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Finder"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_04",
+      "group": "uz_latn",
+      "reference": "Telegramni ochib qo'y",
+      "hypothesis": "Telegramni ochib qo'y",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Telegram"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Telegram"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_05",
+      "group": "uz_latn",
+      "reference": "youtube.com saytiga kir",
+      "hypothesis": "youtube.com saytiga kir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.4,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_url",
+        "youtube.com"
+      ],
+      "got": [
+        "uz",
+        "open_url",
+        "https://youtube.com"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_06",
+      "group": "uz_latn",
+      "reference": "Googledan ob-havo qidir",
+      "hypothesis": "Googledan ob-havo qidir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.4,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "browser_search",
+        "ob-havo"
+      ],
+      "got": [
+        "uz",
+        "browser_search",
+        "https://www.google.com/search?q=ob-havo"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_07",
+      "group": "uz_latn",
+      "reference": "Toshkent haqida ma'lumot qidir",
+      "hypothesis": "Toshkent haqida ma'lumot qidir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "web_search",
+        "Toshkent"
+      ],
+      "got": [
+        "uz",
+        "web_search",
+        "Toshkent"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_08",
+      "group": "uz_latn",
+      "reference": "ovozni 70 ga qo'y",
+      "hypothesis": "ovozni 70 ga qo'y",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.5,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "volume_set"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "volume_set"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_09",
+      "group": "uz_latn",
+      "reference": "ovozni biroz pasaytir",
+      "hypothesis": "ovozni biroz pasaytir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.8,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "volume_down"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "volume_down"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_10",
+      "group": "uz_latn",
+      "reference": "ekran yorug'ligini kamaytir",
+      "hypothesis": "ekran yorug'ligini kamaytir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "brightness_down"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "brightness_down"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_11",
+      "group": "uz_latn",
+      "reference": "shartnoma faylini topib ber",
+      "hypothesis": "shartnoma faylini topib ber",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "find_file",
+        "shartnoma"
+      ],
+      "got": [
+        "uz",
+        "find_file",
+        "shartnoma"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_12",
+      "group": "uz_latn",
+      "reference": "ovozni butunlay o'chir",
+      "hypothesis": "ovozni butunlay o'chir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "mute"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "mute"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_13",
+      "group": "uz_latn",
+      "reference": "ekrandagi matnni o'qib ber",
+      "hypothesis": "ekrandagi matnni o'qib ber",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.4,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "autonomous",
+        ""
+      ],
+      "got": [
+        "uz",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzl_14",
+      "group": "uz_latn",
+      "reference": "Safarini ochib yubor",
+      "hypothesis": "Safarini ochib yubor",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Safari"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Safari"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_01",
+      "group": "uz_cyrl",
+      "reference": "Калькуляторни ишга тушир",
+      "hypothesis": "Калькуляторни ишга тушир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Calculator"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Calculator"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_02",
+      "group": "uz_cyrl",
+      "reference": "Телеграмни очиб бер",
+      "hypothesis": "Телеграмни очиб бер",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Telegram"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Telegram"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_03",
+      "group": "uz_cyrl",
+      "reference": "Сафарини ишга тушир",
+      "hypothesis": "Сафарини ишга тушир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Safari"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Safari"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_04",
+      "group": "uz_cyrl",
+      "reference": "kun.uz сайтига кир",
+      "hypothesis": "kun.uz сайтига кир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_url",
+        "kun.uz"
+      ],
+      "got": [
+        "uz",
+        "open_url",
+        "https://kun.uz"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_05",
+      "group": "uz_cyrl",
+      "reference": "Тошкент ҳақида қидир",
+      "hypothesis": "Тошкент ҳақида қидир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "web_search",
+        "Тошкент"
+      ],
+      "got": [
+        "uz",
+        "web_search",
+        "Тошкент"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_06",
+      "group": "uz_cyrl",
+      "reference": "овозни 30 га қўй",
+      "hypothesis": "овозни 30 га қўй",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "volume_set"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "volume_set"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_07",
+      "group": "uz_cyrl",
+      "reference": "ёруғликни пасайтир",
+      "hypothesis": "ёруғликни пасайтир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "brightness_down"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "brightness_down"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_08",
+      "group": "uz_cyrl",
+      "reference": "овозни қайта ёқ",
+      "hypothesis": "овозни қайта ёқ",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "unmute"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "unmute"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_09",
+      "group": "uz_cyrl",
+      "reference": "шартнома файлини топ",
+      "hypothesis": "шартнома файлини топ",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "find_file",
+        "шартнома"
+      ],
+      "got": [
+        "uz",
+        "find_file",
+        "шартнома"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_10",
+      "group": "uz_cyrl",
+      "reference": "Гуглдан футбол қидир",
+      "hypothesis": "Гуглдан футбол қидир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "browser_search",
+        "футбол"
+      ],
+      "got": [
+        "uz",
+        "browser_search",
+        "https://www.google.com/search?q=%D1%84%D1%83%D1%82%D0%B1%D0%BE%D0%BB"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_11",
+      "group": "uz_cyrl",
+      "reference": "экранда нима борлигини айт",
+      "hypothesis": "экранда нима борлигини айт",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "autonomous",
+        ""
+      ],
+      "got": [
+        "uz",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_12",
+      "group": "uz_cyrl",
+      "reference": "овозни кўтар ва ёруғликни камайтир",
+      "hypothesis": "овозни кўтар ва ёруғликни камайтир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "volume_up+brightness_down"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "volume_up+brightness_down"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_13",
+      "group": "uz_cyrl",
+      "reference": "Файндерни оч",
+      "hypothesis": "Файндерни оч",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_app",
+        "Finder"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Finder"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_uzc_14",
+      "group": "uz_cyrl",
+      "reference": "овозни озгина пасайтир",
+      "hypothesis": "овозни озгина пасайтир",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "volume_down"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "volume_down"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_01",
+      "group": "ru",
+      "reference": "Запусти калькулятор",
+      "hypothesis": "Запусти калькулятор",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "open_app",
+        "Calculator"
+      ],
+      "got": [
+        "ru",
+        "open_app",
+        "Calculator"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_02",
+      "group": "ru",
+      "reference": "Запусти Finder",
+      "hypothesis": "Запусти Finder",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "open_app",
+        "Finder"
+      ],
+      "got": [
+        "ru",
+        "open_app",
+        "Finder"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_03",
+      "group": "ru",
+      "reference": "Открой заметки",
+      "hypothesis": "Открой заметки",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "open_app",
+        "Notes"
+      ],
+      "got": [
+        "ru",
+        "open_app",
+        "Notes"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_04",
+      "group": "ru",
+      "reference": "Зайди на сайт kun.uz",
+      "hypothesis": "Зайди на сайт kun.uz",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "open_url",
+        "kun.uz"
+      ],
+      "got": [
+        "ru",
+        "open_url",
+        "https://kun.uz"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_05",
+      "group": "ru",
+      "reference": "Найди в интернете информацию о Ташкенте",
+      "hypothesis": "Найди в интернете информацию о Ташкенте",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "web_search",
+        "Ташкент"
+      ],
+      "got": [
+        "ru",
+        "web_search",
+        "Ташкенте"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_06",
+      "group": "ru",
+      "reference": "Поставь громкость на 25",
+      "hypothesis": "Поставь громкость на 25",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "system",
+        "volume_set"
+      ],
+      "got": [
+        "ru",
+        "system",
+        "volume_set"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_07",
+      "group": "ru",
+      "reference": "Сделай потише",
+      "hypothesis": "Сделай потише",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": false,
+      "entity_ok": false,
+      "expected": [
+        "ru",
+        "system",
+        "volume_down"
+      ],
+      "got": [
+        "ru",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_08",
+      "group": "ru",
+      "reference": "Сделай экран ярче",
+      "hypothesis": "Сделай экран ярче",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "system",
+        "brightness_up"
+      ],
+      "got": [
+        "ru",
+        "system",
+        "brightness_up"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_09",
+      "group": "ru",
+      "reference": "Найди файл договор",
+      "hypothesis": "Найди файл договор",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "find_file",
+        "договор"
+      ],
+      "got": [
+        "ru",
+        "find_file",
+        "договор"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_10",
+      "group": "ru",
+      "reference": "Найди на YouTube новости",
+      "hypothesis": "Найди на YouTube новости",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "browser_search",
+        "новости"
+      ],
+      "got": [
+        "ru",
+        "browser_search",
+        "https://www.youtube.com/results?search_query=%D0%BD%D0%BE%D0%B2%D0%BE%D1%81%D1%82%D0%B8"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_11",
+      "group": "ru",
+      "reference": "Включи звук обратно",
+      "hypothesis": "Включи звук обратно",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "system",
+        "unmute"
+      ],
+      "got": [
+        "ru",
+        "system",
+        "unmute"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_ru_12",
+      "group": "ru",
+      "reference": "Расскажи что сейчас на экране",
+      "hypothesis": "Расскажи что сейчас на экране",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "ru",
+        "autonomous",
+        ""
+      ],
+      "got": [
+        "ru",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_01",
+      "group": "en",
+      "reference": "Start the Calculator app",
+      "hypothesis": "Start the Calculator app",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "open_app",
+        "Calculator"
+      ],
+      "got": [
+        "en",
+        "open_app",
+        "Calculator"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_02",
+      "group": "en",
+      "reference": "Launch Finder",
+      "hypothesis": "Launch Finder",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "open_app",
+        "Finder"
+      ],
+      "got": [
+        "en",
+        "open_app",
+        "Finder"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_03",
+      "group": "en",
+      "reference": "Open the Notes app",
+      "hypothesis": "Open the Notes app",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "open_app",
+        "Notes"
+      ],
+      "got": [
+        "en",
+        "open_app",
+        "Notes"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_04",
+      "group": "en",
+      "reference": "Go to github.com",
+      "hypothesis": "Go to github.com",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "open_url",
+        "github.com"
+      ],
+      "got": [
+        "en",
+        "open_url",
+        "https://github.com"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_05",
+      "group": "en",
+      "reference": "Search the web for Tashkent",
+      "hypothesis": "Search the web for Tashkent",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "web_search",
+        "Tashkent"
+      ],
+      "got": [
+        "en",
+        "web_search",
+        "Tashkent"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_06",
+      "group": "en",
+      "reference": "Set the volume to 60",
+      "hypothesis": "Set the volume to 60",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "system",
+        "volume_set"
+      ],
+      "got": [
+        "en",
+        "system",
+        "volume_set"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_07",
+      "group": "en",
+      "reference": "Make it quieter",
+      "hypothesis": "Make it quieter",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": false,
+      "entity_ok": false,
+      "expected": [
+        "en",
+        "system",
+        "volume_down"
+      ],
+      "got": [
+        "en",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_08",
+      "group": "en",
+      "reference": "Dim the screen",
+      "hypothesis": "Dim the screen",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": false,
+      "entity_ok": false,
+      "expected": [
+        "en",
+        "system",
+        "brightness_down"
+      ],
+      "got": [
+        "en",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_09",
+      "group": "en",
+      "reference": "Find the contract file",
+      "hypothesis": "Find the contract file",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": false,
+      "entity_ok": false,
+      "expected": [
+        "en",
+        "find_file",
+        "contract"
+      ],
+      "got": [
+        "en",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_10",
+      "group": "en",
+      "reference": "Search YouTube for news",
+      "hypothesis": "Search YouTube for news",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "browser_search",
+        "news"
+      ],
+      "got": [
+        "en",
+        "browser_search",
+        "https://www.youtube.com/results?search_query=news"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_11",
+      "group": "en",
+      "reference": "Turn the sound back on",
+      "hypothesis": "Turn the sound back on",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "system",
+        "unmute"
+      ],
+      "got": [
+        "en",
+        "system",
+        "unmute"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_en_12",
+      "group": "en",
+      "reference": "Describe what is on my screen",
+      "hypothesis": "Describe what is on my screen",
+      "asr_lang": "en",
+      "final_lang": "en",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "en",
+        "autonomous",
+        ""
+      ],
+      "got": [
+        "en",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_mix_01",
+      "group": "mixed",
+      "reference": "Calculatorni open qil",
+      "hypothesis": "Calculatorni open qil",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": false,
+      "expected": [
+        "uz",
+        "open_app",
+        "Calculator"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Qil"
+      ],
+      "errors": {
+        "app_name": "Calculator→Qil"
+      }
+    },
+    {
+      "id": "v_mix_02",
+      "group": "mixed",
+      "reference": "YouTube'da music qidir",
+      "hypothesis": "YouTube'da music qidir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "browser_search",
+        "music"
+      ],
+      "got": [
+        "uz",
+        "browser_search",
+        "https://www.youtube.com/results?search_query=music"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_mix_03",
+      "group": "mixed",
+      "reference": "Brauzerda kun.uz ni och",
+      "hypothesis": "Brauzerda kun.uz ni och",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "open_url",
+        "kun.uz"
+      ],
+      "got": [
+        "uz",
+        "open_url",
+        "https://kun.uz"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_mix_04",
+      "group": "mixed",
+      "reference": "Google'da weather qidir",
+      "hypothesis": "Google'da weather qidir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "browser_search",
+        "weather"
+      ],
+      "got": [
+        "uz",
+        "browser_search",
+        "https://www.google.com/search?q=weather"
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_mix_05",
+      "group": "mixed",
+      "reference": "Сделай громче, iltimos",
+      "hypothesis": "Сделай громче, iltimos",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": false,
+      "entity_ok": false,
+      "expected": [
+        "ru",
+        "system",
+        "volume_up"
+      ],
+      "got": [
+        "ru",
+        "autonomous",
+        ""
+      ],
+      "errors": {}
+    },
+    {
+      "id": "v_mix_06",
+      "group": "mixed",
+      "reference": "Finder'ni open qil",
+      "hypothesis": "Finder'ni open qil",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": false,
+      "expected": [
+        "uz",
+        "open_app",
+        "Finder"
+      ],
+      "got": [
+        "uz",
+        "open_app",
+        "Qil"
+      ],
+      "errors": {
+        "app_name": "Finder→Qil"
+      }
+    },
+    {
+      "id": "v_mix_07",
+      "group": "mixed",
+      "reference": "Открой Telegram, iltimos",
+      "hypothesis": "Открой Telegram, iltimos",
+      "asr_lang": "ru",
+      "final_lang": "ru",
+      "intent_ms": 0.1,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": false,
+      "entity_ok": false,
+      "expected": [
+        "ru",
+        "open_app",
+        "Telegram"
+      ],
+      "got": [
+        "ru",
+        "autonomous",
+        ""
+      ],
+      "errors": {
+        "app_name": "Telegram→∅"
+      }
+    },
+    {
+      "id": "v_mix_08",
+      "group": "mixed",
+      "reference": "Please ovozni pasaytir",
+      "hypothesis": "Please ovozni pasaytir",
+      "asr_lang": "uz",
+      "final_lang": "uz",
+      "intent_ms": 0.0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "lid_ok": true,
+      "intent_ok": true,
+      "entity_ok": true,
+      "expected": [
+        "uz",
+        "system",
+        "volume_down"
+      ],
+      "got": [
+        "uz",
+        "system",
+        "volume_down"
+      ],
+      "errors": {}
+    }
+  ]
+}

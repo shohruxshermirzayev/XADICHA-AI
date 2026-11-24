@@ -63,6 +63,10 @@ class UnderstandIn(BaseModel):
     language: Literal["uz", "ru", "en"] = "uz"
 
 
+class SnapshotIn(BaseModel):
+    preview: bool = True
+
+
 class SpeakIn(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
     language: Literal["uz", "ru", "en"] = "uz"
@@ -166,6 +170,11 @@ def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, 
     def understand_text(body: UnderstandIn) -> dict[str, Any]:
         """Buyruqni BAJARMASDAN tahlil qiladi: niyat, ishonch, aniqlashtirish kerakmi."""
         return understand(body.text, body.language, None, llm_available=svc.provider.name != "rules").public()
+
+    @app.post("/api/screen/snapshot")
+    def screen_snapshot(body: SnapshotIn) -> dict[str, Any]:
+        # Faqat foydalanuvchi bosganda; surat javobda qaytadi, diskka yozilmaydi
+        return svc.screen_snapshot(preview=body.preview)
 
     @app.post("/api/speak")
     def speak(body: SpeakIn) -> dict[str, Any]:

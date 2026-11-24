@@ -165,6 +165,37 @@ _SITE = re.compile(r"(google|гугл|youtube|ютуб)", re.I)
 _SEARCH_VERB = re.compile(r"(?:qidir\w*|izla\w*|top\w*|қидир\w*|найди|поищи|search(?: for)?|look up|find)", re.I)
 
 
+_NAME_PATTERNS = (
+    r"[\"«“']([^\"»”']+)[\"»”']",                                     # "Hisobot"
+    r"(\S+)\s+(?:nomli|degan|номли|деган)\b",                        # Hisobot nomli papka
+    r"\b(?:named|called)\s+(\S+)",                                   # a folder named Reports
+    r"(?:под названием|с именем|с названием)\s+(\S+)",               # папку с именем Отчёт
+)
+_DESKTOP = r"\b(?:desktop|ish stol|рабоч\w* стол|иш стол)"
+_DOCUMENTS = r"\b(?:documents|hujjatlar|документ\w*|ҳужжатлар)\b"
+
+
+def folder_path(text: str) -> str:
+    """Papka yo'li: nom (qo'shtirnoq, "X nomli", "named X") + joy (aniq yo'l, Desktop, Documents).
+    Joy aytilmasa — NISBIY nom qaytadi: agent uni workspace ichida yaratadi (agent._execute)."""
+    name = ""
+    for pat in _NAME_PATTERNS:
+        m = re.search(pat, text, re.I)
+        if m:
+            name = m.group(1).strip(" .,!?")
+            break
+    name = re.sub(r"[/\\]", "-", name) or "Yangi papka"
+    low = text.lower()
+    loc = re.search(r"((?:~|/Users|/home|[A-Za-z]:\\)[^\s\"«»]*)", text)   # aniq yo'l: "~/XADICHA_TEST ichida"
+    if loc:
+        return f"{loc.group(1).rstrip('/')}/{name}"
+    if re.search(_DESKTOP, low):
+        return f"~/Desktop/{name}"
+    if re.search(_DOCUMENTS, low):
+        return f"~/Documents/{name}"
+    return name
+
+
 def browser_search(text: str) -> tuple[str, str] | None:
     """"Google dan Python haqida qidir" → ("google", "Python"); "YouTube'da musiqa qidir" → ("youtube", "musiqa")."""
     m = _SITE.search(text)
@@ -206,10 +237,7 @@ def parse_command(text: str, language: str = "en") -> tuple[str, list[Action], s
         return "web_search", [Action(type="open_url", url=url)], _reply("url", language)
 
     if re.search(_FOLDER, low) and re.search(r"(?:create|make|yarat|och|созда|ярат)", low):
-        name_m = re.search(r"[\"«“']([^\"»”']+)[\"»”']", t)
-        name = name_m.group(1) if name_m else "Yangi papka"
-        return "create_folder", [Action(type="create_folder", path=f"~/Desktop/{name}")], \
-            _reply("folder", language)
+        return "create_folder", [Action(type="create_folder", path=folder_path(t))], _reply("folder", language)
 
     # Savol buyruq emas: "Which app is open right now?", "Qaysi ilova ochiq?" — modelga qoldiriladi
     if text.strip().endswith("?") or re.match(r"^(?:which|what|is|are|does|qaysi|nima|qanday|какое|какой|что|ли)\b", low):

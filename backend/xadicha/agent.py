@@ -152,7 +152,11 @@ class Agent:
             # Nisbiy yo'l jarayonning joriy papkasiga emas, workspace'ga nisbatan olinadi
             p = Path(action.path.strip()).expanduser()
             if not p.is_absolute() and not safety._is_windows_path(action.path.strip()):
-                action = action.model_copy(update={"path": str(self.cfg.workspace.expanduser() / p)})
+                ws = self.cfg.workspace.expanduser()
+                # workspace butun uy papkasi bo'lsa — joy aytilmagan papka/fayl Desktop'da yaratiladi
+                # (uy papkasining ildizini to'ldirmaslik uchun, avvalgi xatti-harakat); aks holda workspace ichida
+                base = ws / "Desktop" if ws.resolve() == Path.home().resolve() and (ws / "Desktop").is_dir() else ws
+                action = action.model_copy(update={"path": str(base / p)})
         step = StepRecord(index=len(task.steps) + 1, action=action, expected_outcome=expected)
         spec = TOOL_REGISTRY.get(action.type)
         step.verification = spec.verify if spec else ""
@@ -194,6 +198,9 @@ class Agent:
             res = self._call_adapter(action)
             task.timings["exec_ms"] += int((time.perf_counter() - te) * 1000)
             self._span(task, f"exec:{action.type}", te, res.ok)
+            if res.verify_ms is not None:
+                task.trace.append({"stage": "verify", "ms": int(res.verify_ms), "ok": res.verified is not False,
+                                   "action": action.type})
             step.detail = res.detail
             step.verified = res.verified
             if not res.ok or res.verified is False:
@@ -343,6 +350,8 @@ class Agent:
         tp = time.perf_counter()
         plan = self.provider.plan(task.instruction, task.language)
         task.timings["llm_ms"] += int((time.perf_counter() - tp) * 1000)
+        self._span(task, "llm:plan", tp, bool(plan.steps), provider=self.provider.name,
+                   model=getattr(self.provider, "model", None))
         task.llm_calls += 1
         task.intent = plan.intent
         if not plan.steps:
@@ -444,6 +453,8 @@ class Agent:
                 extra["conversation"] = conv
             if shot is not None:
                 self._span(task, "screen", t0, True)
+                for k, v in (getattr(shot, "timings", None) or {}).items():
+                    task.trace.append({"stage": f"screen:{k}", "ms": int(v), "ok": True})
             decision: Decision = self.provider.decide(instruction, self._history(task), screen, task.language,
                                                       **extra)
             t2 = time.perf_counter()

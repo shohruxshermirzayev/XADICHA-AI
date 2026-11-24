@@ -1,0 +1,18 @@
+id,lang,category,text
+uz_sp_1,uz,uz_special,O'zbekiston go'zal o'lka.
+uz_sp_2,uz,uz_special,"Bog'da ng'a-ng'a emas, ming bir chiroq yonib turibdi."
+uz_sp_3,uz,uz_special,Ma'lumotlar jamlandi va sun'iy intellekt ishga tushdi.
+uz_sp_4,uz,uz_special,"Shaharda choyxona, shoshilinch xabar va g'alaba."
+uz_cy_1,uz,uz_special,Ўзбекистон ғолиб бўлди ва ҳамма қувонди.
+uz_nm_1,uz,uz_names,"Xadicha, Shohrux, G'ulom, O'tkir va Dilnoza keldi."
+uz_nm_2,uz,uz_names,"Samarqand, Buxoro, Qo'qon va Xiva qadimiy shaharlar."
+uz_tx_1,uz,uz_sentence,"Ovoz 70 foizga qo'yildi, ekran yorqinligi pasaytirildi."
+uz_tx_2,uz,uz_sentence,Safari ochildi. Natijalar uchta manbadan olindi.
+ru_1,ru,ru_sentence,"Громкость установлена на семьдесят процентов, яркость уменьшена."
+ru_2,ru,ru_sentence,"Открываю Safari. Нашла три результата о Самарканде."
+en_1,en,en_sentence,"Volume set to seventy percent, and the screen brightness was reduced."
+en_2,en,en_sentence,Opening Safari. I found three results about Samarkand.
+tech_1,uz,technical,"GitHub, Python, macOS va Wi-Fi sozlamalari tekshirildi."
+tech_2,en,technical,"The API returned JSON over HTTPS from kun.uz in 250 milliseconds."
+mix_1,uz,mixed,Safari'da YouTube ochildi va Python haqida video topildi.
+mix_2,ru,mixed,"Открыла Telegram, iltimos, kuting."

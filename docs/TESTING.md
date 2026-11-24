@@ -22,6 +22,7 @@ npm run build
 | Brauzer E2E | headless Chrome + dry-run backend (repo'da skript yo'q, natijalar commit xabarida) | Yo'q — Linux, dry-run |
 | Benchmark `--dry-run` | `python -m xadicha.benchmark --dry-run` | Yo'q — faqat harness tekshiruvi, natija emas |
 | macOS tekshiruvi | `backend/scripts/mac_selftest.py` | **Ha** — foydalanuvchi o'z Mac'ida ishga tushiradi |
+| Real validatsiya | `python -m xadicha.validate …` ([REAL_VALIDATION.md](REAL_VALIDATION.md)) | **Ha** — natijalar `backend/validation/results/`, hisobot `REPORT.md` |
 | Benchmark (real) | `python -m xadicha.benchmark` (macOS) | Ha — hali o'tkazilmagan |
 
 ## Backend test fayllari

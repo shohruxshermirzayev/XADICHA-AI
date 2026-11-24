@@ -7,26 +7,22 @@ import type { Risk, Step, Task } from "@/lib/xadicha";
 import { CheckCircle2, CircleDashed, Loader2, ShieldAlert, XCircle, MinusCircle } from "lucide-react";
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <section className={cn("rounded-2xl border border-border bg-card/80 p-5 shadow-[0_1px_0_0_rgb(255_255_255/0.03)_inset]", className)}>
-      {children}
-    </section>
-  );
+  return <section className={cn("glass rounded-[24px] p-5", className)}>{children}</section>;
 }
 
 export function CardTitle({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">{children}</h2>
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <h2 className="text-[13px] font-medium tracking-wide text-muted-foreground">{children}</h2>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   );
 }
 
 const riskStyle: Record<Risk, string> = {
-  low: "bg-success/10 text-success ring-success/25",
-  medium: "bg-warning/10 text-warning ring-warning/25",
-  high: "bg-destructive/10 text-destructive ring-destructive/30",
+  low: "bg-success/10 text-success ring-success/20",
+  medium: "bg-warning/10 text-warning ring-warning/20",
+  high: "bg-destructive/12 text-destructive ring-destructive/25",
 };
 export function RiskBadge({ risk, t }: { risk: Risk; t: T }) {
   return (
@@ -87,12 +83,12 @@ export function Button({
     <button
       {...props}
       className={cn(
-        "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-sm font-medium transition-colors",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50",
-        variant === "default" && "bg-primary text-primary-foreground hover:bg-primary/90",
-        variant === "ghost" && "text-muted-foreground hover:bg-accent hover:text-foreground",
-        variant === "outline" && "border border-border text-foreground hover:bg-accent",
-        variant === "danger" && "bg-destructive text-white hover:bg-destructive/90",
+        "inline-flex h-9 items-center justify-center gap-2 rounded-full px-4 text-sm font-medium transition-[background,box-shadow,color,border-color] duration-200",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-45",
+        variant === "default" && "bg-[linear-gradient(180deg,#8987ff,#6c6af5)] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.28),0_10px_28px_-12px_rgb(119_117_255/0.8)] hover:brightness-110",
+        variant === "ghost" && "text-muted-foreground hover:bg-white/[0.06] hover:text-foreground",
+        variant === "outline" && "border border-white/10 bg-white/[0.04] text-foreground hover:border-white/20 hover:bg-white/[0.08]",
+        variant === "danger" && "bg-[linear-gradient(180deg,#fb7f93,#e85571)] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_10px_28px_-12px_rgb(251_113_133/0.7)] hover:brightness-110",
         className,
       )}
     />

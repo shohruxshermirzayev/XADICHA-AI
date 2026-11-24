@@ -46,3 +46,7 @@ backend/.venv/
 backend/data/
 __pycache__/
 .pytest_cache/
+
+# real validatsiya: audio yozuvlar katta va shaxsiy (ovoz) — repozitoriyga kirmaydi; JSON natijalar kiradi
+backend/validation/results/**/audio/
+backend/validation/results/**/tasks.db
