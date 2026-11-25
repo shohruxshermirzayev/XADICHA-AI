@@ -221,9 +221,9 @@ function Clarification({ p, t, onRun, onEdit, onCancel }: {
 /* ---------------- Suhbat ---------------- */
 
 const EXAMPLES: Record<Lang, string[]> = {
-  uz: ["Safari ni och", "Samarqand haqida qidir", "Ovozini ko'tar", "hisobot faylini top", "Ekranda nima turganini ayt"],
-  ru: ["Открой Notes", "Найди информацию о Самарканде", "Сделай тише", "Опиши, что на экране"],
-  en: ["Open Calculator", "Search for Samarkand", "Volume up", "Describe what is on the screen"],
+  uz: ["Salom, nima qila olasan?", "Safari ni och", "Samarqand haqida qidir", "Ovozini ko'tar", "hisobot faylini top", "Ekranda nima turganini ayt"],
+  ru: ["Привет, что ты умеешь?", "Открой Notes", "Найди информацию о Самарканде", "Сделай тише", "Опиши, что на экране"],
+  en: ["Hi, what can you do?", "Open Calculator", "Search for Samarkand", "Volume up", "Describe what is on the screen"],
 };
 
 /** Yangi kelgan javobning haqiqiy matnini so'zma-so'z ochish (backend matnni bir yo'la yuboradi; matn to'qilmaydi). */
@@ -480,7 +480,7 @@ function TaskCard({ task, lang, t }: { task: Task; lang: Lang; t: T }) {
           <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
             <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} aria-hidden />
-            {open ? t("card.hide") : t("card.details")} · {t("card.steps", { n: task.steps.length })} · {fmtMs(taskLatencyMs(task))}
+            {open ? t("card.hide") : t("card.details")}{task.steps.length ? ` · ${t("card.steps", { n: task.steps.length })}` : ""} · {fmtMs(taskLatencyMs(task))}
           </button>
           <AnimatePresence initial={false}>
             {open && (

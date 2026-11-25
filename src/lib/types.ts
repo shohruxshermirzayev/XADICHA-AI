@@ -35,7 +35,7 @@ export interface Task {
   language: string;
   mode: Mode;
   intent: string;
-  planner?: "rules" | "llm";
+  planner?: "rules" | "llm" | "tool" | "chat";
   steps: Step[];
   risk: Risk;
   status: "running" | "success" | "failed" | "cancelled";

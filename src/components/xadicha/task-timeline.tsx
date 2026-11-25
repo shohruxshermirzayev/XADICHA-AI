@@ -39,7 +39,8 @@ function rowLabel(r: TimelineRow, task: Task, lang: Lang, t: T): { title: string
       return {
         title: t("tl.planning"),
         sub: r.state === "done" && task.planner
-          ? (task.planner === "rules" ? t("tl.fast") : task.planner === "llm" ? t("tl.model") : t("tl.tool")) + (task.intent ? ` · ${task.intent}` : "")
+          ? (task.planner === "chat" ? t("tl.chat")
+            : (task.planner === "rules" ? t("tl.fast") : task.planner === "llm" ? t("tl.model") : t("tl.tool")) + (task.intent ? ` · ${task.intent}` : ""))
           : r.state === "active" ? t("task.planning") : undefined,
       };
     case "awaiting":

@@ -4,6 +4,7 @@
   tool        — maxsus vosita yetarli (internetdan qidirish, fayl qidirish, havola: "uni yana och")
   autonomous  — murakkab vazifa → LLM: ekran, reja, qadam-baqadam bajarish, tekshiruv, tiklanish
   clarify     — buyruqda zarur obyekt yo'q ("shu faylni top", lekin kontekstda fayl yo'q)
+  chat        — oddiy suhbat (salom, rahmat, "sen kimsan", umumiy savol) → faqat javob, HECH QANDAY amal yo'q
 
 Qoida asosidagi; noma'lum yoki murakkab buyruq har doim modelga (autonomous) qoldiriladi.
 """
@@ -20,7 +21,7 @@ from .providers.rule_based import FAST_INTENTS, is_simple, parse_command
 
 @dataclass
 class Route:
-    path: str                       # fast | tool | autonomous | clarify
+    path: str                       # fast | tool | autonomous | clarify | chat
     intent: str = ""
     actions: list[Action] = field(default_factory=list)
     reply: str = ""
@@ -54,6 +55,61 @@ _REVEALED = {"uz": "{x} Finder'da ko'rsatildi.", "ru": "{x} показан в Fi
 
 _NEED_NAME = {"uz": "Qaysi faylni qidiray? Nomini ayting.", "ru": "Какой файл искать? Назовите имя.",
               "en": "Which file should I look for? Please say its name."}
+
+
+# Amal so'zlari: bular bor gap HECH QACHON suhbat deb olinmaydi (buyruq yo'lida qoladi — xavfsiz tomon)
+_ACTION_WORDS = re.compile(
+    r"\b(?:och|ishga tushir|yop|qidir|izla|top|yarat|o'chir|ko'rsat|kir|yoz|bos|ovoz|yorug|yorqin|saqla|yubor|"
+    r"o'rnat|ko'tar|pasaytir|kamaytir|oshir|ijro|qo'y|aylantir|"
+    r"оч|ишга тушир|қидир|топ|ярат|ўчир|кўрсат|кир|ёз|овоз|ёруғ|юбор|кўтар|пасайтир|камайтир|"
+    r"откр|запуст|закр|найд|поищ|созда|удал|покаж|громк|ярк|звук|напиш|отправ|установ|сохран|включ|выключ|"
+    r"open|launch|start|close|search|find|create|delete|show|type|click|volume|brightness|mute|play|send|"
+    r"install|save|turn|set|go to|look up|message|write|tell|say|email|call|remind|"
+    r"xabar|qo'ng'iroq|eslat|айт|хабар|сообщ|позвон|напомн|скажи)",
+    re.I,
+)
+# Ekran haqidagi savol — ekranni ko'radigan agentga qoladi
+_SCREEN_WORDS = re.compile(r"\b(?:ekran|oyna|экран|окн|screen|window|display)", re.I)
+_CHAT_PATTERNS = re.compile(
+    r"\b(?:salom|assalom|assalomu|hayrli (?:tong|kun|kech)|xayrli (?:tong|kun|kech)|xayr|ko'rishguncha|"
+    r"rahmat\w*|raxmat\w*|tashakkur\w*|qalaysan|qalaysiz|yaxshimisiz|yaxshimisan|ishlar qalay|nima gap|"
+    r"kimsan|kimsiz|isming|ismingiz|nima qila olasan|nima qila olasiz|nimalar qila ola|imkoniyatlaring|"
+    r"kayfiyat\w*|charchad\w*|zerik\w*|xursand\w*|xafa\w*|"
+    r"салом|ассалом|раҳмат|рахмат|ташаккур|қалайсиз|қалайсан|яхшимисиз|кимсан|кимсиз|хайр|"
+    r"привет\w*|здравствуй\w*|добр(?:ое|ый|ой) (?:утро|день|вечер)|пока|до свидания|спасибо|благодар\w*|как дела|как ты|"
+    r"кто ты|как тебя зовут|что ты умеешь|настроени\w*|устал\w*|скучн\w*|грустн\w*|"
+    r"hello|hi|hey|good (?:morning|afternoon|evening|night)|bye|goodbye|thank|thanks|how are you|who are you|"
+    r"your name|what can you do|i'?m (?:tired|bored|sad|happy)|i feel)\b",
+    re.I,
+)
+_QUESTION_START = re.compile(
+    r"^(?:nima|nega|qanday|qachon|qayer|kim|necha|qaysi|нима|нега|қандай|қачон|қаер|ким|неча|"
+    r"что|как|когда|где|кто|почему|зачем|сколько|какой|what|how|when|where|who|why|which|is|are|do|does|can)\b",
+    re.I,
+)
+_SHORT_REACTION = re.compile(r"^(?:ha|xo'p|ok|okay|zo'r|ajoyib|yaxshi|tushunarli|ҳа|хўп|яхши|да|хорошо|отлично|понятно|"
+                             r"yes|great|cool|nice|got it)$", re.I)
+
+
+def _mentions_app(low: str) -> bool:
+    """Ilova nomi tilga olingan gap (Telegram, Safari, Notes…) — buyruq bo'lishi mumkin, suhbat emas."""
+    from .providers.rule_based import APP_ALIASES, KNOWN_APPS
+
+    words = set(re.findall(r"\w+", low))
+    names = {a.lower() for a in KNOWN_APPS} | {a.lower() for a in APP_ALIASES}
+    return any(n in words or (" " in n and n in low) for n in names)
+
+
+def detect_chat(text: str) -> bool:
+    """Oddiy suhbatmi (amal so'ralmagan)? Shubha bo'lsa — False (buyruq yo'lida qoladi)."""
+    t = re.sub(r"[ʻ’‘`´]", "'", text).strip()
+    low = t.lower().strip(" .!,")
+    if not low or _ACTION_WORDS.search(low) or _SCREEN_WORDS.search(low) or _mentions_app(low):
+        return False
+    if _CHAT_PATTERNS.search(low) or _SHORT_REACTION.match(low):
+        return True
+    # Umumiy savol ("Samarqand qayerda?", "Python nima?") — amal so'zisiz
+    return t.endswith("?") or bool(_QUESTION_START.match(low))
 
 
 def _clean_query(q: str) -> str:
@@ -115,6 +171,9 @@ def route(text: str, language: str, conversation: Conversation | None = None, fa
     sq = detect_search(text)
     if sq is not None:
         return Route("tool", "web_search", [Action(type="web_search", text=sq)], "", resolved_from)
+
+    if detect_chat(text):
+        return Route("chat", "chat", resolved_from=resolved_from)
 
     if fast_path:
         intent, actions, reply = parse_command(text, language)

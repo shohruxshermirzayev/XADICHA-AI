@@ -123,6 +123,15 @@ def understand(text: str, language: str = "uz", asr_confidence: float | None = N
         if asr_confidence is not None and asr_confidence < ASR_LOW:
             a.needs_clarification, a.reason = True, "low_asr_confidence"
         return a
+    from .router import detect_chat
+
+    if detect_chat(norm):
+        # Oddiy suhbat — hech narsa bajarilmaydi, aniqlashtirish kerak emas (model bo'lmasa tayyor javob beriladi)
+        a = Analysis(original=original, normalized=norm, intent="chat", intent_confidence=0.9,
+                     needs_clarification=False, reason="ok", suggestion=norm)
+        if asr_confidence is not None and asr_confidence < ASR_LOW:
+            a.needs_clarification, a.reason = True, "low_asr_confidence"
+        return a
     if not is_simple(norm) or (llm_available and parse_command(norm, language)[0] == "unknown"
                                and not _extract_app(norm)):
         # Ko'p qadamli yoki qoida tushunmaydigan buyruq — modelga topshiriladi (aniqlashtirish faqat ASR past bo'lsa)

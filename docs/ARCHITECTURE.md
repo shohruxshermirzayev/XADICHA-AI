@@ -39,6 +39,9 @@ buyruq → suhbat konteksti (havola: "uni", "shu fayl", "birinchisi", "yana") �
                       find_file (workspace), reveal (Finder'da ko'rsatish)
       → autonomous  : LLM sikli (ekran + OCR/AX + suhbat konteksti) → qadam → tekshiruv → tiklanish
       → clarify     : obyekt yetishmaydi ("shu faylni top", kontekstda fayl yo'q) → savol
+      → chat        : oddiy suhbat (salom, rahmat, "sen kimsan", umumiy savol) → bitta model chaqiruvi,
+                      ekran surati yo'q, HECH QANDAY amal yo'q; amal so'zi, ilova nomi yoki ekran haqida
+                      so'z bo'lsa — hech qachon chat emas (router.detect_chat); model yo'q — tayyor javob
 ```
 
 **Vositalar reyestri** (`models.TOOL_REGISTRY`): har harakat — `read_only`, `idempotent`, `timeout_s`, `verify`.

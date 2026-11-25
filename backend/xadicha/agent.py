@@ -80,6 +80,53 @@ _MSG = {
 }
 
 
+# Model ulanmagan yoki javob bermasa — suhbat uchun tayyor javoblar (hech narsa to'qilmaydi)
+_CHAT_FALLBACK = {
+    "greeting": {"uz": "Salom! Men XADICHA. Buyruq bering yoki savolingizni ayting.",
+                 "ru": "Привет! Я XADICHA. Дайте команду или задайте вопрос.",
+                 "en": "Hi! I'm XADICHA. Give me a command or ask a question."},
+    "thanks": {"uz": "Arzimaydi! Yana nima yordam kerak?", "ru": "Не за что! Чем ещё помочь?",
+               "en": "You're welcome! What else can I do for you?"},
+    "identity": {"uz": "Men XADICHA — kompyuteringizni ovoz va matn bilan boshqaradigan yordamchiman. Ilova va saytlarni "
+                       "ochaman, internetda qidiraman, fayllarni topaman, ovoz va yorug'likni o'zgartiraman.",
+                 "ru": "Я XADICHA — помощник, который управляет компьютером голосом и текстом. Открываю приложения и сайты, "
+                       "ищу в интернете, нахожу файлы, меняю громкость и яркость.",
+                 "en": "I'm XADICHA, an assistant that controls your computer by voice and text. I open apps and websites, "
+                       "search the web, find files and change volume and brightness."},
+    "other": {"uz": "Hozir suhbat uchun model ulanmagan. Buyruq bering, masalan: Safari ni och.",
+              "ru": "Сейчас модель для разговора не подключена. Дайте команду, например: Открой Safari.",
+              "en": "No model is connected for conversation right now. Give a command, for example: Open Safari."},
+}
+
+
+def chat_fallback(text: str, lang: str) -> str:
+    import re as _re
+
+    low = text.lower()
+    if _re.search(r"rahmat|raxmat|tashakkur|раҳмат|рахмат|спасибо|благодар|thank", low):
+        kind = "thanks"
+    elif _re.search(r"kimsan|kimsiz|isming|qila olas|кимсан|кто ты|как тебя зовут|что ты умеешь|who are you|your name|what can you do", low):
+        kind = "identity"
+    elif _re.search(r"salom|assalom|xayrli|hayrli|салом|ассалом|привет|здравств|добр|hello|\bhi\b|hey|good morning|good evening", low):
+        kind = "greeting"
+    else:
+        kind = "other"
+    return _CHAT_FALLBACK[kind].get(lang, _CHAT_FALLBACK[kind]["en"])
+
+
+def clean_spoken(text: str, limit: int = 700) -> str:
+    """Ovozda o'qiladigan matn: markdown belgilari olib tashlanadi, haddan uzun javob kesiladi."""
+    import re as _re
+
+    t = _re.sub(r"[*_#`>]+", "", text)
+    t = _re.sub(r"\[(\d+)\]", "", t)
+    t = _re.sub(r"\s+", " ", t).strip()
+    if len(t) > limit:
+        cut = t[:limit]
+        t = cut[: max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? ")) + 1] or cut
+    return t
+
+
 def msg(key: str, lang: str) -> str:
     return _MSG[key].get(lang, _MSG[key]["en"])
 
@@ -300,6 +347,39 @@ class Agent:
         finally:
             task.timings["llm_ms"] += int((time.perf_counter() - t0) * 1000)
 
+    def _run_chat(self, task: TaskRecord) -> None:
+        """Oddiy suhbat: ekran surati yo'q, hech qanday harakat yo'q — faqat javob matni (bitta model chaqiruvi)."""
+        import datetime as _dt
+
+        from .providers.base import os_name
+        from .providers.prompts import CHAT_PROMPT, parse_json
+
+        task.intent, task.planner = "chat", "chat"
+        lang = task.language
+        task.status = TaskStatus.success
+        if isinstance(self.provider, RuleBasedProvider):
+            task.final_message = chat_fallback(task.instruction, lang)
+            return
+        names = {"uz": "Uzbek", "ru": "Russian", "en": "English"}
+        system = CHAT_PROMPT.format(
+            os_name=os_name(),
+            language=names.get(lang, "English"),
+            now=_dt.datetime.now().strftime("%Y-%m-%d %H:%M, %A"),
+            conversation=(self.conversation.summary() if self.conversation is not None else "") or "(empty)",
+        )
+        t0 = time.perf_counter()
+        reply = ""
+        try:
+            raw = self.provider.complete(system, f"User: {task.instruction}", None)
+            task.llm_calls += 1
+            data = parse_json(raw)
+            reply = clean_spoken(str(data.get("reply") or data.get("final_message") or data.get("answer") or ""))
+        except Exception:  # noqa: BLE001 — model ishlamasa tayyor javob
+            reply = ""
+        self._span(task, "llm:chat", t0, bool(reply), provider=self.provider.name, model=getattr(self.provider, "model", None))
+        task.timings["llm_ms"] += int((time.perf_counter() - t0) * 1000)
+        task.final_message = reply or chat_fallback(task.instruction, lang)
+
     def _blind_repeat(self, task: TaskRecord, action: Action) -> bool:
         """Oxirgi qadam muvaffaqiyatsiz bo'lsa va model aynan shu takrorlab bo'lmaydigan harakatni yana so'rasa."""
         if not task.steps:
@@ -406,6 +486,9 @@ class Agent:
             return None
         if r.path == "autonomous":
             return r.note or task.instruction
+        if r.path == "chat":
+            self._run_chat(task)
+            return None
         task.intent, task.planner = r.intent or task.intent, "rules" if r.path == "fast" else "tool"
         if r.intent == "system":
             self._run_system(task, r.actions, r.reply)
