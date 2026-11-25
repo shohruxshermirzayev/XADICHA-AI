@@ -137,3 +137,29 @@ def test_chat_through_service_api(cfg):
     assert t["planner"] == "chat" and t["final_message"] == "Salom! Yordam beraymi?" and t["steps"] == []
     turns = c.get("/api/conversation").json()["turns"]
     assert [x["role"] for x in turns][-2:] == ["user", "assistant"]
+
+
+# --- yaratuvchi haqidagi savol ---
+CREATOR = ["Seni kim yaratgan?", "Sani kim yaratgan", "Kim seni yasagan?", "Yaratuvching kim?", "Сени ким яратган?",
+           "Кто тебя создал?", "Who created you?", "Who made you?", "What is your creator's name?"]
+NOT_CREATOR = ["Papka yarat", "Kim yaratgan bu faylni? papka yarat", "Seni kim yaratgan, Safari ni och",
+               "Create a folder for you", "hisobot nomli papka yarat"]
+
+
+@pytest.mark.parametrize("text", CREATOR)
+def test_creator_question_is_chat_with_true_answer(text, cfg):
+    assert route(text, "uz").path == "chat"
+    lang = "ru" if any("а" <= ch <= "я" for ch in text.lower()) and "ким" not in text.lower() else "uz"
+    reply = chat_fallback(text, lang)
+    assert "Shohrux Shermirzayev" in reply or "Шохрух Шермирзаев" in reply
+
+
+@pytest.mark.parametrize("text", NOT_CREATOR)
+def test_create_commands_are_not_creator_questions(text):
+    assert route(text, "uz").path != "chat"
+
+
+def test_prompt_names_the_creator_and_forbids_companies():
+    from xadicha.providers.prompts import CHAT_PROMPT
+
+    assert "Shohrux Shermirzayev" in CHAT_PROMPT and "Never name an AI company" in CHAT_PROMPT

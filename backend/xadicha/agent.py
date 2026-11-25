@@ -93,6 +93,8 @@ _CHAT_FALLBACK = {
                        "ищу в интернете, нахожу файлы, меняю громкость и яркость.",
                  "en": "I'm XADICHA, an assistant that controls your computer by voice and text. I open apps and websites, "
                        "search the web, find files and change volume and brightness."},
+    "creator": {"uz": "Meni Shohrux Shermirzayev yaratgan.", "ru": "Меня создал Шохрух Шермирзаев.",
+                "en": "I was created by Shohrux Shermirzayev."},
     "other": {"uz": "Hozir suhbat uchun model ulanmagan. Buyruq bering, masalan: Safari ni och.",
               "ru": "Сейчас модель для разговора не подключена. Дайте команду, например: Открой Safari.",
               "en": "No model is connected for conversation right now. Give a command, for example: Open Safari."},
@@ -102,8 +104,12 @@ _CHAT_FALLBACK = {
 def chat_fallback(text: str, lang: str) -> str:
     import re as _re
 
+    from .router import CREATOR_QUESTION
+
     low = text.lower()
-    if _re.search(r"rahmat|raxmat|tashakkur|раҳмат|рахмат|спасибо|благодар|thank", low):
+    if CREATOR_QUESTION.search(low):
+        kind = "creator"
+    elif _re.search(r"rahmat|raxmat|tashakkur|раҳмат|рахмат|спасибо|благодар|thank", low):
         kind = "thanks"
     elif _re.search(r"kimsan|kimsiz|isming|qila olas|кимсан|кто ты|как тебя зовут|что ты умеешь|who are you|your name|what can you do", low):
         kind = "identity"

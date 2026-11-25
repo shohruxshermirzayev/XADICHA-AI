@@ -91,6 +91,33 @@ _SHORT_REACTION = re.compile(r"^(?:ha|xo'p|ok|okay|zo'r|ajoyib|yaxshi|tushunarli
                              r"yes|great|cool|nice|got it)$", re.I)
 
 
+# "Seni kim yaratgan?" — "yarat"/"создать" amal so'zi bo'lsa ham, bu suhbat (XADICHA'ning yaratuvchisi haqida).
+# Shart: XADICHA'ga murojaat (seni/sizni/тебя/you) + yaratish fe'li, yoki "yaratuvching" kabi ot; boshqa amal so'zi yo'q.
+_CREATOR_NOUN = re.compile(
+    r"\b(?:yaratuvching|yaratuvchingiz|yaratuvchisi kim|muallifing|muallifingiz)\b|яратувчинг|муаллифинг|"
+    r"(?:твой|ваш)\s+(?:создатель|автор|разработчик)|\byour\s+(?:creator|developer|author|maker)\b", re.I)
+_CREATOR_YOU = re.compile(r"\b(?:seni|sani|sizni|сени|сизни|тебя|вас|you)\b", re.I)
+_CREATOR_VERB = re.compile(
+    r"\b(?:yarat\w*|yasa\w*|tuzgan|ishlab chiq\w*|o'ylab top\w*|яратг\w*|яратд\w*|ясаг\w*|тузган|"
+    r"создал\w*|сделал\w*|разработал\w*|придумал\w*|created|made|built|developed|designed)", re.I)
+
+
+class _CreatorQuestion:
+    """Yaratuvchi haqidagi savolni aniqlaydi (re.Pattern'ga o'xshash .search interfeysi)."""
+
+    @staticmethod
+    def search(low: str) -> bool:
+        if _CREATOR_NOUN.search(low):
+            return True
+        if not (_CREATOR_YOU.search(low) and _CREATOR_VERB.search(low)):
+            return False
+        rest = _CREATOR_VERB.sub(" ", low)
+        return not _ACTION_WORDS.search(rest)   # "seni kim yaratgan? papka yarat" — buyruq bor, suhbat emas
+
+
+CREATOR_QUESTION = _CreatorQuestion()
+
+
 def _mentions_app(low: str) -> bool:
     """Ilova nomi tilga olingan gap (Telegram, Safari, Notes…) — buyruq bo'lishi mumkin, suhbat emas."""
     from .providers.rule_based import APP_ALIASES, KNOWN_APPS
@@ -104,7 +131,11 @@ def detect_chat(text: str) -> bool:
     """Oddiy suhbatmi (amal so'ralmagan)? Shubha bo'lsa — False (buyruq yo'lida qoladi)."""
     t = re.sub(r"[ʻ’‘`´]", "'", text).strip()
     low = t.lower().strip(" .!,")
-    if not low or _ACTION_WORDS.search(low) or _SCREEN_WORDS.search(low) or _mentions_app(low):
+    if not low or _SCREEN_WORDS.search(low) or _mentions_app(low):
+        return False
+    if CREATOR_QUESTION.search(low):
+        return True
+    if _ACTION_WORDS.search(low):
         return False
     if _CHAT_PATTERNS.search(low) or _SHORT_REACTION.match(low):
         return True
