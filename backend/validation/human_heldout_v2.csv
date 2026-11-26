@@ -1,0 +1,48 @@
+id,lang,script,kind,text,intent,entity
+hh_uzl_01,uz,latn,command,Musiqa ilovasini ishga tushir,open_app,Music
+hh_uzl_02,uz,latn,command,Pochta dasturini ochgin,open_app,Mail
+hh_uzl_03,uz,latn,command,kun.uz saytini och,open_url,kun.uz
+hh_uzl_04,uz,latn,command,Samarqand ob-havosi haqida ma'lumot qidir,web_search,Samarqand ob-havosi
+hh_uzl_05,uz,latn,command,ovozni 60 gacha ko'tar,system,volume_set
+hh_uzl_06,uz,latn,command,ovozni biroz pasaytirib qo'y,system,volume_down
+hh_uzl_07,uz,latn,command,ekranni yorqinroq qil,system,brightness_up
+hh_uzl_08,uz,latn,command,batareya necha foiz bo'ldi,system,battery
+hh_uzl_09,uz,latn,command,skrinshot olgin,system,screenshot
+hh_uzl_10,uz,latn,command,kecha yuklab olgan rasmni top,find_file,latest-download
+hh_uzl_11,uz,latn,command,diplom ishi faylini topib ber,find_file,diplom ishi
+hh_uzl_12,uz,latn,command,ovozni butunlay yoqib qo'y,system,unmute
+hh_uzc_01,uz,cyrl,command,Сафарини ишга туширгин,open_app,Safari
+hh_uzc_02,uz,cyrl,command,Тошкент метроси ҳақида қидир,web_search,Тошкент метроси
+hh_uzc_03,uz,cyrl,command,овозни 20 гача пасайтир,system,volume_set
+hh_uzc_04,uz,cyrl,command,батарея неча фоиз,system,battery
+hh_uzc_05,uz,cyrl,command,экранни хирароқ қил,system,brightness_down
+hh_uzc_06,uz,cyrl,command,охирги юкланган файлни топ,find_file,latest-download
+hh_uzc_07,uz,cyrl,command,Ноутс иловасини оч,open_app,Notes
+hh_uzc_08,uz,cyrl,command,овозни ўчир,system,mute
+hh_ru_01,ru,cyrl,command,Запусти музыку,open_app,Music
+hh_ru_02,ru,cyrl,command,Открой сайт github.com,open_url,github.com
+hh_ru_03,ru,cyrl,command,Найди информацию о Бухаре,web_search,Бухаре
+hh_ru_04,ru,cyrl,command,Прибавь громкость,system,volume_up
+hh_ru_05,ru,cyrl,command,Уменьши яркость экрана,system,brightness_down
+hh_ru_06,ru,cyrl,command,Какой у меня заряд батареи,system,battery
+hh_ru_07,ru,cyrl,command,Найди последний скачанный файл,find_file,latest-download
+hh_ru_08,ru,cyrl,command,Выключи звук,system,mute
+hh_en_01,en,latn,command,Launch the Calendar app,open_app,Calendar
+hh_en_02,en,latn,command,Go to youtube.com,open_url,youtube.com
+hh_en_03,en,latn,command,Search the web for Samarkand history,web_search,Samarkand history
+hh_en_04,en,latn,command,Make it a bit quieter,system,volume_down
+hh_en_05,en,latn,command,Turn the brightness up,system,brightness_up
+hh_en_06,en,latn,command,How much battery do I have,system,battery
+hh_en_07,en,latn,command,Take a screenshot please,system,screenshot
+hh_en_08,en,latn,command,Mute the sound,system,mute
+hh_mix_01,uz,latn,mixed,Xadicha Telegram'ni open qil,open_app,Telegram
+hh_mix_02,uz,latn,mixed,Spotify'ni ishga tushir please,open_app,Spotify
+hh_mix_03,uz,latn,mixed,volume'ni pasaytir,system,volume_down
+hh_mix_04,ru,cyrl,mixed,Открой Safari va kun.uz,autonomous,
+hh_mix_05,uz,latn,mixed,battery qancha qoldi,system,battery
+hh_mix_06,en,latn,mixed,Open Notes iltimos,open_app,Notes
+hh_mix_07,uz,cyrl,mixed,Downloads папкадаги охирги файлни оч,autonomous,
+hh_mix_08,ru,cyrl,mixed,Сделай screenshot,system,screenshot
+hh_sil_01,,,silence,,,
+hh_sil_02,,,silence,,,
+hh_sil_03,,,silence,,,

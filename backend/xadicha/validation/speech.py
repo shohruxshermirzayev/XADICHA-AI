@@ -28,7 +28,121 @@ from . import RESULTS_DIR, VALIDATION_DIR, is_macos, save_result, stamp
 from ..metrics import asr_error_types, cer, percentile, wer
 
 SET_FILE = VALIDATION_DIR / "speech_validation_set.csv"
+# To'plamlar: dev — sozlash uchun; heldout — KO'RILMAGAN (sozlashda hech qachon ishlatilmaydi); regression — eski to'plam
+# (sintetik benchmark'larda ishlatilgan, shuning uchun endi "ko'rilmagan" emas — regressiya uchun)
+SETS = {"heldout": VALIDATION_DIR / "human_heldout_v2.csv", "dev": VALIDATION_DIR / "human_dev.csv", "regression": SET_FILE}
 GROUPS = ("uz_latn", "uz_cyrl", "ru", "en", "mixed", "silence")
+
+
+def set_path(name: str | None) -> Path:
+    return SETS.get(name or "regression", SET_FILE)
+
+
+class ArraySource:
+    """Saqlangan yozuvni mikrofon kabi real vaqt tezligida uzatadi (oqimli STT'ni bir xil audio bilan baholash)."""
+
+    def __init__(self, audio: np.ndarray, chunk_ms: int = 64, realtime: bool = True, lead_s: float = 0.5):
+        self.pcm = (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes()
+        self.chunk_ms, self.realtime = chunk_ms, realtime
+        self.lead_s = lead_s   # gapdan oldingi jimlik — VAD fon shovqinini nutq emas, jimlikdan kalibrlaydi
+        self._stop = threading.Event()
+
+    def start(self, on_chunk) -> None:
+        step = 16000 * self.chunk_ms // 1000 * 2
+
+        def run() -> None:
+            for _ in range(int(self.lead_s * 1000 / self.chunk_ms)):
+                on_chunk(b"\x00" * step)
+                if self.realtime:
+                    time.sleep(self.chunk_ms / 1000)
+            for i in range(0, len(self.pcm), step):
+                if self._stop.is_set():
+                    return
+                on_chunk(self.pcm[i:i + step].ljust(step, b"\x00"))
+                if self.realtime:
+                    time.sleep(self.chunk_ms / 1000)
+            while not self._stop.is_set():   # real mikrofon kabi: gapdan keyin jimlik
+                on_chunk(b"\x00" * step)
+                time.sleep(self.chunk_ms / 1000 if self.realtime else 0.001)
+        threading.Thread(target=run, daemon=True).start()
+
+    def stop(self) -> None:
+        self._stop.set()
+
+
+class GeminiUnary:
+    """Gemini Transcribe (butun yozuv, zaxirasiz) — `Listener` bilan bir xil interfeys."""
+
+    engine = "gemini"
+
+    def __init__(self, cfg):
+        from ..speech.recognizer import GeminiTranscriber, make_recognizer
+
+        self._g = GeminiTranscriber(cfg.gemini_api_key, cfg.gemini_stt_model, 60)
+        self._vocab = make_recognizer(cfg, None).vocabulary
+        self.model_name = cfg.gemini_stt_model
+
+    def warmup(self) -> None:
+        pass
+
+    def transcribe(self, audio, language=None, prior=None):
+        from ..lang import detect_text_language
+        from ..speech.stt import Transcript
+
+        text = self._vocab.correct(self._g.transcribe(audio, language, self._vocab))
+        g = detect_text_language(text, prior or "uz") if text else None
+        return Transcript(text, g.lang if g else (prior or "uz"), float(g.confidence) if g else 0.0, True,
+                          detected_raw="gemini")
+
+
+class GeminiStream:
+    """Oqimli Gemini Live Transcription — yozuv real vaqtda uzatiladi; holat (final/local) yoziladi."""
+
+    engine = "gemini-live"
+
+    def __init__(self, cfg):
+        from ..speech.recognizer import make_recognizer
+
+        self.cfg = cfg
+        self.model_name = cfg.gemini_stt_live_model
+        self._terms = make_recognizer(cfg, None).vocabulary.terms
+        self.last_status = ""
+
+    def warmup(self) -> None:
+        pass
+
+    def transcribe(self, audio, language=None, prior=None):
+        from ..lang import detect_text_language
+        from ..speech.stream import StreamingTranscriber
+        from ..speech.stt import Transcript
+
+        st = StreamingTranscriber(self.cfg.gemini_api_key, self.model_name, vocabulary=self._terms,
+                                  source_factory=lambda: ArraySource(audio))
+        r = st.run(threading.Event())
+        self.last_status = f"{r.finalized_by}:{r.reason or r.error[:120]}"
+        g = detect_text_language(r.text, prior or "uz") if r.text else None
+        return Transcript(r.text, g.lang if g else (prior or "uz"), float(g.confidence) if g else 0.0, True,
+                          detected_raw=self.last_status)
+
+
+def make_provider(name: str, cfg, model: str | None = None, engine: str = "auto"):
+    if name == "gemini":
+        return GeminiUnary(cfg)
+    if name == "gemini-live":
+        return GeminiStream(cfg)
+    from ..speech.stt import Listener
+
+    return Listener(model or cfg.whisper_model, engine)
+
+
+CONSENT = ("Yozuvlar faqat shu kompyuterda (backend/validation/results/…/audio) saqlanadi va faqat XADICHA AI'ni\n"
+           "baholash uchun ishlatiladi. Gemini provayderi bilan baholansa, audio Google'ga yuboriladi.\n"
+           "Ovozingiz yozilishiga rozimisiz? (ha / yo'q): ")
+
+
+def ask_consent(answer: str | None = None) -> bool:
+    a = (answer if answer is not None else input(CONSENT)).strip().lower()
+    return a in ("ha", "xa", "yes", "y", "да", "ҳа")
 
 
 def load_set(path: Path = SET_FILE) -> list[dict[str, str]]:
@@ -135,17 +249,34 @@ def _transcribe_and_score(li, row, audio, selected: str) -> dict[str, Any]:
     rec = score_item(row, tr.text, tr.language, final, selected)
     rec.update(asr_ms=asr_ms, lang_ms=lang_ms, asr_confidence=tr.asr_confidence, whisper_raw_lang=tr.detected_raw,
                audio_s=round(len(audio) / 16000, 2), engine=li.engine, model=li.model_name)
+    if getattr(li, "engine", "") == "gemini-live":
+        rec["transcript_status"] = getattr(li, "last_status", "")
     return rec
+
+
+def write_csv(path: Path, items: list[dict[str, Any]]) -> Path:
+    """Mashina o'qiydigan natija (har yozuv — bitta qator)."""
+    cols = ["provider", "id", "group", "reference", "hypothesis", "wer", "cer", "lid_ok", "intent_ok", "entity_ok",
+            "asr_ms", "final_lang", "transcript_status"]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(items)
+    return path
 
 
 def record_session(args, cfg) -> int:
     from ..speech.stt import Endpointer, Listener
 
-    rows = load_set()
+    set_file = set_path(getattr(args, "set", None))
+    rows = load_set(set_file)
     only = set(filter(None, (args.only or "").split(",")))
     rows = [r for r in rows if not only or group_of(r) in only]
     if args.limit:
         rows = rows[: args.limit]
+    if not ask_consent(getattr(args, "consent", None)):
+        print("Rozilik berilmadi — hech narsa yozilmadi.")
+        return 3
     run_id = stamp()
     audio_dir = RESULTS_DIR / f"speech-{run_id}" / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -160,8 +291,10 @@ def record_session(args, cfg) -> int:
           "Chiqish: Ctrl+C (shu paytgacha yozilganlar saqlanadi).\n")
     items: list[dict[str, Any]] = []
     meta = {"selected_language_prior": args.selected, "engine": li.engine, "model": cfg.whisper_model,
-            "model_load_s": load_s, "set_file": str(SET_FILE.name), "audio_dir": str(audio_dir),
-            "kind": "real microphone recordings (user)", "real": True}
+            "model_load_s": load_s, "set_file": str(set_file.name), "audio_dir": str(audio_dir),
+            "kind": "real microphone recordings (user)", "real": True, "consent": True,
+            "speaker": getattr(args, "speaker", "") or "anon", "environment": getattr(args, "env", "") or "quiet",
+            "speed": getattr(args, "speed", "") or "normal", "microphone": cfg.microphone or "default"}
 
     def save() -> Path:
         return save_result("speech", {**meta, "summary": summarize(items), "items": items}, run_id)
@@ -201,13 +334,25 @@ def rescore(args, cfg) -> int:
 
     run_dir = Path(args.rescore)
     audio_dir = run_dir / "audio" if (run_dir / "audio").exists() else run_dir
-    rows = {r["id"]: r for r in load_set()}
+    rows = {r["id"]: r for name in SETS for r in load_set(SETS[name]) if SETS[name].exists()}
     files = sorted(p for p in audio_dir.glob("*.wav") if p.stem in rows)
     if not files:
         print(f"{audio_dir} da yozuv topilmadi.")
         return 2
     comparisons = {}
-    for engine in (args.engines or "auto").split(","):
+    providers = [p.strip() for p in (getattr(args, "providers", "") or "whisper").split(",") if p.strip()]
+    all_items: list[dict[str, Any]] = []
+    for name in [p for p in providers if p != "whisper"]:
+        li = make_provider(name, cfg)
+        items = []
+        for f in files:
+            rec = _transcribe_and_score(li, rows[f.stem], read_wav(f), args.selected)
+            rec["provider"] = name
+            items.append(rec)
+        comparisons[name] = {"summary": summarize(items), "items": items}
+        all_items += items
+        print(name, json.dumps(summarize(items)["overall"], ensure_ascii=False))
+    for engine in ((args.engines or "auto").split(",") if "whisper" in providers else []):
         for model in (args.models or cfg.whisper_model).split(","):
             li = Listener(model, engine)
             t0 = time.perf_counter()
@@ -216,13 +361,17 @@ def rescore(args, cfg) -> int:
             items = []
             for f in files:
                 audio = read_wav(f)
-                items.append(_transcribe_and_score(li, rows[f.stem], audio, args.selected))
+                rec = _transcribe_and_score(li, rows[f.stem], audio, args.selected)
+                rec["provider"] = f"whisper:{li.engine}:{model}"
+                items.append(rec)
             comparisons[f"{li.engine}:{model}"] = {"model_load_s": load_s, "summary": summarize(items), "items": items}
+            all_items += items
             print(f"{li.engine}:{model}", json.dumps(summarize(items)["overall"], ensure_ascii=False))
     path = save_result("speech_rescore", {"source_audio": str(audio_dir), "selected_language_prior": args.selected,
                                           "real": True, "kind": "re-transcription of real recordings",
                                           "comparisons": comparisons})
     print(f"Saqlandi: {path}")
+    print(f"CSV: {write_csv(Path(str(path)).with_suffix('.csv'), all_items)}")
     return 0
 
 

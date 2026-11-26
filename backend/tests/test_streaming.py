@@ -127,7 +127,8 @@ def test_interim_then_server_final():
 def test_late_final_uses_last_interim_and_marks_it():
     st, _ = transcriber([[(0.02, interim("Telegramni ochib qo'y"))]], grace=0.3)
     r = st.run(threading.Event())
-    assert r.text == "Telegramni ochib qo'y" and r.finalized_by == "interim"   # yashirilmaydi
+    assert r.text == "Telegramni ochib qo'y" and r.finalized_by == "local"   # mahalliy yakunlangan — yashirilmaydi
+    assert r.reason.startswith("no_server_final_within_grace")
 
 
 def test_connect_failure_returns_buffered_audio_for_fallback():
@@ -338,3 +339,25 @@ def test_empty_stream_with_speech_falls_back_to_buffered_audio(cfg, storage):
     assert wait(lambda: any(e["type"] == "transcript" for e in events))
     assert next(e for e in events if e["type"] == "transcript")["stt_provider"].startswith("whisper")
     assert svc.stream_available() is True        # bo'sh natija — ulanish xatosi emas, oqim o'chirilmaydi
+
+
+def test_locally_finalized_transcript_is_never_executed_but_clarified(cfg, storage):
+    """B1: server yakuniy matni kelmagan (oraliq) matn buyruq sifatida bajarilmaydi — tasdiq so'raladi."""
+    svc, events, client = stream_svc(cfg, storage, finalized_by="local")
+    client.post("/api/listen/start?language=uz&auto=true")
+    assert wait(lambda: any(e["type"] == "clarify" for e in events))
+    time.sleep(0.2)
+    tr = next(e for e in events if e["type"] == "transcript")
+    assert tr["transcript_status"] == "local" and tr["finalize_reason"] is not None
+    c = next(e for e in events if e["type"] == "clarify")
+    assert c["analysis"]["reason"] == "unconfirmed_transcript" and c["analysis"]["suggestion"] == "ovozni ko'tar"
+    assert not any(e["type"] == "task_started" for e in events)       # hech narsa bajarilmadi
+    assert client.get("/api/tasks").json() == []
+
+
+def test_server_final_transcript_runs_and_is_marked_final(cfg, storage):
+    svc, events, client = stream_svc(cfg, storage, finalized_by="server")
+    client.post("/api/listen/start?language=uz&auto=true")
+    assert wait(lambda: any(e["type"] == "task_finished" for e in events))
+    tr = next(e for e in events if e["type"] == "transcript")
+    assert tr["transcript_status"] == "final"

@@ -548,6 +548,7 @@ class XadichaService:
         c = self.cfg
         return {
             "values": {"search_mode": c.search_mode, "stt_provider": c.stt_provider, "live_enabled": c.live_enabled,
+                       "live_barge_in": c.live_barge_in, "uz_script": c.uz_script,
                        "tts_enabled": c.tts_enabled, "tts_rate": c.tts_rate, "offline_mode": c.offline_mode,
                        "auto_language": c.auto_language, "microphone": c.microphone,
                        "vocabulary": list(getattr(self, "_vocab_extra", [])),
@@ -578,6 +579,12 @@ class XadichaService:
             c.live_enabled = upd.live_enabled
             if not upd.live_enabled and self.live is not None and self.live.active:
                 self.live.stop()
+        if upd.live_barge_in is not None:
+            c.live_barge_in = upd.live_barge_in
+            if self.live is not None:
+                self.live.barge_in = upd.live_barge_in   # faol sessiyaga darhol
+        if upd.uz_script is not None:
+            c.uz_script = upd.uz_script
         if upd.tts_enabled is not None:
             c.tts_enabled = self.speaker.enabled = upd.tts_enabled
         if upd.tts_rate is not None:
@@ -640,7 +647,7 @@ class XadichaService:
         factory = session_factory or (lambda **kw: LiveSession(self.cfg.gemini_api_key, self.cfg.live_model,
                                                                audio_factory=lambda: SoundDeviceIO(mic), **kw))
         self.live = factory(emit=self._live_event, run_command=self._live_command, voice=self.cfg.live_voice,
-                            vocabulary=self.stt.vocabulary.terms)
+                            vocabulary=self.stt.vocabulary.terms, barge_in=self.cfg.live_barge_in)
         self.live.start()
         logging.getLogger("xadicha").info("Gemini Live boshlandi (%s)", self.cfg.live_model)
         return self.live.info()
@@ -753,6 +760,8 @@ class XadichaService:
                 else:
                     self._listen_result = self.stt.transcribe(audio, None, prior=language)
                 r = self._listen_result
+                if r.text:
+                    r.text = self._apply_uz_script(r.text, r.language)
                 self._vmark("final_transcript")
                 self._vstt = r.provider
                 span = {"stage": "asr", "ms": int((time.perf_counter() - t_asr) * 1000), "ok": bool(r.text),
@@ -868,22 +877,43 @@ class XadichaService:
                        provider="gemini-live", model=r.model)
         self._listen_result = t
         self._vstt = "gemini-live"
+        text = self._apply_uz_script(text, lang)
+        t.text = text
+        status = "final" if r.finalized_by == "server" else "local" if r.finalized_by == "local" else r.finalized_by
         self._voice_trace = [
             {"stage": "audio_capture", "ms": r.marks.get("speech_end", r.marks.get("final", 0)), "ok": True},
             {"stage": "stt_stream", "ms": max(0, r.marks.get("final", 0) - r.marks.get("speech_end", 0)), "ok": bool(text),
-             "provider": "gemini-live", "model": r.model, "reason": f"finalized_by={r.finalized_by}",
+             "provider": "gemini-live", "model": r.model, "reason": f"{status}:{r.reason}",
              "first_partial_ms": r.marks.get("first_partial"), "connect_ms": r.marks.get("connected")},
         ]
         self._set_listening("transcribing")
         if text:
             self.emit({"type": "transcript", "text": text, "language": lang, "probability": prob, "supported": t.supported,
                        "stt_provider": "gemini-live", "stt_model": r.model, "finalized_by": r.finalized_by,
+                       "transcript_status": status, "finalize_reason": r.reason,
                        "fallback_from": "", "fallback_reason": ""})
-        if auto:
+        if auto and status == "local" and text:
+            # Oraliq matn hech qachon o'zicha buyruq sifatida bajarilmaydi — foydalanuvchi tasdiqlaydi
+            self.listen_handled = True
+            self._vt0 = None
+            analysis = understand(text, lang, None, llm_available=self.provider.name != "rules")
+            analysis.needs_clarification, analysis.reason = True, "unconfirmed_transcript"
+            analysis.suggestion = text
+            self.emit({"type": "clarify", "text": text, "language": lang, "asr_confidence": None,
+                       "analysis": analysis.public(), "transcript_status": status})
+        elif auto:
             self._auto_handle(t, mode)
         else:
             self._vt0 = None
         return "done"
+
+    # --- o'zbek yozuvi afzalligi (nutqda yozuv yo'q: STT lotinda beradi; foydalanuvchi kirillni tanlasa — o'giriladi) ---
+    def _apply_uz_script(self, text: str, lang: str) -> str:
+        if not text or lang != "uz" or getattr(self.cfg, "uz_script", "latin") != "cyrillic":
+            return text
+        from .lang import latin_to_cyrillic_uz
+
+        return latin_to_cyrillic_uz(text, keep=self.stt.vocabulary.terms)
 
     def _auto_handle(self, r: Transcript, mode: Mode) -> None:
         """Avtomatik rejim: aniq buyruq — darhol bajariladi; noaniq — aniqlashtirish; bo'sh — hech narsa."""

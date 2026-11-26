@@ -162,6 +162,8 @@ export interface RuntimeSettingsValues {
   search_mode: "auto" | "always" | "never";
   stt_provider: "auto" | "gemini" | "whisper";
   live_enabled: boolean;
+  live_barge_in: boolean;
+  uz_script: "latin" | "cyrillic";
   tts_enabled: boolean;
   tts_rate: number;
   offline_mode: boolean;

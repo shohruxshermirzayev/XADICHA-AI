@@ -70,7 +70,7 @@ export function RuntimeSettings({ api, status, t }: { api: SettingsApi; status: 
     setDraft({ ...draft, [k]: v });
     setState("idle");
   };
-  const onOff = (k: "live_enabled" | "tts_enabled" | "offline_mode" | "auto_language") => (
+  const onOff = (k: "live_enabled" | "live_barge_in" | "tts_enabled" | "offline_mode" | "auto_language") => (
     <Segmented value={draft[k] ? "on" : "off"} onChange={(v) => set(k, v === "on")} label={k} layoutId={`rt-${k}`}
       options={[{ id: "on", label: t("set.on") }, { id: "off", label: t("set.off") }]} />
   );
@@ -112,6 +112,11 @@ export function RuntimeSettings({ api, status, t }: { api: SettingsApi; status: 
             options={(["auto", "gemini", "whisper"] as const).map((id) => ({ id, label: t(`set.stt.${id}` as MsgKey) }))} />
         </Row>
         <Row label={t("set.live")} hint={status?.live && !status.live.available ? status.live.detail : t("live.hint")}>{onOff("live_enabled")}</Row>
+        <Row label={t("set.liveBargeIn")} hint={t("set.liveBargeInHint")}>{onOff("live_barge_in")}</Row>
+        <Row label={t("set.uzScript")}>
+          <Segmented value={draft.uz_script} onChange={(v) => set("uz_script", v)} label={t("set.uzScript")} layoutId="rt-uzscript"
+            options={(["latin", "cyrillic"] as const).map((id) => ({ id, label: t(`set.uzScript.${id}` as MsgKey) }))} />
+        </Row>
         <Row label={t("set.tts")}>{onOff("tts_enabled")}</Row>
         <Row label={t("set.rate")}>
           <div className="flex items-center gap-3">

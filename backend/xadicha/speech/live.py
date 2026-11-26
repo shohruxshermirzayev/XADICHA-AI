@@ -111,7 +111,7 @@ class LiveSession:
     def __init__(self, api_key: str, model: str, emit: Callable[[dict[str, Any]], None],
                  run_command: Callable[[str], dict[str, Any]] | None = None, voice: str = "",
                  vocabulary: list[str] | None = None, audio_factory: Callable[[], Any] = SoundDeviceIO,
-                 client: Any = None, max_reconnects: int = 3, backoff_s: float = 1.0):
+                 client: Any = None, max_reconnects: int = 3, backoff_s: float = 1.0, barge_in: bool = False):
         if not api_key and client is None:
             from ..providers.base import ProviderError
 
@@ -121,6 +121,12 @@ class LiveSession:
         self.emit, self.run_command = emit, run_command
         self.audio_factory = audio_factory
         self.max_reconnects, self.backoff_s = max_reconnects, backoff_s
+        # barge_in=False (standart, quloqchinsiz): XADICHA gapirayotganda mikrofon jimlik bilan almashtiriladi —
+        # karnay ovozi mikrofonga tushib, model o'zini o'zi to'xtatmaydi (macOS'da aks-sado so'ndirish yo'q).
+        # barge_in=True (quloqchin bilan): gapini istalgan payt bo'lish mumkin.
+        self.barge_in = barge_in
+        self._last_play = 0.0
+        self.gated_chunks = 0
         if client is None:
             from google import genai
             from google.genai import types
@@ -150,6 +156,7 @@ class LiveSession:
 
     def info(self) -> dict[str, Any]:
         return {"active": self.active, "state": self.state, "model": self.model, "error": self.error,
+                "barge_in": self.barge_in,
                 "reconnects": self.reconnects, "turns": self.turns, "resumable": bool(self.handle),
                 "first_audio_ms": self.first_audio_ms}
 
@@ -179,9 +186,18 @@ class LiveSession:
             self._set("closed")
 
     # --- ichki ---
+    ECHO_TAIL_S = 0.35   # ijro tugagandan keyin qisqa "dum" — xona aks-sadosi so'nsin
+
+    def _speaking_now(self) -> bool:
+        playing = bool(getattr(self._audio, "playing", False)) if self._audio is not None else False
+        return playing or (time.monotonic() - self._last_play) < self.ECHO_TAIL_S
+
     def _on_mic(self, chunk: bytes) -> None:
         if self._stop.is_set():
             return
+        if not self.barge_in and self._speaking_now():
+            self.gated_chunks += 1
+            chunk = b"\x00" * len(chunk)   # oqim uzilmaydi (sessiya tirik), lekin aks-sado modelga yetmaydi
         try:
             self._mic.put_nowait(chunk)
         except queue.Full:
@@ -334,6 +350,7 @@ class LiveSession:
                     self._set("speaking")
                 if self._audio is not None:
                     self._audio.play(data)
+                self._last_play = time.monotonic()
         if getattr(sc, "turn_complete", False):
             self.turns += 1
             if self._user_text.strip() or self._model_text.strip():

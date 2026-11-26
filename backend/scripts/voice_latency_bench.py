@@ -186,8 +186,10 @@ def new_path(cfg, src_factory, pool=None) -> dict:
                   "error": redact(r.error)[:160], "pooled": bool(r.marks.get("pooled"))})
     if src.speech_end_at:
         marks["speech_end"] = int((src.speech_end_at - t0) * 1000)
-    if r.text:
+    if r.text and r.finalized_by == "server":
         run_pipeline(cfg, r.text, "uz", t0, marks)
+    elif r.text:
+        marks["needs_confirmation"] = True   # mahalliy yakunlangan — ilovada bajarilmaydi, tasdiq so'raladi
     return marks
 
 

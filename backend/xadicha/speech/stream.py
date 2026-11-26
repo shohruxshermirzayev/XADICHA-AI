@@ -37,7 +37,8 @@ BCP47 = ["uz-UZ", "ru-RU", "en-US"]
 @dataclass
 class StreamResult:
     text: str = ""
-    finalized_by: str = ""                 # "server" | "interim" | "empty" | "error"
+    finalized_by: str = ""                 # "server" (yakuniy) | "local" (oraliq matn yakunlandi) | "empty" | "error"
+    reason: str = ""                       # nima uchun shunday yakunlandi (diagnostika)
     audio: np.ndarray = field(default_factory=lambda: np.zeros(0, dtype=np.float32))   # zaxira uchun (xotirada)
     error: str = ""
     marks: dict[str, int] = field(default_factory=dict)   # capture boshidan ms: connected, first_partial, speech_end, final
@@ -158,7 +159,7 @@ class StreamingTranscriber:
 
     def __init__(self, api_key: str, model: str, vocabulary: list[str] | None = None, client: Any = None,
                  source_factory: Callable[[], Any] = MicSource, on_partial: Callable[[str], None] | None = None,
-                 on_level: Callable[[float], None] | None = None, final_grace_s: float = 1.2,
+                 on_level: Callable[[float], None] | None = None, final_grace_s: float = 2.0,
                  connect_timeout_s: float = 6.0, max_seconds: float = 30.0, endpointer: Endpointer | None = None,
                  auto: bool = True, pool: LiveSTTPool | None = None):
         self.model = model
@@ -222,6 +223,8 @@ class StreamingTranscriber:
                 res.audio = np.frombuffer(b"".join(chunks), dtype="<i2").astype(np.float32) / 32768.0
         if res.finalized_by != "error" and not res.text.strip():
             res.finalized_by = "empty"
+            res.reason = res.reason or ("no_speech" if self.endpointer is not None and self.endpointer.reason == "no_speech"
+                                        else "no_transcript")
         return res
 
     def _config(self) -> Any:
@@ -308,8 +311,12 @@ class StreamingTranscriber:
         text = "".join(finals).strip()
         if interim:
             text = (text + " " + interim).strip()
-            res.finalized_by = "interim"       # server yakuniy matni o'z vaqtida kelmadi — oraliq natija olindi
+            # Server yakuniy matni kutish oralig'ida kelmadi — oraliq matn MAHALLIY yakunlandi (buyruq bajarilmaydi,
+            # foydalanuvchi tasdiqlaydi)
+            res.finalized_by = "local"
+            res.reason = "no_server_final_within_grace" + ("_after_vad" if self.endpointer is not None else "_after_stop")
         elif text:
             res.finalized_by = "server"
+            res.reason = "server_final"
         res.text = text
         res.marks.setdefault("final", ms())

@@ -286,3 +286,31 @@ def test_live_disabled_by_config(cfg, storage):
     svc = XadichaService(cfg, provider=ScriptedProvider(), adapter=DryRunAdapter(), storage=storage)
     with pytest.raises(RuntimeError):
         svc.start_live()
+
+
+# ---------- B2: aks-sado himoyasi ----------
+
+class PlayingAudio(FakeAudio):
+    playing = True
+
+
+def test_mic_is_gated_while_xadicha_speaks_without_headphones():
+    s, live, events, audio = make([], audio=PlayingAudio())
+    s._audio = audio
+    s._on_mic(b"\x00\x20" * 512)
+    assert s.gated_chunks == 1 and s._mic.get_nowait() == b"\x00" * 1024   # aks-sado o'rniga jimlik (oqim tirik)
+
+
+def test_barge_in_enabled_passes_mic_audio_through():
+    s, live, events, audio = make([], audio=PlayingAudio(), barge_in=True)
+    s._audio = audio
+    s._on_mic(b"\x00\x20" * 512)
+    assert s.gated_chunks == 0 and s._mic.get_nowait() == b"\x00\x20" * 512
+
+
+def test_mic_open_again_after_echo_tail():
+    s, live, events, audio = make([])
+    s._audio = audio                                  # playing yo'q
+    s._last_play = time.monotonic() - 1.0             # ijro 1 s oldin tugagan
+    s._on_mic(b"\x00\x20" * 512)
+    assert s.gated_chunks == 0

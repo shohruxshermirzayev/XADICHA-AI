@@ -21,6 +21,8 @@ class RuntimeSettings(BaseModel):
     search_mode: Literal["auto", "always", "never"] | None = None
     stt_provider: Literal["auto", "gemini", "whisper"] | None = None
     live_enabled: bool | None = None
+    live_barge_in: bool | None = None          # quloqchin bilan: XADICHA gapirayotganda bo'lish
+    uz_script: Literal["latin", "cyrillic"] | None = None
     tts_enabled: bool | None = None
     tts_rate: int | None = Field(default=None, ge=100, le=300)
     offline_mode: bool | None = None

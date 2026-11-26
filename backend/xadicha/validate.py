@@ -30,6 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--models", default="")
     sp.add_argument("--engines", default="")
     sp.add_argument("--text-only", action="store_true", help="ASR'siz, faqat matn (real nutq natijasi emas)")
+    sp.add_argument("--set", default="heldout", choices=["heldout", "dev", "regression"],
+                    help="heldout — ko'rilmagan (sozlashda ishlatilmaydi), dev — sozlash, regression — eski to'plam")
+    sp.add_argument("--providers", default="whisper", help="qayta baholash: whisper,gemini,gemini-live")
+    sp.add_argument("--speaker", default="", help="taxallus (ism emas), masalan: s01")
+    sp.add_argument("--env", default="quiet", choices=["quiet", "noisy"], help="yozuv muhiti")
+    sp.add_argument("--speed", default="normal", choices=["slow", "normal", "fast"], help="nutq tezligi")
 
     tp = sub.add_parser("tts")
     tp.add_argument("--all-voices", action="store_true", help="o'rnatilgan BARCHA ovozlar (uzoq)")

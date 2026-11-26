@@ -66,6 +66,8 @@ class Config:
     live_enabled: bool = True        # Gemini Live (real vaqt ovozli suhbat) — kalit bo'lsa
     live_model: str = DEFAULT_GEMINI_LIVE_MODEL
     live_voice: str = ""             # Live ovozi (bo'sh — model standarti)
+    live_barge_in: bool = False      # Live: XADICHA gapirayotganda bo'lish (faqat quloqchin bilan — aks-sado)
+    uz_script: str = "latin"         # o'zbekcha transkripsiya yozuvi: latin | cyrillic
     offline_mode: bool = False       # bulut xizmatlari (Gemini, Google Search, Live) ishlatilmaydi
     auto_language: bool = True       # nutq tilini avtomatik aniqlash (o'chiq — tanlangan til majburiy)
     microphone: str = ""             # kirish qurilmasi nomi ("" — tizim standarti)
@@ -165,6 +167,8 @@ def load_config() -> Config:
         live_enabled=_bool("GEMINI_LIVE", True),
         live_model=os.getenv("GEMINI_LIVE_MODEL", "").strip() or DEFAULT_GEMINI_LIVE_MODEL,
         live_voice=os.getenv("GEMINI_LIVE_VOICE", "").strip(),
+        live_barge_in=_bool("GEMINI_LIVE_BARGE_IN", False),
+        uz_script="cyrillic" if os.getenv("XADICHA_UZ_SCRIPT", "").strip().lower() in ("cyrillic", "kirill") else "latin",
         warnings=warnings,
         ollama_url=os.getenv("OLLAMA_URL", "http://localhost:11434").strip().rstrip("/"),
         ollama_model=os.getenv("OLLAMA_MODEL", "qwen3.5:9b").strip(),

@@ -1,0 +1,25 @@
+id,lang,script,kind,text,intent,entity
+hd_uzl_01,uz,latn,command,Safari'ni ochib ber,open_app,Safari
+hd_uzl_02,uz,latn,command,ovozni 30 gacha pasaytir,system,volume_set
+hd_uzl_03,uz,latn,command,zaryadim qancha qoldi,system,battery
+hd_uzl_04,uz,latn,command,ekran rasmini olib qo'y,system,screenshot
+hd_uzl_05,uz,latn,command,oxirgi yuklangan faylni topib ber,find_file,latest-download
+hd_uzl_06,uz,latn,command,O'zbekiston tarixi haqida qidir,web_search,O'zbekiston tarixi
+hd_uzc_01,uz,cyrl,command,Телеграмни очиб бер,open_app,Telegram
+hd_uzc_02,uz,cyrl,command,овозни кўтар,system,volume_up
+hd_uzc_03,uz,cyrl,command,заряд қанча,system,battery
+hd_uzc_04,uz,cyrl,command,экран ёруғлигини оширгин,system,brightness_up
+hd_ru_01,ru,cyrl,command,Открой калькулятор,open_app,Calculator
+hd_ru_02,ru,cyrl,command,Сделай звук тише,system,volume_down
+hd_ru_03,ru,cyrl,command,Сколько заряда осталось,system,battery
+hd_ru_04,ru,cyrl,command,Сделай скриншот,system,screenshot
+hd_en_01,en,latn,command,Open Visual Studio Code,open_app,Visual Studio Code
+hd_en_02,en,latn,command,Turn the volume up,system,volume_up
+hd_en_03,en,latn,command,What's my battery level,system,battery
+hd_en_04,en,latn,command,Find the last downloaded file,find_file,latest-download
+hd_mix_01,uz,latn,mixed,Xadicha Google Chrome'ni och,open_app,Google Chrome
+hd_mix_02,uz,cyrl,mixed,Рабочий столдаги файлни оч,autonomous,
+hd_mix_03,uz,latn,mixed,VS Code'ni ochib ber please,open_app,Visual Studio Code
+hd_mix_04,ru,cyrl,mixed,Открой Telegram iltimos,open_app,Telegram
+hd_sil_01,,,silence,,,
+hd_sil_02,,,silence,,,

@@ -419,6 +419,12 @@ const uz = {
   "lat.action": "Birinchi amal",
   "lat.text": "Javob matni",
   "lat.audio": "Javob ovozi",
+  "clar.reason.unconfirmed_transcript": "Gapingiz oxirigacha tasdiqlanmadi — shu buyruqni bajaraymi?",
+  "set.liveBargeIn": "Live: gapini bo'lish (quloqchin bilan)",
+  "set.liveBargeInHint": "O'chiq bo'lsa, XADICHA gapirayotganda mikrofon o'chadi — karnay ovozi uni to'xtatmaydi.",
+  "set.uzScript": "O'zbekcha yozuv",
+  "set.uzScript.latin": "Lotin",
+  "set.uzScript.cyrillic": "Kirill",
 };
 
 export type MsgKey = keyof typeof uz;
@@ -815,6 +821,12 @@ const ru: Dict = {
   "lat.action": "Первое действие",
   "lat.text": "Текст ответа",
   "lat.audio": "Голос ответа",
+  "clar.reason.unconfirmed_transcript": "Фраза распознана не до конца — выполнить эту команду?",
+  "set.liveBargeIn": "Live: перебивать (с наушниками)",
+  "set.liveBargeInHint": "Если выключено, микрофон молчит, пока говорит XADICHA, — динамик её не прерывает.",
+  "set.uzScript": "Узбекская письменность",
+  "set.uzScript.latin": "Латиница",
+  "set.uzScript.cyrillic": "Кириллица",
 };
 
 const en: Dict = {
@@ -1208,6 +1220,12 @@ const en: Dict = {
   "lat.action": "First action",
   "lat.text": "Response text",
   "lat.audio": "Response audio",
+  "clar.reason.unconfirmed_transcript": "The transcript was not fully confirmed — run this command?",
+  "set.liveBargeIn": "Live: barge-in (with headphones)",
+  "set.liveBargeInHint": "When off, the mic is muted while XADICHA speaks so the speaker cannot interrupt it.",
+  "set.uzScript": "Uzbek script",
+  "set.uzScript.latin": "Latin",
+  "set.uzScript.cyrillic": "Cyrillic",
 };
 
 export const MESSAGES: Record<Lang, Dict> = { uz, ru, en };
