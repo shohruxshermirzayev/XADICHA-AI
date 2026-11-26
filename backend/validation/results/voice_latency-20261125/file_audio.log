@@ -1,0 +1,119 @@
+[2026-11-25 19:22:35.461] [ctranslate2] [thread 167244] [warning] Tip: experimental MPS backend is available and often 2x+ faster than CPU on Apple Silicon (varies by workload and hardware). Try device="mps".
+NEW v_uzl_01-uz-UZ-MadinaNeural: partial=1846 final=4080 action=4105 audio=5917 [interim] 'Kalkulyatorni ishga tushir.'
+OLD v_uzl_01-uz-UZ-MadinaNeural: endpoint=3194 final=16394 action=None audio=17814 'Calculatorna iške tšir.'
+NEW v_uzl_02-uz-UZ-MadinaNeural: partial=None final=14162 action=None audio=None [empty] ''
+OLD v_uzl_02-uz-UZ-MadinaNeural: endpoint=3112 final=13259 action=None audio=13261 'Notis ilova, sayn ochu bir.'
+NEW v_uzl_04-uz-UZ-MadinaNeural: partial=1605 final=3739 action=3742 audio=5136 [interim] "Telegramni ochib qo'y."
+OLD v_uzl_04-uz-UZ-MadinaNeural: endpoint=2806 final=12727 action=None audio=12727 "Telegram'ni açıq qoy."
+NEW v_uzl_05-uz-UZ-MadinaNeural: partial=1616 final=3941 action=None audio=3945 [interim] 'YouTube Tom saytiga kir.'
+OLD v_uzl_05-uz-UZ-MadinaNeural: endpoint=3017 final=12912 action=None audio=12912 "YouTube'e ton sayti gekir."
+NEW v_uzl_06-uz-UZ-MadinaNeural: partial=1547 final=3728 action=3869 audio=5698 [server] 'Googledan ob-havo qidir.'
+OLD v_uzl_06-uz-UZ-MadinaNeural: endpoint=3007 final=12906 action=12906 audio=12906 "Google'dan abhavaqıdır."
+NEW v_ru_02-ru-RU-SvetlanaNeural: partial=1598 final=3678 action=3681 audio=5522 [interim] 'Запусти Finder.'
+OLD v_ru_02-ru-RU-SvetlanaNeural: endpoint=2720 final=12686 action=12686 audio=12686 'Запусти Finder.'
+NEW v_ru_03-ru-RU-SvetlanaNeural: partial=1612 final=3608 action=3610 audio=4980 [interim] 'Открой Notes.'
+OLD v_ru_03-ru-RU-SvetlanaNeural: endpoint=2663 final=12445 action=12445 audio=12445 'Открой заметки.'
+NEW v_en_01-en-US-JennyNeural: partial=1574 final=3816 action=3817 audio=3817 [interim] 'Start the Calculator app.'
+OLD v_en_01-en-US-JennyNeural: endpoint=2855 final=12701 action=12701 audio=12701 'Start the calculator app.'
+NEW v_en_02-en-US-JennyNeural: partial=1588 final=2922 action=3072 audio=3072 [server] 'Launch Finder.'
+OLD v_en_02-en-US-JennyNeural: endpoint=2319 final=12069 action=12070 audio=12070 'Launch Finder.'
+NEW v_en_03-en-US-JennyNeural: partial=1068 final=3308 action=3309 audio=3309 [interim] 'Open the Notes app.'
+OLD v_en_03-en-US-JennyNeural: endpoint=2364 final=12270 action=12270 audio=12270 'Open the Notes app.'
+{
+ "new": {
+  "first_partial": {
+   "p50": 1598,
+   "p95": 1754,
+   "after_speech_end_p50": -1316,
+   "after_speech_end_p95": -885,
+   "n": 9
+  },
+  "final_transcript": {
+   "p50": 3733,
+   "p95": 9625,
+   "after_speech_end_p50": 885,
+   "after_speech_end_p95": 6421,
+   "n": 10
+  },
+  "intent": {
+   "p50": 3740,
+   "p95": 4040,
+   "after_speech_end_p50": 883,
+   "after_speech_end_p95": 944,
+   "n": 9
+  },
+  "first_action": {
+   "p50": 3711,
+   "p95": 4022,
+   "after_speech_end_p50": 882,
+   "after_speech_end_p95": 940,
+   "n": 8
+  },
+  "response_text": {
+   "p50": 3742,
+   "p95": 4041,
+   "after_speech_end_p50": 884,
+   "after_speech_end_p95": 944,
+   "n": 9
+  },
+  "response_audio": {
+   "p50": 4980,
+   "p95": 5829,
+   "after_speech_end_p50": 2250,
+   "after_speech_end_p95": 2743,
+   "n": 9
+  },
+  "intent_ok": 0.8,
+  "finalized_by": {
+   "server": 2,
+   "interim": 7,
+   "empty": 1,
+   "error": 0
+  }
+ },
+ "old": {
+  "first_partial": {
+   "p50": null,
+   "p95": null,
+   "after_speech_end_p50": null,
+   "after_speech_end_p95": null,
+   "n": 0
+  },
+  "final_transcript": {
+   "p50": 12714,
+   "p95": 14983,
+   "after_speech_end_p50": 10215,
+   "after_speech_end_p95": 10215,
+   "n": 10
+  },
+  "intent": {
+   "p50": 12714,
+   "p95": 14984,
+   "after_speech_end_p50": 10215,
+   "after_speech_end_p95": 10215,
+   "n": 10
+  },
+  "first_action": {
+   "p50": 12565,
+   "p95": 12854,
+   "after_speech_end_p50": null,
+   "after_speech_end_p95": null,
+   "n": 6
+  },
+  "response_text": {
+   "p50": 12714,
+   "p95": 14985,
+   "after_speech_end_p50": 10216,
+   "after_speech_end_p95": 10216,
+   "n": 10
+  },
+  "response_audio": {
+   "p50": 12714,
+   "p95": 15765,
+   "after_speech_end_p50": 10217,
+   "after_speech_end_p95": 10217,
+   "n": 10
+  },
+  "intent_ok": 0.6
+ }
+}

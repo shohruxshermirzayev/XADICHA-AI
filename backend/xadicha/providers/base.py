@@ -17,7 +17,15 @@ LANG_NAMES = {"uz": "Uzbek", "ru": "Russian", "en": "English"}
 
 
 class ProviderError(RuntimeError):
-    """Provayder mavjud emas yoki javob bermadi."""
+    """Provayder mavjud emas yoki javob bermadi.
+
+    kind — sabab turi (zaxira provayderga o'tish va foydalanuvchiga aniq xabar uchun):
+    auth | config | quota | server | network | timeout | blocked | empty | request | unavailable | error
+    """
+
+    def __init__(self, message: str = "", kind: str = "error"):
+        super().__init__(message)
+        self.kind = kind
 
 
 def os_name() -> str:

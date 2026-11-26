@@ -17,8 +17,12 @@ export interface TaskLike<S extends StepLike = StepLike> {
 export const EVENT_TYPES = [
   "hello", "pong", "warm", "task_started", "step_started", "step_finished", "step_verified", "task_finished",
   "confirm_request", "confirm_resolved", "listening", "mic_level", "transcript", "error", "stopped", "spoken",
-  "state", "clarify", "voice_result", "conversation_reset",
+  "state", "clarify", "voice_result", "conversation_reset", "live_state", "live_transcript", "live_turn", "settings",
+  "stt_partial", "voice_latency", "response_partial",
 ] as const;
+
+export const LIVE_STATES = ["idle", "connecting", "reconnecting", "listening", "thinking", "speaking", "interrupted",
+  "error", "closed"] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
 export interface BackendEvent {
@@ -80,6 +84,21 @@ export function parseEvent(raw: unknown): BackendEvent | null {
       break;
     case "voice_result":
       if (e.status !== "empty" && e.status !== "unsupported" && e.status !== "started") return null;
+      break;
+    case "live_state":
+      if (typeof e.state !== "string" || !(LIVE_STATES as readonly string[]).includes(e.state)) return null;
+      break;
+    case "live_transcript":
+      if ((e.role !== "user" && e.role !== "assistant") || typeof e.text !== "string") return null;
+      break;
+    case "live_turn":
+      if (typeof e.user !== "string" || typeof e.assistant !== "string") return null;
+      break;
+    case "stt_partial":
+      if (typeof e.text !== "string") return null;
+      break;
+    case "response_partial":
+      if (typeof e.text !== "string" || typeof e.task_id !== "string") return null;
       break;
   }
   return e as BackendEvent;

@@ -1,0 +1,9 @@
+id,lang,script,kind,text,intent,entity
+x_mix_01,uz,latn,mixed,"Xadicha, Google Chrome'ni och.",open_app,Google Chrome
+x_mix_02,uz,latn,mixed,Kecha yuklab olgan PDF faylimni top.,find_file,PDF
+x_mix_03,uz,cyrl,mixed,Рабочий столдаги Excel файлни оч.,open_file,Excel
+x_mix_04,en,latn,mixed,Open VS Code and find my latest Python project.,open_app,VS Code
+x_mix_05,uz,latn,mixed,"Xadicha, ovozni 50 foizga tushir.",system,volume
+x_mix_06,uz,latn,mixed,Internetdan Gemini Live API haqida eng yangi ma'lumotlarni top.,web_search,Gemini Live API
+x_mix_07,uz,latn,mixed,Mana shu ekranda nima xato borligini tushuntir.,screen,
+x_mix_08,en,latn,mixed,Open the last downloaded presentation and summarize it in Uzbek.,open_file,presentation

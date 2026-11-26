@@ -150,6 +150,10 @@ class Transcript:
     supported: bool
     detected_raw: str = ""   # Whisper o'zi aniqlagan til (cheklovsiz) — tahlil uchun
     asr_confidence: float | None = None   # nutq tanish ishonchi (0..1); noma'lum bo'lsa None
+    provider: str = ""          # haqiqatan ishlagan STT: "gemini" | "whisper:mlx" | "whisper:faster"
+    model: str = ""
+    fallback_from: str = ""     # zaxiraga o'tilgan bo'lsa — qaysi provayderdan
+    fallback_reason: str = ""
 
 
 PRIOR_BOOST = 0.15   # tanlangan tilga qo'shimcha og'irlik — "prior", majburlash emas
@@ -194,6 +198,7 @@ class Listener:
 
     def __init__(self, model_name: str = "large-v3-turbo", engine: str = "auto"):
         self.model_name = model_name
+        self.device: str | None = None   # mikrofon nomi (None — tizim standarti)
         self._model = None
         self._lock = threading.Lock()
         if engine == "auto":
@@ -258,7 +263,8 @@ class Listener:
                 if endpointer.feed(rms, frames / SAMPLE_RATE):
                     stop.set()   # gapirib bo'lindi — yozish avtomatik to'xtaydi
 
-        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback):
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback,
+                            device=self.device or None):
             stop.wait(timeout=max_seconds)
         if not chunks:
             return np.zeros(0, dtype=np.float32)

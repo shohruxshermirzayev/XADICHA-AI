@@ -56,3 +56,30 @@ Real audio: yozuvlarni `<id>.wav` (16 kHz mono) nomi bilan saqlang → `python -
 Real qurilma natijasini yozganda: OS versiyasi, qurilma, provayder/model, `.env` sozlamalari, buyruq, kuzatilgan natija,
 xato matni. `mac_selftest.py` buni JSON'ga avtomatik yozadi (`backend/data/selftest-*.json`).
 Simulyatsiya natijalarini hech qachon real qurilma natijasi deb ko'rsatmang.
+
+## Gemini, STT, Live, sozlamalar (2026-11)
+
+| Tur | Fayl / buyruq | Nima |
+|---|---|---|
+| Unit + mock integratsiya | `tests/test_gemini.py` | Provayder yaratish, kalit o'qish, javob/rasm, xato tasnifi, model zanjiri, AUTO/ALWAYS/NEVER, grounding metadata → API, Ollama zaxirasi, redaksiya |
+| Unit + mock integratsiya | `tests/test_stt_providers.py` | Gemini Transcribe so'rovi, lug'at, til aniqlash (uz lotin/kirill, ru, en, aralash), Whisper zaxirasi, cooldown, service hodisalari |
+| Mock integratsiya | `tests/test_live.py` | Live sessiya: audio oqimi, barge-in, `go_away` + resumption, tool chaqiruvi, xatolar, API |
+| Mock integratsiya | `tests/test_settings.py` | Sozlamalar API, tekshiruv (kalit rad etiladi), saqlash, oflayn rejim, `/api/health` |
+| Unit | `tests/test_multilingual_examples.py` | 8 ta aralash tilli misol: marshrut, til, murojaat so'zi, ovoz miqdori |
+| Interfeys (node) | `src/lib/__tests__/voice.test.mjs` | Live hodisalari, holat o'tishlari, orb holatlari (soxta faollik yo'q) |
+| **Haqiqiy API** | `scripts/gemini_smoke.py` | Gemini model, JSON, rasm, agent qarori, grounding, Ollama zaxirasi (kalit / tarmoq) |
+| **Haqiqiy API** | `scripts/gemini_live_smoke.py` | Live WebSocket: uz/ru/en, tool, barge-in — sintetik nutq bilan |
+| **Haqiqiy API** | `python -m xadicha.validation.stt_compare` | Gemini Transcribe vs Whisper, bir xil sintetik audio, WER/CER/til/intent/kechikish |
+| Real mikrofon | — | ⏳ foydalanuvchi bilan (Live va oddiy ovoz) |
+| Real desktop amali | — | ⏳ `scripts/mac_selftest.py` (mavjud protokol) |
+
+Mock testlar tarmoqqa chiqmaydi va haqiqiy API natijasi deb hisoblanmaydi.
+
+## Oqimli ovoz va kechikish (2026-11)
+
+| Tur | Fayl / buyruq | Nima |
+|---|---|---|
+| Mock integratsiya | `tests/test_streaming.py` | Oqimli STT (interim/final, kech yakunlash, xato → bufer zaxirasi, bo'sh natija), kechikish belgilari, tezkor router, TTS bo'laklari, adaptiv timeout |
+| Interfeys (node) | `src/lib/__tests__/voice.test.mjs` | `stt_partial` (faqat tinglashda), `voice_latency` (o'lchanmagan qiymat — null) |
+| **Haqiqiy API** | `scripts/voice_latency_bench.py` | Eski vs yangi zanjir, fayl audio, P50/P95 |
+| **Real mikrofon** | `scripts/voice_latency_bench.py --mic` | Karnay → havo → mikrofon; odam nutqi emas |

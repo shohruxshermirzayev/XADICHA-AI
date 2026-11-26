@@ -16,6 +16,9 @@ const TONE: Record<OrbState, { a: string; b: string; halo: number }> = {
   listening: { a: "#37d9f5", b: "#4285ff", halo: 0.55 },
   processing: { a: "#37d9f5", b: "#7775ff", halo: 0.45 },
   thinking: { a: "#7775ff", b: "#a78bfa", halo: 0.5 },
+  searching: { a: "#37d9f5", b: "#34d399", halo: 0.5 },
+  connecting: { a: "#37d9f5", b: "#7775ff", halo: 0.35 },
+  recovering: { a: "#fbbf24", b: "#7775ff", halo: 0.4 },
   executing: { a: "#4285ff", b: "#37d9f5", halo: 0.5 },
   speaking: { a: "#8b7bff", b: "#37d9f5", halo: 0.55 },
   awaiting: { a: "#fbbf24", b: "#f59e0b", halo: 0.42 },
@@ -53,7 +56,8 @@ export function AIOrb({ state, level = 0, segments = [], size = 160, className }
   const tone = TONE[state];
   const lv = state === "listening" ? Math.min(1, Math.max(0, level)) : 0;
   const animated = !reduce;
-  const flowing = state === "thinking" || state === "processing" || state === "executing" || state === "speaking";
+  const flowing = state === "thinking" || state === "processing" || state === "executing" || state === "speaking"
+    || state === "searching" || state === "recovering";
   const ringPad = Math.round(size * 0.14);
 
   return (
@@ -102,7 +106,7 @@ export function AIOrb({ state, level = 0, segments = [], size = 160, className }
         {/* Ichki oqim: o'ylash/bajarish/gapirish paytida aylanadi */}
         <div aria-hidden
           className={cn("absolute -inset-1/4 rounded-full blur-xl transition-opacity duration-700",
-            animated && (state === "processing" ? "animate-orb-spin-fast" : state === "idle" || flowing ? "animate-orb-spin" : ""))}
+            animated && (state === "processing" || state === "searching" || state === "connecting" ? "animate-orb-spin-fast" : state === "idle" || flowing ? "animate-orb-spin" : ""))}
           style={{
             background: `conic-gradient(from 0deg, transparent 0deg, ${tone.a} 70deg, transparent 150deg, ${tone.b} 230deg, transparent 300deg)`,
             opacity: flowing ? 0.55 : state === "idle" ? 0.22 : state === "listening" ? 0.3 : 0.15,

@@ -107,3 +107,10 @@ mss surat (to'liq piksel) → encode: mantiqiy o'lcham → ≤ SCREEN_MAX_SIDE J
 | C | matn + ekran (+OCR/AX) | LLM, har qadamda | dasturiy + vizual, tiklanish |
 
 Barcha rejimlar bir xil xavfsizlik qatlamidan o'tadi.
+
+## Gemini, STT va Live qatlamlari (2026-11)
+
+`make_provider` → `FallbackProvider(GeminiProvider[model zanjiri], OllamaProvider)`; agent provayderni o'zgarishsiz
+`decide/plan/complete` orqali chaqiradi. Google Search grounding — `Agent._ground()` (alohida bosqich). STT —
+`SpeechRecognizer` (`service.stt`), Live — `LiveSession` (`service.live`), sozlamalar — `SettingsStore`.
+Batafsil: [VOICE_AND_GEMINI.md](VOICE_AND_GEMINI.md).

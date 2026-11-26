@@ -161,6 +161,11 @@
     scrollbar-width: thin;
     scrollbar-color: rgb(255 255 255 / 0.14) transparent;
   }
+  /* Aylantiriladigan maydon chetlari keskin kesilmasin — matn va orb nuri yumshoq so'nadi */
+  .scroll-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--fade, 20px), #000 calc(100% - var(--fade, 20px)), transparent);
+    mask-image: linear-gradient(to bottom, transparent, #000 var(--fade, 20px), #000 calc(100% - var(--fade, 20px)), transparent);
+  }
 }
 
 /* backdrop-filter qo'llab-quvvatlanmasa — o'qilishi uchun deyarli to'liq to'q fon */

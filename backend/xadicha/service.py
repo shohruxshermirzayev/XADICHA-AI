@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
+
+import numpy as np
+from pathlib import Path
 import uuid
 import platform
 import threading
@@ -24,20 +28,7 @@ from .speech.tts import Speaker
 from .storage import Storage
 
 
-_SECRET_PATTERNS = [
-    (re.compile(r"sk-ant-[A-Za-z0-9_\-]{8,}"), "sk-ant-***"),
-    (re.compile(r"\bsk-[A-Za-z0-9]{16,}"), "sk-***"),
-    (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{8,}"), r"\1***"),
-    (re.compile(r"(?i)((?:api[_-]?key|token|password|parol)\s*[=:]\s*)\S+"), r"\1***"),
-    (re.compile(r"data:image/[a-z]+;base64,[A-Za-z0-9+/=]{32,}"), "data:image/***"),
-]
-
-
-def redact(text: str) -> str:
-    """Log va xato matnlaridan kalit, token va rasm ma'lumotlarini olib tashlaydi."""
-    for pat, rep in _SECRET_PATTERNS:
-        text = pat.sub(rep, text)
-    return text
+from .redaction import redact  # noqa: E402 — tashqi kod `from xadicha.service import redact` dan foydalanadi
 
 
 class RedactFilter(logging.Filter):
@@ -45,6 +36,9 @@ class RedactFilter(logging.Filter):
         try:
             record.msg = redact(record.getMessage())
             record.args = ()
+            if record.exc_info and not record.exc_text:
+                # Traceback ham yashiriladi (formatter tayyor exc_text'ni ishlatadi)
+                record.exc_text = redact(logging.Formatter().formatException(record.exc_info))
         except Exception:  # noqa: BLE001
             pass
         return True
@@ -134,9 +128,23 @@ class XadichaService:
         self.storage = storage or Storage(cfg.db_path)
         self.storage.fail_stale_running()
         _setup_logging(cfg.db_path.parent / "xadicha.log")
+        logging.getLogger("xadicha").info(
+            "provayder: %s%s · qidiruv: %s%s", cfg.provider,
+            f" ({cfg.gemini_model}, zaxira: {cfg.fallback})" if cfg.provider == "gemini" else "",
+            cfg.search_mode, f" · ogohlantirish: {'; '.join(cfg.warnings)}" if cfg.warnings else "")
+        from .speech import tts as _tts
+
+        _tts.TTS_CACHE_DIR = cfg.db_path.parent / "tts_cache"   # qisqa javoblar keshi (takroriy javob — darhol)
         self.speaker = Speaker(cfg.tts_engine, cfg.tts_rate,
                                {"uz": cfg.voice_uz, "ru": cfg.voice_ru, "en": cfg.voice_en}, cfg.tts_enabled)
         self.listener = Listener(cfg.whisper_model, cfg.stt_engine)
+        from .speech.recognizer import make_recognizer
+
+        self.stt = make_recognizer(cfg, self.listener)   # Gemini Transcribe / Whisper (provayder metadata bilan)
+        from .settings import SettingsStore
+
+        self.settings_store = SettingsStore(cfg.db_path.parent / "settings.json")
+        self.apply_settings(self.settings_store.load(), persist=False)
         self.stt_ready = False
         self.stt_error = ""
         self.confirm_timeout = confirm_timeout
@@ -224,7 +232,11 @@ class XadichaService:
         shot = encode(img, lw, lh, self.cfg.screen_max_side)
         timings["encode"] = ms(t1)
         texts, elements = [], []
-        if self.ocr.availability()[0] != "unavailable":
+        # Vision model rasmni o'zi o'qiydi — har qadamda to'liq ekran OCR ortiqcha (kechikish); faqat matnli model uchun
+        need_ocr = not self.provider.supports_vision or os.getenv("XADICHA_OCR_WITH_VISION", "") in ("1", "true")
+        if not need_ocr:
+            timings["ocr_skipped"] = 1
+        if need_ocr and self.ocr.availability()[0] != "unavailable":
             t2 = time.perf_counter()
             try:
                 texts = self.ocr.recognize(img, (lw, lh))
@@ -318,9 +330,12 @@ class XadichaService:
             "ocr": {"state": ocr_state, "detail": ocr_detail},
             "accessibility_tree": {"state": ax_state, "detail": ax_detail},
             "microphone": mic,
-            "stt": cap("not_tested" if self.stt_ready else "unavailable",
-                       f"{self.listener.engine} · {self.cfg.whisper_model}" if self.stt_ready
-                       else (self.stt_error or "model hali yuklanmagan")),
+            "stt": cap("not_tested", f"Gemini ({self.cfg.gemini_stt_live_model if self.stream_available() else self.cfg.gemini_stt_model})"
+                       f" · zaxira Whisper {self.cfg.whisper_model}" + ("" if self.stt_ready else " (kerak bo'lganda yuklanadi)"))
+            if (self.stt.gemini is not None and not self.cfg.offline_mode and self.cfg.stt_provider != "whisper")
+            else cap("not_tested" if self.stt_ready else "unavailable",
+                     f"{self.listener.engine} · {self.cfg.whisper_model}" if self.stt_ready
+                     else (self.stt_error or "model hali yuklanmagan")),
             "tts": cap("not_tested", f"{self.cfg.tts_engine}: " + ", ".join(
                 f"{lg}={self.speaker.voice_for(lg) or '—'}" for lg in ("uz", "ru", "en")))
             if (self.cfg.tts_enabled and tts_any)
@@ -331,7 +346,17 @@ class XadichaService:
     def warmup(self) -> None:
         """Model va nutqni aniqlashni fonda oldindan yuklash — birinchi buyruq tezroq bo'ladi."""
         def work() -> None:
+            if self.stream_available():
+                try:   # oldindan ochilgan Live Transcription sessiyasi — buyruqda ulanish kutilmaydi
+                    self._ensure_stt_pool()
+                except Exception as e:  # noqa: BLE001
+                    logging.getLogger("xadicha").info("oqimli STT pool ochilmadi: %s", redact(str(e))[:120])
             self.provider.warmup()
+            # Gemini STT ishlayotgan bo'lsa Whisper faqat zaxira — oldindan yuklanmaydi: CPU'da model yuklash 1–2 daqiqa
+            # boshqa so'rovlarni sekinlashtirardi (o'lchov). Oflayn / whisper rejimida — avvalgidek oldindan yuklanadi.
+            if self.stt.gemini is not None and self.cfg.stt_provider != "whisper" and not self.cfg.offline_mode:
+                self.emit({"type": "warm", "stt_engine": self.listener.engine, "whisper": "lazy"})
+                return
             try:
                 self.listener.warmup()
                 self.stt_ready = getattr(self.listener, "_model", None) is not None or self.listener.engine == "mlx"
@@ -345,7 +370,49 @@ class XadichaService:
         self.listeners.append(fn)
         return lambda: self.listeners.remove(fn) if fn in self.listeners else None
 
+    # --- ovozli so'rov kechikishi: mikrofon boshidan har bir bosqichgacha (ms) ---
+    _vt0: float | None = None
+    _vmarks: dict[str, int] = {}
+
+    def _vmark(self, name: str, at_ms: int | None = None) -> None:
+        if self._vt0 is not None and name not in self._vmarks:
+            self._vmarks[name] = at_ms if at_ms is not None else int((time.perf_counter() - self._vt0) * 1000)
+
+    def _vfinish(self, task: Any = None) -> None:
+        """Ovozli so'rov yakunlandi — kechikishlar xulosasi (haqiqiy o'lchov) hodisa va vazifa ma'lumotiga."""
+        if self._vt0 is None:
+            return
+        m = dict(self._vmarks)
+        self._vt0, self._vmarks = None, {}
+        summary = {"marks": m, "ttf_partial": m.get("first_partial"), "ttf_final": m.get("final_transcript"),
+                   "tt_first_action": m.get("first_action"), "tt_response_text": m.get("response_text"),
+                   "tt_response_audio": m.get("response_audio"),
+                   "e2e": m.get("response_audio") or m.get("response_text"), "stt": self._vstt}
+        if task is not None:
+            task.data["latency"] = summary
+            self.storage.save_task(task)
+        self.emit({"type": "voice_latency", "task_id": getattr(task, "id", None), **summary})
+
+    _stream_tts_task: str | None = None
+
     def emit(self, event: dict[str, Any]) -> None:
+        if event.get("type") == "response_sentence" and event.get("task_id") == self._stream_tts_task:
+            if self.speaker.stream_push(str(event.get("text", "")), str(event.get("lang") or "uz")):
+                self.speaking = True
+                self._vmark("response_audio")   # birinchi gap ovoz navbatiga tushdi (javob hali yozilmoqda)
+            return   # ichki hodisa — interfeysga yuborilmaydi
+        if event.get("type") == "response_partial":
+            self._vmark("first_response_text")
+        if self._vt0 is not None:
+            k = event.get("type")
+            if k == "step_started":
+                self._vmark("first_action")
+            elif k == "step_finished":
+                self._vmark("action_done")
+            elif k == "task_finished":
+                self._vmark("response_text")
+        if isinstance(event.get("message"), str):
+            event = {**event, "message": redact(event["message"])}   # xato matnida kalit bo'lsa — interfeysga chiqmaydi
         with self._seq_lock:
             self._seq += 1
             event = {**event, "seq": self._seq}
@@ -413,8 +480,12 @@ class XadichaService:
             def track(e: dict[str, Any]) -> None:
                 if e["type"] == "task_started":
                     self.current_task = e["task_id"]
+                    if speak and self.cfg.tts_enabled:
+                        self._stream_tts_task = e["task_id"]   # oqimli javob gaplari darhol ovozga
 
             unsub = self.subscribe(track)
+            self.speaker.stop()
+            self._stream_tts_task = None
             self.storage.save_turn(self.conversation.session_id, self.conversation.add_user(instruction, language))
             voice_trace, self._voice_trace = self._voice_trace, []
             try:
@@ -424,18 +495,26 @@ class XadichaService:
             if voice_trace:
                 task.trace = voice_trace + task.trace   # ovoz bosqichlari (yozish, endpoint, ASR) vazifa iziga qo'shiladi
             self.storage.save_turn(self.conversation.session_id, self.conversation.add_task(task))
-            if speak and task.final_message:
+            streamed = bool(task.data.get("streamed")) and self._stream_tts_task == task.id
+            self._stream_tts_task = None
+            if streamed:
+                self.speaker.stream_end()   # gaplar allaqachon ovozda — qayta aytilmaydi
+                self.speaking = False
+            if speak and task.final_message and not streamed:
                 self.speaking = True
                 self._emit_state()
                 t_tts = time.perf_counter()
                 try:
                     spoken = self.speaker.say(task.final_message, task.language)
+                    if spoken:
+                        self._vmark("response_audio")   # birinchi ovoz bo'lagi ijroga berildi
                 finally:
                     self.speaking = False
                 task.trace.append({"stage": "tts", "ms": int((time.perf_counter() - t_tts) * 1000), "ok": bool(spoken),
                                    "provider": self.speaker.engine})
                 self.storage.save_task(task)
                 self.emit({"type": "spoken", "task_id": task.id, "text": task.final_message, "audio": spoken})
+            self._vfinish(task)
             return task
         finally:
             self.current_task = None
@@ -462,10 +541,151 @@ class XadichaService:
         except Exception as e:  # noqa: BLE001
             self.emit({"type": "error", "message": f"{e.__class__.__name__}: {e}"})
 
+    # --- ish vaqtidagi sozlamalar (maxfiy emas) ---
+    def settings_public(self) -> dict[str, Any]:
+        from .settings import input_devices
+
+        c = self.cfg
+        return {
+            "values": {"search_mode": c.search_mode, "stt_provider": c.stt_provider, "live_enabled": c.live_enabled,
+                       "tts_enabled": c.tts_enabled, "tts_rate": c.tts_rate, "offline_mode": c.offline_mode,
+                       "auto_language": c.auto_language, "microphone": c.microphone,
+                       "vocabulary": list(getattr(self, "_vocab_extra", [])),
+                       "corrections": dict(self.stt.vocabulary.corrections)},
+            "readonly": {"provider": c.provider, "gemini_model": c.gemini_model,
+                         "gemini_fallback_models": c.gemini_fallback_models, "ollama_model": c.ollama_model,
+                         "whisper_model": c.whisper_model, "gemini_stt_model": c.gemini_stt_model,
+                         "live_model": c.live_model, "has_gemini_key": bool(c.gemini_api_key),
+                         "vocabulary_file": c.vocabulary_file},
+            "options": {"microphones": input_devices()},
+        }
+
+    def apply_settings(self, new: Any, persist: bool = True) -> dict[str, Any]:
+        """Tekshirilgan sozlamalarni darhol qo'llaydi (qayta ishga tushirmasdan) va saqlaydi."""
+        from .settings import RuntimeSettings
+        from .speech.recognizer import DEFAULT_TERMS, Vocabulary, make_recognizer
+
+        upd: RuntimeSettings = new if isinstance(new, RuntimeSettings) else RuntimeSettings.model_validate(new)
+        c = self.cfg
+        if upd.search_mode is not None:
+            c.search_mode = upd.search_mode
+        if upd.stt_provider is not None and upd.stt_provider != c.stt_provider:
+            c.stt_provider = upd.stt_provider
+            vocab = self.stt.vocabulary
+            self.stt = make_recognizer(c, self.listener)   # kerak bo'lsa Gemini Transcribe mijozi yaratiladi
+            self.stt.vocabulary = vocab
+        if upd.live_enabled is not None:
+            c.live_enabled = upd.live_enabled
+            if not upd.live_enabled and self.live is not None and self.live.active:
+                self.live.stop()
+        if upd.tts_enabled is not None:
+            c.tts_enabled = self.speaker.enabled = upd.tts_enabled
+        if upd.tts_rate is not None:
+            c.tts_rate = self.speaker.rate = upd.tts_rate
+        if upd.auto_language is not None:
+            c.auto_language = upd.auto_language
+        if upd.microphone is not None:
+            c.microphone = upd.microphone
+            self.listener.device = upd.microphone or None
+        if upd.vocabulary is not None or upd.corrections is not None:
+            base = Vocabulary.load(Path(c.vocabulary_file)) if c.vocabulary_file else Vocabulary()
+            if upd.vocabulary is not None:
+                self._vocab_extra = upd.vocabulary
+            extra = getattr(self, "_vocab_extra", [])
+            corr = {**base.corrections, **(upd.corrections if upd.corrections is not None else self.stt.vocabulary.corrections)}
+            self.stt.vocabulary = Vocabulary(list(dict.fromkeys(base.terms + DEFAULT_TERMS + extra))[:1000], corr,
+                                             "settings")
+        if upd.offline_mode is not None:
+            c.offline_mode = upd.offline_mode
+        # Oflayn rejim: bulut provayderlari chetlab o'tiladi (Ollama + Whisper), Live to'xtatiladi
+        if hasattr(self.provider, "offline"):
+            self.provider.offline = c.offline_mode
+        self.stt.offline = c.offline_mode
+        if c.offline_mode and self.live is not None and self.live.active:
+            self.live.stop()
+        if persist:
+            merged = self.settings_store.load().model_dump(exclude_none=True)
+            merged.update(upd.model_dump(exclude_none=True))
+            self.settings_store.save(RuntimeSettings.model_validate(merged))
+            logging.getLogger("xadicha").info("sozlamalar yangilandi: %s", sorted(upd.model_dump(exclude_none=True)))
+            self.emit({"type": "settings", **self.settings_public()["values"]})
+        return self.settings_public()
+
+    # --- Gemini Live: real vaqtli ovozli suhbat ---
+    live = None   # LiveSession | None
+
+    def live_available(self) -> tuple[bool, str]:
+        if not self.cfg.live_enabled:
+            return False, "Gemini Live o'chirilgan (GEMINI_LIVE=0 yoki sozlamalar)."
+        if getattr(self.cfg, "offline_mode", False):
+            return False, "Oflayn rejim — bulut ovozi ishlatilmaydi."
+        if not self.cfg.gemini_api_key:
+            return False, "GEMINI_API_KEY o'rnatilmagan — Gemini Live mavjud emas."
+        return True, "ok"
+
+    def start_live(self, session_factory=None) -> dict[str, Any]:
+        """Live suhbatni boshlaydi. Mavjud bo'lmasa — RuntimeError (interfeys oddiy ovoz yo'liga qaytadi)."""
+        ok, why = self.live_available()
+        if not ok and session_factory is None:
+            raise RuntimeError(why)
+        if self.live is not None and self.live.active:
+            return self.live.info()
+        self.cancel_listening()
+        self.speaker.stop()
+        from .speech.live import LiveSession
+
+        from .speech.live import SoundDeviceIO
+
+        mic = self.cfg.microphone or None
+        factory = session_factory or (lambda **kw: LiveSession(self.cfg.gemini_api_key, self.cfg.live_model,
+                                                               audio_factory=lambda: SoundDeviceIO(mic), **kw))
+        self.live = factory(emit=self._live_event, run_command=self._live_command, voice=self.cfg.live_voice,
+                            vocabulary=self.stt.vocabulary.terms)
+        self.live.start()
+        logging.getLogger("xadicha").info("Gemini Live boshlandi (%s)", self.cfg.live_model)
+        return self.live.info()
+
+    def stop_live(self) -> dict[str, Any]:
+        if self.live is not None:
+            self.live.stop()
+            logging.getLogger("xadicha").info("Gemini Live to'xtatildi")
+        return self.live.info() if self.live is not None else {"active": False, "state": "idle"}
+
+    def _live_event(self, e: dict[str, Any]) -> None:
+        if e.get("type") == "live_turn":
+            # Live navbatlari ham suhbat kontekstiga yoziladi ("uni yana och" va keyingi model chaqiruvlari uchun)
+            from .conversation import Turn
+            from .lang import detect_text_language
+
+            for role in ("user", "assistant"):
+                text = str(e.get(role) or "").strip()
+                if text:
+                    turn = Turn(role, redact(text)[:2000], detect_text_language(text).lang)
+                    self.conversation.turns.append(turn)
+                    self.storage.save_turn(self.conversation.session_id, turn)
+        self.emit(e)
+
+    def _live_command(self, instruction: str) -> dict[str, Any]:
+        """Live modeli so'ragan desktop buyrug'i — mavjud agent orqali (router, xavfsizlik, tasdiq, registry)."""
+        from .lang import detect_text_language
+
+        if not self._run_lock.acquire(blocking=False):
+            return {"status": "busy", "result": "Boshqa vazifa bajarilmoqda — tugashini kuting."}
+        self.agent._cancel.clear()
+        try:
+            task = self.run_task(instruction, detect_text_language(instruction).lang, Mode.multimodal,
+                                 speak=False, _locked=True)
+        except Exception as e:  # noqa: BLE001
+            return {"status": "failed", "result": redact(f"{e.__class__.__name__}: {e}")[:200]}
+        return {"status": task.status.value, "result": task.final_message,
+                "steps": [{"action": st.action.describe(), "status": st.status.value} for st in task.steps][:8]}
+
     def stop(self) -> None:
         """Favqulodda to'xtatish: joriy vazifa, kutilayotgan tasdiq, ovoz va mikrofon."""
         self.agent.stop()
         self.speaker.stop()
+        if self.live is not None and self.live.active:
+            self.live.stop()
         p = self.pending
         if p:
             p.resolve("cancelled")
@@ -485,6 +705,8 @@ class XadichaService:
         Qaytaradi: joriy holat ("recording" yoki allaqachon ketayotgan holat)."""
         if self._listen_thread and self._listen_thread.is_alive():
             return self.listening
+        if not self.cfg.auto_language and language in ("uz", "ru", "en"):
+            force_language = True
         self.speaker.stop()
         stop_ev = threading.Event()
         self._listen_stop = stop_ev
@@ -504,11 +726,20 @@ class XadichaService:
         def work() -> None:
             try:
                 t_rec = time.perf_counter()
-                if endpointer is not None:
+                self._vt0, self._vmarks, self._vstt = t_rec, {}, ""
+                streamed = self._stream_listen(stop_ev, on_level, auto, language, force_language, mode)
+                if isinstance(streamed, str) and streamed == "done":
+                    return
+                if isinstance(streamed, np.ndarray):   # oqim yiqildi — buferdagi audio oddiy yo'lga (yo'qolmaydi)
+                    audio = streamed
+                elif endpointer is not None:
                     audio = self.listener.record_until(stop_ev, on_level=on_level, endpointer=endpointer)
                 else:
                     audio = self.listener.record_until(stop_ev, on_level=on_level)
+                self._vmark("speech_end")
                 trace = [{"stage": "audio_capture", "ms": int((time.perf_counter() - t_rec) * 1000), "ok": True}]
+                if isinstance(streamed, np.ndarray):
+                    trace.append({"stage": "stt_stream", "ms": 0, "ok": False, "reason": self._stream_error[:200]})
                 if endpointer is not None and endpointer.reason:
                     trace.append({"stage": "vad_endpoint", "ms": int(endpointer.endpoint_delay_s * 1000), "ok": True,
                                   "reason": endpointer.reason})
@@ -516,22 +747,30 @@ class XadichaService:
                     return
                 self._set_listening("transcribing")
                 t_asr = time.perf_counter()
+                self.stt.whisper = self.listener   # Whisper — doim joriy listener (almashtirilgan bo'lsa ham)
                 if force_language:
-                    self._listen_result = self.listener.transcribe(audio, language)
+                    self._listen_result = self.stt.transcribe(audio, language)
                 else:
-                    self._listen_result = self.listener.transcribe(audio, None, prior=language)
+                    self._listen_result = self.stt.transcribe(audio, None, prior=language)
                 r = self._listen_result
-                trace.append({"stage": "asr", "ms": int((time.perf_counter() - t_asr) * 1000), "ok": bool(r.text),
-                              "provider": getattr(self.listener, "engine", None),
-                              "model": getattr(self.listener, "model_name", None)})
-                if r.text and not force_language:
+                self._vmark("final_transcript")
+                self._vstt = r.provider
+                span = {"stage": "asr", "ms": int((time.perf_counter() - t_asr) * 1000), "ok": bool(r.text),
+                        "provider": r.provider or getattr(self.listener, "engine", None),
+                        "model": r.model or getattr(self.listener, "model_name", None)}
+                if r.fallback_from:
+                    span["reason"] = f"{r.fallback_from} → {r.provider}: {r.fallback_reason}"[:200]
+                trace.append(span)
+                if r.text and not force_language and not (r.provider or "").startswith("gemini"):
                     t_lang = time.perf_counter()
                     r.language = refine_asr_language(r.text, r.language, r.probability or None, language)
                     trace.append({"stage": "lang_detect", "ms": int((time.perf_counter() - t_lang) * 1000), "ok": True})
                 self._voice_trace = trace
                 if r.text:
                     self.emit({"type": "transcript", "text": r.text, "language": r.language,
-                               "probability": r.probability, "supported": r.supported})
+                               "probability": r.probability, "supported": r.supported,
+                               "stt_provider": r.provider, "stt_model": r.model, "fallback_from": r.fallback_from,
+                               "fallback_reason": r.fallback_reason})
                 if auto:
                     self._auto_handle(r, mode)
             except Exception as e:  # noqa: BLE001 — mikrofon ruxsati yo'q, qurilma topilmadi va h.k.
@@ -548,10 +787,109 @@ class XadichaService:
         self._emit_state()
         return "recording"
 
+    _stream_error = ""
+    _vstt = ""
+    stt_pool = None
+
+    def _ensure_stt_pool(self):
+        if self.stt_pool is None and self.stream_available():
+            from google import genai
+            from google.genai import types
+
+            from .speech.stream import LiveSTTPool, stream_config
+
+            client = genai.Client(api_key=self.cfg.gemini_api_key, http_options=types.HttpOptions(api_version="v1beta"))
+            terms = list(self.stt.vocabulary.terms)
+            self.stt_pool = LiveSTTPool(client, self.cfg.gemini_stt_live_model, lambda: stream_config(terms))
+        return self.stt_pool
+
+    def stream_available(self) -> bool:
+        return (self.cfg.stt_streaming and not self.cfg.offline_mode and self.cfg.stt_provider in ("auto", "gemini")
+                and bool(self.cfg.gemini_api_key) and time.monotonic() >= getattr(self, "_stream_down_until", 0.0))
+
+    def _stream_listen(self, stop_ev: threading.Event, on_level, auto: bool, language: str | None,
+                       force_language: bool, mode: Mode):
+        """Oqimli buyruq STT. Qaytaradi: "done" — natija qayta ishlandi; np.ndarray — oqim yiqildi, buferdagi audio
+        (oddiy yo'lga beriladi); None — oqim ishlatilmaydi."""
+        if not self.stream_available():
+            return None
+        from .lang import detect_text_language
+        from .speech.stream import StreamingTranscriber
+
+        last = [0.0]
+        sent = {"text": "", "pending": ""}
+
+        def on_partial(text: str) -> None:
+            now = time.monotonic()
+            if now - last[0] >= 0.08:   # ~12/s — WebSocket'ni to'ldirmaslik uchun
+                last[0] = now
+                sent["text"], sent["pending"] = text, ""
+                self.emit({"type": "stt_partial", "text": text[:500]})
+            else:
+                sent["pending"] = text   # oxirgi bo'lak tashlanmaydi — oqim tugaganda yuboriladi
+
+        factory = getattr(self, "stream_factory", None) or (lambda **kw: StreamingTranscriber(
+            self.cfg.gemini_api_key, self.cfg.gemini_stt_live_model, **kw))
+        from .speech.stream import MicSource
+
+        kw = {"pool": self._ensure_stt_pool()} if getattr(self, "stream_factory", None) is None else {}
+        st = factory(vocabulary=self.stt.vocabulary.terms, on_partial=on_partial, on_level=on_level, auto=auto,
+                     source_factory=lambda: MicSource(self.cfg.microphone or None), **kw)
+        r = st.run(stop_ev)
+        if sent["pending"] and sent["pending"] != sent["text"]:
+            self.emit({"type": "stt_partial", "text": sent["pending"][:500]})
+        for name, key in (("stt_connected", "connected"), ("first_partial", "first_partial"),
+                          ("speech_end", "speech_end"), ("final_transcript", "final")):
+            if key in r.marks:
+                self._vmark(name, r.marks[key])
+        if r.finalized_by == "error":
+            self._stream_error = r.error
+            if r.error.startswith("mic:"):
+                raise RuntimeError(r.error[4:].strip())   # mikrofon xatosi — oddiy yo'l ham ishlamaydi
+            self._stream_down_until = time.monotonic() + 120   # takroriy muvaffaqiyatsiz ulanish yo'q
+            logging.getLogger("xadicha").warning("oqimli STT ishlamadi: %s — oddiy yo'l", r.error)
+            return r.audio
+        if self._listen_cancelled:
+            return "done"
+        from .speech.recognizer import is_silence
+
+        if r.finalized_by == "empty" and r.audio.size and not is_silence(r.audio):
+            # Oqim matn bermadi, lekin audioda nutq bor (sinovda 1/12 holatda) — bufer zaxira STT'ga, buyruq yo'qolmaydi
+            self._stream_error = "oqim bo'sh natija qaytardi"
+            logging.getLogger("xadicha").warning("oqimli STT bo'sh natija qaytardi — buferdagi audio oddiy yo'lga")
+            return r.audio
+        text = self.stt.vocabulary.correct(r.text) if r.text else ""
+        if force_language and language in ("uz", "ru", "en"):
+            lang, prob = language, 1.0
+        else:
+            g = detect_text_language(text, language or "uz") if text else None
+            lang, prob = (g.lang, float(g.confidence)) if g else (language or "uz", 0.0)
+        t = Transcript(text, lang, prob, lang in ("uz", "ru", "en"), detected_raw="gemini-live",
+                       provider="gemini-live", model=r.model)
+        self._listen_result = t
+        self._vstt = "gemini-live"
+        self._voice_trace = [
+            {"stage": "audio_capture", "ms": r.marks.get("speech_end", r.marks.get("final", 0)), "ok": True},
+            {"stage": "stt_stream", "ms": max(0, r.marks.get("final", 0) - r.marks.get("speech_end", 0)), "ok": bool(text),
+             "provider": "gemini-live", "model": r.model, "reason": f"finalized_by={r.finalized_by}",
+             "first_partial_ms": r.marks.get("first_partial"), "connect_ms": r.marks.get("connected")},
+        ]
+        self._set_listening("transcribing")
+        if text:
+            self.emit({"type": "transcript", "text": text, "language": lang, "probability": prob, "supported": t.supported,
+                       "stt_provider": "gemini-live", "stt_model": r.model, "finalized_by": r.finalized_by,
+                       "fallback_from": "", "fallback_reason": ""})
+        if auto:
+            self._auto_handle(t, mode)
+        else:
+            self._vt0 = None
+        return "done"
+
     def _auto_handle(self, r: Transcript, mode: Mode) -> None:
         """Avtomatik rejim: aniq buyruq — darhol bajariladi; noaniq — aniqlashtirish; bo'sh — hech narsa."""
         self.listen_handled = True
         if not r.text:
+            self._vt0 = None
             self.emit({"type": "voice_result", "status": "empty"})
             return
         if not r.supported:
@@ -566,6 +904,7 @@ class XadichaService:
             self.emit({"type": "clarify", "text": r.text, "language": r.language,
                        "asr_confidence": r.asr_confidence, "analysis": analysis.public()})
             return
+        self._vmark("intent")
         try:
             self.start_task(r.text, r.language, mode)
             self.emit({"type": "voice_result", "status": "started", "text": r.text})
@@ -598,11 +937,19 @@ class XadichaService:
         ok, detail = self.provider.health()
         if self.provider_error:
             ok, detail = False, self.provider_error
+        provider: dict[str, Any] = {"name": self.provider.name, "ok": ok, "detail": detail,
+                                    "vision": self.provider.supports_vision,
+                                    "grounding": bool(getattr(self.provider, "supports_grounding", False)),
+                                    "search_mode": self.cfg.search_mode}
+        info = getattr(self.provider, "info", None)
+        if callable(info):
+            provider.update(info())   # asosiy / zaxira / faol provayder, oxirgi xato (kalitsiz)
+        if self.cfg.warnings:
+            provider["warnings"] = list(self.cfg.warnings)
         return {
             "os": {"Darwin": "macOS", "Windows": "Windows"}.get(platform.system(), platform.system()),
             "adapter": self.adapter.name,
-            "provider": {"name": self.provider.name, "ok": ok, "detail": detail,
-                         "vision": self.provider.supports_vision},
+            "provider": provider,
             "config": self.cfg.public(),
             "stats": self.storage.stats(),
             "busy": self.busy,
@@ -616,4 +963,9 @@ class XadichaService:
             "permissions": self.adapter.permissions(),
             "tts": {lang: self.speaker.available(lang) for lang in ("uz", "ru", "en")},
             "stt_engine": self.listener.engine,
+            "stt": {**self.stt.info(), "streaming": self.stream_available(),
+                    "pool": self.stt_pool.info() if self.stt_pool is not None else None},
+            "live": {**(self.live.info() if self.live is not None else {"active": False, "state": "idle"}),
+                     "available": self.live_available()[0], "detail": self.live_available()[1],
+                     "model": self.cfg.live_model},
         }

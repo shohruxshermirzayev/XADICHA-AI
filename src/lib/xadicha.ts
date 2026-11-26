@@ -9,7 +9,7 @@ export type { Lang } from "./i18n";
 
 export const API = process.env.NEXT_PUBLIC_XADICHA_API ?? "http://127.0.0.1:8765";
 
-import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, ScreenSnapshot, Status, Task, Transcript, Turn } from "./types";
+import type { Action, ChatMessage, CommandAnalysis, Mode, PendingVoice, RuntimeSettingsValues, ScreenSnapshot, SettingsResponse, Status, Task, Transcript, Turn } from "./types";
 
 export type * from "./types";
 
@@ -217,7 +217,27 @@ export function useXadicha(uiLang: Lang = "uz") {
           }
           break;
         case "transcript":
-          if (applied && typeof e.text === "string" && e.text) push({ role: "user", text: e.text, lang: e.language as string });
+          if (applied && typeof e.text === "string" && e.text) {
+            push({ role: "user", text: e.text, lang: e.language as string, voice: {
+              stt: typeof e.stt_provider === "string" ? e.stt_provider : undefined,
+              fallbackFrom: typeof e.fallback_from === "string" && e.fallback_from ? e.fallback_from : undefined,
+              fallbackReason: typeof e.fallback_reason === "string" && e.fallback_reason ? e.fallback_reason : undefined,
+            } });
+          }
+          break;
+        case "live_turn":
+          // Live navbati tugadi: jonli matn chatga yakuniy xabar bo'lib o'tadi (haqiqiy transkripsiya)
+          if (applied && typeof e.user === "string" && e.user) push({ role: "user", text: e.user, voice: { stt: "gemini-live", live: true } });
+          if (applied && typeof e.assistant === "string" && e.assistant) push({ role: "assistant", text: e.assistant, voice: { live: true } });
+          break;
+        case "live_state":
+          if (applied && e.state === "error" && typeof e.error === "string" && e.error) {
+            push({ role: "system", text: translate(langRef.current, "live.failed", { why: e.error }) });
+          }
+          if (applied && (e.state === "closed" || e.state === "error")) refresh();
+          break;
+        case "settings":
+          if (applied) refresh();
           break;
         case "clarify":
           // Backend buyruqni aniq tushunmadi — hech narsa bajarilmagan; foydalanuvchi tanlaydi
@@ -414,6 +434,37 @@ export function useXadicha(uiLang: Lang = "uz") {
     [],
   );
 
+  /** Gemini Live: real vaqtli ovozli suhbat. Mavjud bo'lmasa — xabar, oddiy ovoz rejimi ishlayveradi. */
+  const startLive = useCallback(async () => {
+    setError(null);
+    setClarify(null);
+    try {
+      await call("/api/live/start", { method: "POST" });
+      update((s) => ({ ...s, live: { ...s.live, state: s.live.state === "idle" || s.live.state === "closed" ? "connecting" : s.live.state } }));
+      return true;
+    } catch (e) {
+      push({ role: "system", text: translate(langRef.current, "live.failed", { why: (e as Error).message }) });
+      return false;
+    }
+  }, [push, update]);
+
+  const stopLive = useCallback(async () => {
+    try {
+      await call("/api/live/stop", { method: "POST" });
+    } catch (e) {
+      setError((e as Error).message);
+    }
+    update((s) => ({ ...s, live: { state: "closed", user: "", assistant: "" }, micLevel: s.listening === "recording" ? s.micLevel : 0 }));
+  }, [update]);
+
+  /** Ish vaqtidagi sozlamalar (maxfiy emas; kalitlar faqat backend/.env da). */
+  const getSettings = useCallback(() => call<SettingsResponse>("/api/settings"), []);
+  const saveSettings = useCallback(async (patch: Partial<RuntimeSettingsValues>) => {
+    const r = await call<SettingsResponse>("/api/settings", { method: "PUT", body: JSON.stringify(patch) });
+    refresh();
+    return r;
+  }, [refresh]);
+
   const clearHistory = useCallback(async () => {
     try {
       await call("/api/history", { method: "DELETE" });
@@ -425,9 +476,10 @@ export function useXadicha(uiLang: Lang = "uz") {
 
   return {
     status: st.status, phase: st.phase, busy: isBusy(st), current: st.current, confirmation: st.confirmation,
-    listening: st.listening, micLevel: st.micLevel, activeStep: st.activeStep,
+    listening: st.listening, micLevel: st.micLevel, activeStep: st.activeStep, live: st.live,
+    partial: st.partial, latency: st.latency, streaming: st.streaming,
     online, wsOpen, tasks, confirmBusy, confirmError, messages, error, clarify,
     run, analyze, startListening, stopListening, answer, stop, clearHistory, refresh, push,
-    clearClarify: () => setClarify(null), newConversation, screenSnapshot,
+    clearClarify: () => setClarify(null), newConversation, screenSnapshot, startLive, stopLive, getSettings, saveSettings,
   };
 }

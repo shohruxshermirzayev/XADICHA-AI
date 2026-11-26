@@ -1,0 +1,8 @@
+{
+  "_izoh": "Nusxa oling: cp vocabulary.example.json vocabulary.json. terms — STT'ga ishora (ism, ilova, texnik so'z; 1000 tagacha). corrections — aniqlangan matnga qo'llanadigan tuzatishlar (so'z chegarasi bo'yicha).",
+  "terms": ["Shohrux", "XADICHA AI", "Magistratura", "VS Code", "Downloads"],
+  "corrections": {
+    "vs kod": "VS Code",
+    "xadija": "Xadicha"
+  }
+}

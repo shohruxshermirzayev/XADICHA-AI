@@ -117,6 +117,22 @@ class _CreatorQuestion:
 
 CREATOR_QUESTION = _CreatorQuestion()
 
+# "Isming nima uchun Xadicha?", "Почему тебя зовут Хадича?", "Why is your name Xadicha?" — ism qayerdan olingani
+_NAME_WORD = r"(?:isming\w*|ismingiz\w*|noming\w*|nomingiz\w*|исминг\w*|номинг\w*|имя|имени|зовут|назвал\w*|name\w*|called)"
+_WHY = r"(?:nima uchun|nimaga|nega|qayerdan|qaerdan|ma'nosi|nimani anglatadi|нима учун|нимага|нега|қаердан|"
+_WHY += r"почему|откуда|что означает|why|where does|where did|what does|meaning)"
+NAME_QUESTION = re.compile(
+    rf"{_NAME_WORD}.*\b{_WHY}|\b{_WHY}\b.*{_NAME_WORD}|"
+    r"(?:xadicha|хадича|khadija|xadija)\s*(?:ai\s*)?(?:deb|деб)\s+(?:atal|nomla|ata|qo'y|ата|номла|қўй)\w*|"
+    r"(?:seni|sizni|сени|сизни)\s+(?:kim|ким)\s+(?:nomla|ата|номла|ata)\w*|"
+    r"(?:ismingni|ismingizni|исмингни|исмингизни)\s+(?:kim|ким)|кто (?:тебя|вас) назвал|who named you|"
+    r"почему (?:ты|вы) (?:хадича|xadicha)|why (?:are you|is it) (?:xadicha|khadija)", re.I)
+
+
+def is_name_question(text: str) -> bool:
+    low = re.sub(r"[ʻ’‘`´]", "'", text).lower()
+    return bool(NAME_QUESTION.search(low)) and not _ACTION_WORDS.search(re.sub(_NAME_WORD, " ", low).replace("nima", ""))
+
 
 def _mentions_app(low: str) -> bool:
     """Ilova nomi tilga olingan gap (Telegram, Safari, Notes…) — buyruq bo'lishi mumkin, suhbat emas."""
@@ -133,7 +149,7 @@ def detect_chat(text: str) -> bool:
     low = t.lower().strip(" .!,")
     if not low or _SCREEN_WORDS.search(low) or _mentions_app(low):
         return False
-    if CREATOR_QUESTION.search(low):
+    if CREATOR_QUESTION.search(low) or is_name_question(low):
         return True
     if _ACTION_WORDS.search(low):
         return False
@@ -141,6 +157,33 @@ def detect_chat(text: str) -> bool:
         return True
     # Umumiy savol ("Samarqand qayerda?", "Python nima?") — amal so'zisiz
     return t.endswith("?") or bool(_QUESTION_START.match(low))
+
+
+# Dolzarb / tashqi ma'lumot talab qiladigan savol (AUTO qidiruv rejimi uchun): yangiliklar, narx/kurs, ob-havo,
+# natijalar, "hozirgi", "eng so'nggi", yil, aniq "internetdan tekshir". Umumiy bilim ("Python nima?") — modelning o'zi.
+_FRESH = re.compile(
+    r"\b(?:bugun\w*|hozirgi|hozir\w* (?:qancha|kim|necha|qanday)|kecha\w*|ertaga|shu (?:hafta|oy|yil)\w*|"
+    r"yangilik\w*|so'nggi|eng yangi|oxirgi (?:yangilik|natija|ma'lumot|versiya)\w*|joriy|kurs\w*|narx\w*|"
+    r"qancha turadi|ob-?havo\w*|harorat\w*|natija\w*|hisob(?:i|da)|saylov\w*|internet(?:dan|da)\s+tekshir\w*|manba\w*|"
+    r"бугун\w*|ҳозирги|янгилик\w*|сўнгги|нарх\w*|об-?ҳаво\w*|"
+    r"сегодня\w*|сейчас|вчера\w*|завтра\w*|новост\w*|последн\w*|свеж\w*|актуальн\w*|текущ\w*|курс\w*|цен\w*|"
+    r"стоимост\w*|погод\w*|счёт|счет|результат\w*|выбор\w*|"
+    r"today|tonight|yesterday|tomorrow|now|current\w*|latest|recent\w*|news|price\w*|cost|weather|forecast|"
+    r"score\w*|exchange rate|stock\w*|election\w*|this (?:week|month|year)|who won|"
+    r"20(?:2[4-9]|3\d))\b",
+    re.I,
+)
+# Mahalliy soat/sana — internetsiz (prompt'da joriy vaqt bor)
+_LOCAL_TIME = re.compile(r"soat necha|soat nechi|qaysi kun|bugun necha|который час|какое (?:сегодня )?число|"
+                         r"what time|what day is|what'?s the date|сколько времени", re.I)
+
+
+def needs_web(text: str) -> bool:
+    """AUTO rejim: savol internetdan tekshirishni yoki dolzarb tashqi ma'lumotni talab qiladimi?"""
+    t = re.sub(r"[ʻ’‘`´]", "'", text).lower()
+    if _LOCAL_TIME.search(t):
+        return False
+    return bool(_FRESH.search(t))
 
 
 def _clean_query(q: str) -> str:
@@ -171,8 +214,40 @@ def detect_file(text: str) -> str | None:
     return None
 
 
+# Buyruq boshidagi murojaat: "Xadicha, Safari ni och" — "Xadicha" ilova nomi yoki alohida buyruq emas
+_WAKE = re.compile(r"^\s*(?:hey|ey|эй|hi|салом|salom)?[\s,]*(?:xadicha|xadija|hadicha|hadija|khadija|khadicha|"
+                   r"хадича|ҳадича|хадижа|хадиджа)\s*[,!.:;—-]*\s+", re.I)
+# Fayl haqida gap — ilova sifatida ochilmaydi ("Excel файлни оч" → Excel fayli, "Excel файл" ilovasi emas)
+_FILE_WORD = re.compile(r"\b(?:fayl\w*|файл\w*|file\w*|hujjat\w*|ҳужжат\w*|документ\w*|document\w*)", re.I)
+
+
+# "Oxirgi yuklangan fayl", "kecha yuklab olgan PDF", "last downloaded presentation" — Downloads'dagi eng yangi fayl
+_LATEST = re.compile(
+    r"(?:oxirgi|so'nggi|eng yangi|kecha|bugun)\s+(?:yuklab\s+ol\w*|yuklang\w*|yuklan\w*|yuklagan\w*)|"
+    r"(?:охирги|сўнгги|кеча|бугун)\s+(?:юклаб\s+ол\w*|юклан\w*)|"
+    r"(?:last|latest|most recent|recently)\s+download\w*|downloaded\s+(?:yesterday|today)|"
+    r"последн\w*\s+(?:скачан|загруж)\w*|(?:вчера|сегодня)\s+(?:скачан|загруж)\w*", re.I)
+_KIND = [("pdf", r"\bpdf\b"), ("excel", r"excel|xlsx?|эксель|таблиц"), ("word", r"\bword\b|docx?|ворд"),
+         ("presentation", r"presentation|taqdimot|презентац|pptx?|keynote|slayd|слайд"),
+         ("image", r"rasm|surat|image|photo|расм|сурат|фото|картин"), ("video", r"video|видео")]
+
+
+def latest_download_query(text: str) -> str | None:
+    t = re.sub(r"[ʻ’‘`´]", "'", text).lower()
+    if not _LATEST.search(t):
+        return None
+    kind = next((k for k, pat in _KIND if re.search(pat, t)), "")
+    return ":latest-download" + (f":{kind}" if kind else "")
+
+
+def strip_wake(text: str) -> str:
+    stripped = _WAKE.sub("", text, count=1)
+    return stripped if stripped.strip() else text
+
+
 def route(text: str, language: str, conversation: Conversation | None = None, fast_path: bool = True) -> Route:
     resolved_from = ""
+    text = strip_wake(text)
     if conversation is not None:
         res = conversation.resolve(text, language)
         if res.action is not None:
@@ -188,6 +263,10 @@ def route(text: str, language: str, conversation: Conversation | None = None, fa
             r = route(text, language, None, fast_path)
             r.resolved_from, r.ref = resolved_from, "repeat"
             return r
+
+    lq = latest_download_query(text)
+    if lq is not None and not re.search(r"\b(?:summar|xulosa|qisqacha|резюм|кратко)", text, re.I):
+        return Route("tool", "find_file", [Action(type="find_file", text=lq)], "", resolved_from)
 
     fq = detect_file(text)
     if fq is not None:
@@ -210,7 +289,8 @@ def route(text: str, language: str, conversation: Conversation | None = None, fa
         intent, actions, reply = parse_command(text, language)
         if intent == "system" and actions:
             return Route("fast", intent, actions, reply, resolved_from)
-        if is_simple(text) and intent in FAST_INTENTS and len(actions) == 1:
+        file_as_app = intent == "open_app" and any(_FILE_WORD.search(a.app or "") for a in actions)
+        if is_simple(text) and intent in FAST_INTENTS and len(actions) == 1 and not file_as_app:
             return Route("fast", intent, actions, reply, resolved_from)
     r = Route("autonomous", resolved_from=resolved_from)
     r.note = text   # (takrorlash bo'lsa) modelga beriladigan matn

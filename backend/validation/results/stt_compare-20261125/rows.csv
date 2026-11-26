@@ -1,0 +1,107 @@
+id,voice,lang,script,kind,provider,used,ref,hyp,lang_out,ms,error,wer,cer,wer_script,lang_ok,intent_ok,hallucination
+v_uzl_01,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Kalkulyatorni ishga tushir,Calculatorna iške tšir.,uz,12766,,1.0,0.4583333333333333,1.0,True,False,False
+v_uzl_01,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Kalkulyatorni ishga tushir,Kalkulyatorni ishga tushir.,uz,2780,,0.0,0.0,0.0,True,True,False
+v_uzl_02,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Notes ilovasini ochib ber,Notis ilovasını açıbir.,uz,9917,,1.0,0.4090909090909091,1.0,True,False,False
+v_uzl_02,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Notes ilovasini ochib ber,Notes ilovasini ochib ber.,uz,2568,,0.0,0.0,0.0,True,True,False
+v_uzl_03,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Finderni och,Fin derini aç.,uz,9771,,1.5,0.36363636363636365,1.5,True,False,False
+v_uzl_03,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Finderni och,Finder ni och.,uz,2329,,1.0,0.0,1.0,True,True,False
+v_uzl_04,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Telegramni ochib qo'y,Telegram'ni açıp koy.,uz,9887,,1.0,0.42105263157894735,1.0,True,False,False
+v_uzl_04,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Telegramni ochib qo'y,Telegramni ochib qo'y.,uz,2421,,0.0,0.0,0.0,True,True,False
+v_uzl_05,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,youtube.com saytiga kir,YouTube'e ton sajti gekir.,uz,9860,,1.0,0.3,1.0,True,False,False
+v_uzl_05,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,youtube.com saytiga kir,YouTube'ning tam saytiga kir.,uz,2475,,0.5,0.35,0.5,True,False,False
+v_uzl_06,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Googledan ob-havo qidir,Google'dan abhavakıdır.,uz,9818,,1.0,0.3,1.0,True,False,False
+v_uzl_06,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Googledan ob-havo qidir,Google'dan ob-havo qidir.,uz,2402,,0.25,0.05,0.25,True,True,False
+v_uzl_07,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Toshkent haqida ma'lumot qidir,Toshkent haqda malumat qidir.,uz,9915,,0.5,0.1111111111111111,0.5,True,False,False
+v_uzl_07,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Toshkent haqida ma'lumot qidir,Toshkent haqida ma'lumot qidir.,uz,3169,,0.0,0.0,0.0,True,True,False
+v_uzl_08,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,ovozni 70 ga qo'y,Awazni yetmish ke qay.,uz,10046,,1.0,1.0,1.0,True,False,False
+v_uzl_08,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,ovozni 70 ga qo'y,Ovozni 70 ga qo'y.,uz,2346,,0.0,0.0,0.0,True,True,False
+v_uzl_09,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,ovozni biroz pasaytir,Олозыны брос пасайтыр.,ru,12137,,1.0,1.0,0.6666666666666666,False,False,False
+v_uzl_09,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,ovozni biroz pasaytir,Ovozni biroz pasaytir.,uz,2748,,0.0,0.0,0.0,True,True,False
+v_uzl_10,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,ekran yorug'ligini kamaytir,Ekran yorubligini kəməktir.,uz,10523,,0.6666666666666666,0.2,0.6666666666666666,True,False,False
+v_uzl_10,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,ekran yorug'ligini kamaytir,Ekran yorug'ligini kamaytir.,uz,2679,,0.0,0.0,0.0,True,True,False
+v_uzl_11,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,shartnoma faylini topib ber,Sharp noma failini top up 1.,uz,10111,,1.5,0.2916666666666667,1.5,True,False,False
+v_uzl_11,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,shartnoma faylini topib ber,Shartnoma faylini topib ber.,uz,2620,,0.0,0.0,0.0,True,True,False
+v_uzl_12,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,ovozni butunlay o'chir,Avazna bütün laya açır.,uz,9963,,1.3333333333333333,0.5,1.3333333333333333,True,False,False
+v_uzl_12,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,ovozni butunlay o'chir,Ovozni butunlay ochir.,uz,4039,,0.3333333333333333,0.05,0.3333333333333333,True,False,False
+v_uzl_13,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,ekrandagi matnni o'qib ber,Ekrandagim adnını okub bir.,uz,10409,,1.0,0.30434782608695654,1.0,True,True,False
+v_uzl_13,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,ekrandagi matnni o'qib ber,Ekrannagi matnni o'qib ber.,uz,2542,,0.25,0.043478260869565216,0.25,True,True,False
+v_uzl_14,uz-UZ-MadinaNeural,uz,latn,command,whisper,whisper:faster,Safarini ochib yubor,Safarini açıb yubar.,uz,10027,,0.6666666666666666,0.2777777777777778,0.6666666666666666,True,False,False
+v_uzl_14,uz-UZ-MadinaNeural,uz,latn,command,gemini,gemini,Safarini ochib yubor,Safari'ni ochib yubor.,uz,2275,,0.3333333333333333,0.05555555555555555,0.3333333333333333,True,True,False
+v_uzc_04,uz-UZ-MadinaNeural,uz,cyrl,command,whisper,whisper:faster,kun.uz сайтига кир,Qo'n us.,uz,9929,,1.0,0.9333333333333333,1.0,True,False,False
+v_uzc_04,uz-UZ-MadinaNeural,uz,cyrl,command,gemini,gemini,kun.uz сайтига кир,kun uz,uz,2397,,0.5,0.6666666666666666,0.5,True,False,False
+v_uzc_06,uz-UZ-MadinaNeural,uz,cyrl,command,whisper,whisper:faster,овозни 30 га қўй,Оттых.,ru,10025,,1.0,0.9230769230769231,1.0,False,False,False
+v_uzc_06,uz-UZ-MadinaNeural,uz,cyrl,command,gemini,gemini,овозни 30 га қўй,Otis.,uz,2410,,1.0,1.0,1.0,True,False,False
+v_ru_02,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Запусти Finder,Запусти Finder.,ru,9862,,0.0,0.0,,True,True,False
+v_ru_02,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,gemini,Запусти Finder,Запусти Finder.,ru,2221,,0.0,0.0,,True,True,False
+v_ru_03,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Открой заметки,Открой заметки.,ru,9958,,0.0,0.0,,True,True,False
+v_ru_03,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,gemini,Открой заметки,Открой заметки.,ru,2380,,0.0,0.0,,True,True,False
+v_ru_05,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Найди в интернете информацию о Ташкенте,Найди в интернете информацию о Ташкенте.,ru,10159,,0.0,0.0,,True,True,False
+v_ru_05,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,gemini,Найди в интернете информацию о Ташкенте,Найди в интернете информацию о Ташкенте.,ru,2574,,0.0,0.0,,True,True,False
+v_ru_06,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Поставь громкость на 25,Поставь громкость на 25.,ru,10191,,0.0,0.0,,True,True,False
+v_ru_06,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,whisper:faster,Поставь громкость на 25,Поставь громкость на 25.,ru,10778,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_ru_07,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Сделай потише,Сделай потише.,ru,10124,,0.0,0.0,,True,True,False
+v_ru_07,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,whisper:faster,Сделай потише,Сделай потише.,ru,9971,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_ru_09,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Найди файл договор,Найди файл договор.,ru,10213,,0.0,0.0,,True,True,False
+v_ru_09,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,whisper:faster,Найди файл договор,Найди файл договор.,ru,9979,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_ru_10,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Найди на YouTube новости,Найди на YouTube новости.,ru,10261,,0.0,0.0,,True,True,False
+v_ru_10,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,whisper:faster,Найди на YouTube новости,Найди на YouTube новости.,ru,10404,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_ru_11,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Включи звук обратно,Включи звук обратно.,ru,10063,,0.0,0.0,,True,True,False
+v_ru_11,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,whisper:faster,Включи звук обратно,Включи звук обратно.,ru,9810,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_ru_12,ru-RU-SvetlanaNeural,ru,cyrl,command,whisper,whisper:faster,Расскажи что сейчас на экране,"Расскажи, что сейчас на экране.",ru,9979,,0.0,0.0,,True,True,False
+v_ru_12,ru-RU-SvetlanaNeural,ru,cyrl,command,gemini,whisper:faster,Расскажи что сейчас на экране,"Расскажи, что сейчас на экране.",ru,11090,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_01,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Start the Calculator app,Start the calculator app.,en,9940,,0.0,0.0,,True,True,False
+v_en_01,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Start the Calculator app,Start the calculator app.,en,9916,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_02,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Launch Finder,Launch Finder.,en,9985,,0.0,0.0,,True,True,False
+v_en_02,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Launch Finder,Launch Finder.,en,9864,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_03,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Open the Notes app,Open the Notes app.,en,9958,,0.0,0.0,,True,True,False
+v_en_03,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Open the Notes app,Open the Notes app.,en,9904,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_04,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Go to github.com,Go to GitHub.com.,en,9947,,0.0,0.0,,True,True,False
+v_en_04,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Go to github.com,Go to GitHub.com.,en,9915,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_05,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Search the web for Tashkent,Search the web for Tashkent.,en,9952,,0.0,0.0,,True,True,False
+v_en_05,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Search the web for Tashkent,Search the web for Tashkent.,en,9947,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_06,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Set the volume to 60,Set the volume to 60.,en,9735,,0.0,0.0,,True,True,False
+v_en_06,en-US-JennyNeural,en,latn,command,gemini,gemini,Set the volume to 60,Set the volume to 60.,en,2393,,0.0,0.0,,True,True,False
+v_en_07,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Make it quieter,Make it quieter.,en,9752,,0.0,0.0,,True,True,False
+v_en_07,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Make it quieter,Make it quieter.,en,10247,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_08,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Dim the screen,Dim the screen.,en,9692,,0.0,0.0,,True,True,False
+v_en_08,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Dim the screen,Dim the screen.,en,9669,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_09,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Find the contract file,Find the contract file.,en,9765,,0.0,0.0,,True,True,False
+v_en_09,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Find the contract file,Find the contract file.,en,9912,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_10,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Search YouTube for news,Search YouTube for news.,en,9807,,0.0,0.0,,True,True,False
+v_en_10,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Search YouTube for news,Search YouTube for news.,en,9730,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_11,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Turn the sound back on,Turn the sound back on.,en,9759,,0.0,0.0,,True,True,False
+v_en_11,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Turn the sound back on,Turn the sound back on.,en,9716,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_en_12,en-US-JennyNeural,en,latn,command,whisper,whisper:faster,Describe what is on my screen,Describe what is on my screen.,en,9811,,0.0,0.0,,True,True,False
+v_en_12,en-US-JennyNeural,en,latn,command,gemini,whisper:faster,Describe what is on my screen,Describe what is on my screen.,en,9895,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+v_mix_01,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Calculatorni open qil,Taltulatorna op enkel.,uz,10014,,1.0,0.2631578947368421,1.0,True,False,False
+v_mix_01,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,gemini,Calculatorni open qil,Kalkulyatorni oching.,uz,2306,,1.0,0.47368421052631576,1.0,True,False,False
+v_mix_02,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,YouTube'da music qidir,YouTube'da musiqqa'dır.,uz,9798,,0.6666666666666666,0.2,0.6666666666666666,True,False,False
+v_mix_02,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,YouTube'da music qidir,YouTube'da musiqqa'dır.,uz,10572,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.6666666666666666,0.2,0.6666666666666666,True,False,False
+v_mix_03,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Brauzerda kun.uz ni och,Brauzer de kun uzna aç.,uz,9787,,1.0,0.2631578947368421,1.0,True,False,False
+v_mix_03,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Brauzerda kun.uz ni och,Brauzer de kun uzna aç.,uz,9812,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,1.0,0.2631578947368421,1.0,True,False,False
+v_mix_04,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Google'da weather qidir,Google'da viat herkidir.,uz,9793,,0.6666666666666666,0.14285714285714285,0.6666666666666666,True,False,False
+v_mix_04,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Google'da weather qidir,Google'da viat herkidir.,uz,9730,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.6666666666666666,0.14285714285714285,0.6666666666666666,True,False,False
+v_mix_05,ru-RU-SvetlanaNeural,ru,mixed,mixed,whisper,whisper:faster,"Сделай громче, iltimos","Сделай громче, Илтимас.",ru,9843,,0.3333333333333333,0.3684210526315789,,True,True,False
+v_mix_05,ru-RU-SvetlanaNeural,ru,mixed,mixed,gemini,whisper:faster,"Сделай громче, iltimos","Сделай громче, Илтимас.",ru,10408,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.3333333333333333,0.3684210526315789,,True,True,False
+v_mix_06,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Finder'ni open qil,Fin derna upp enkel.,uz,9914,,1.3333333333333333,0.375,1.3333333333333333,True,False,False
+v_mix_06,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Finder'ni open qil,Fin derna upp enkel.,uz,10252,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,1.3333333333333333,0.375,1.3333333333333333,True,False,False
+v_mix_07,ru-RU-SvetlanaNeural,ru,mixed,mixed,whisper,whisper:faster,"Открой Telegram, iltimos",Открой Telegram. Илтимос.,ru,10002,,0.3333333333333333,0.3333333333333333,,True,False,False
+v_mix_07,ru-RU-SvetlanaNeural,ru,mixed,mixed,gemini,whisper:faster,"Открой Telegram, iltimos",Открой Telegram. Илтимос.,ru,9961,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.3333333333333333,0.3333333333333333,,True,False,False
+v_mix_08,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Please ovozni pasaytir,Плесе овозны пасайтыр.,ru,10133,,1.0,1.0,0.3333333333333333,False,False,False
+v_mix_08,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Please ovozni pasaytir,Плесе овозны пасайтыр.,ru,10951,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,1.0,1.0,0.3333333333333333,False,False,False
+x_mix_01,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,"Xadicha, Google Chrome'ni och.",Hadiche Google'da qramen aç.,uz,11876,,1.0,0.48,1.0,True,False,False
+x_mix_01,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,"Xadicha, Google Chrome'ni och.",Hadiche Google'da qramen aç.,uz,12009,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,1.0,0.48,1.0,True,False,False
+x_mix_02,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Kecha yuklab olgan PDF faylimni top.,Keçi yüklab olgen ptifaylemni top.,uz,10344,,0.8333333333333334,0.26666666666666666,0.8333333333333334,True,False,False
+x_mix_02,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Kecha yuklab olgan PDF faylimni top.,Keçi yüklab olgen ptifaylemni top.,uz,10921,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.8333333333333334,0.26666666666666666,0.8333333333333334,True,False,False
+x_mix_03,uz-UZ-MadinaNeural,uz,cyrl,mixed,whisper,whisper:faster,Рабочий столдаги Excel файлни оч.,Их тыл.,ru,10705,,1.0,0.8928571428571429,1.0,False,True,False
+x_mix_03,uz-UZ-MadinaNeural,uz,cyrl,mixed,gemini,whisper:faster,Рабочий столдаги Excel файлни оч.,Их тыл.,ru,12473,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,1.0,0.8928571428571429,1.0,False,True,False
+x_mix_04,en-US-JennyNeural,en,latn,mixed,whisper,whisper:faster,Open VS Code and find my latest Python project.,Open VS Code and find my latest Python project.,en,10479,,0.0,0.0,,True,True,False
+x_mix_04,en-US-JennyNeural,en,latn,mixed,gemini,whisper:faster,Open VS Code and find my latest Python project.,Open VS Code and find my latest Python project.,en,10263,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False
+x_mix_05,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,"Xadicha, ovozni 50 foizga tushir.",Hadiche avazna illik faiz getšur.,uz,11615,,1.0,0.5555555555555556,1.0,True,False,False
+x_mix_05,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,"Xadicha, ovozni 50 foizga tushir.",Hadiche avazna illik faiz getšur.,uz,13126,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,1.0,0.5555555555555556,1.0,True,False,False
+x_mix_06,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Internetdan Gemini Live API haqida eng yangi ma'lumotlarni top.,Internet-tang yemeni liwe ap haqda in yangi malumotlarni top.,uz,10601,,0.8888888888888888,0.16666666666666666,0.8888888888888888,True,False,False
+x_mix_06,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Internetdan Gemini Live API haqida eng yangi ma'lumotlarni top.,Internet-tang yemeni liwe ap haqda in yangi malumotlarni top.,uz,10598,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.8888888888888888,0.16666666666666666,0.8888888888888888,True,False,False
+x_mix_07,uz-UZ-MadinaNeural,uz,latn,mixed,whisper,whisper:faster,Mana shu ekranda nima xato borligini tushuntir.,Manu shu ekrande nima hata barliginit shuntur.,uz,10722,,0.7142857142857143,0.175,0.7142857142857143,True,True,False
+x_mix_07,uz-UZ-MadinaNeural,uz,latn,mixed,gemini,whisper:faster,Mana shu ekranda nima xato borligini tushuntir.,Manu shu ekrande nima hata barliginit shuntur.,uz,13306,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.7142857142857143,0.175,0.7142857142857143,True,True,False
+x_mix_08,en-US-JennyNeural,en,latn,mixed,whisper,whisper:faster,Open the last downloaded presentation and summarize it in Uzbek.,Open the last downloaded presentation and summarize it in Uzbek.,en,10471,,0.0,0.0,,True,True,False
+x_mix_08,en-US-JennyNeural,en,latn,mixed,gemini,whisper:faster,Open the last downloaded presentation and summarize it in Uzbek.,Open the last downloaded presentation and summarize it in Uzbek.,en,10446,fallback: Gemini Transcribe: so'rovlar limiti yoki kvota tugadi (429).,0.0,0.0,,True,True,False

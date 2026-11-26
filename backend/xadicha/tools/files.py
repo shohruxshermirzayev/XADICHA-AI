@@ -10,6 +10,8 @@ import os
 import platform
 import re
 import subprocess
+
+from ..redaction import safe_env
 import time
 from pathlib import Path
 
@@ -24,15 +26,41 @@ def _allowed(p: Path, root: Path) -> bool:
         part in SKIP_DIRS or part.startswith(".") for part in p.relative_to(root).parts[:-1])
 
 
+_KIND_EXT = {"pdf": {".pdf"}, "excel": {".xls", ".xlsx", ".csv", ".numbers"}, "word": {".doc", ".docx", ".rtf", ".pages"},
+             "presentation": {".ppt", ".pptx", ".key"}, "image": {".png", ".jpg", ".jpeg", ".heic", ".gif", ".webp"},
+             "video": {".mp4", ".mov", ".mkv", ".avi"}}
+
+
+def latest_downloads(root: Path, kind: str = "", limit: int = 5) -> list[Path]:
+    """~/Downloads dagi eng yangi fayllar (o'zgartirilgan vaqti bo'yicha). Faqat workspace ichida, faqat o'qish."""
+    d = Path.home() / "Downloads"
+    if not d.is_dir() or not _allowed(d, root.expanduser().resolve()):
+        return []
+    exts = _KIND_EXT.get(kind)
+    items = []
+    for p in d.iterdir():
+        if p.name.startswith(".") or p.suffix in (".crdownload", ".part", ".download") or not p.is_file():
+            continue
+        if exts and p.suffix.lower() not in exts:
+            continue
+        try:
+            items.append((p.stat().st_mtime, p))
+        except OSError:
+            continue
+    return [p for _, p in sorted(items, reverse=True)[:limit]]
+
+
 def find_files(query: str, root: Path, limit: int = 15, timeout: float = 4.0, max_entries: int = 40000) -> list[Path]:
     q = query.strip().strip("\"'«»")
+    if q.startswith(":latest-download"):
+        return latest_downloads(root, q.split(":")[2] if q.count(":") >= 2 else "")
     if not q or len(q) > 120:
         return []
     root = root.expanduser().resolve()
     found: list[Path] = []
     if platform.system() == "Darwin":
         try:
-            r = subprocess.run(["mdfind", "-onlyin", str(root), "-name", q], capture_output=True, text=True,
+            r = subprocess.run(["mdfind", "-onlyin", str(root), "-name", q], env=safe_env(), capture_output=True, text=True,
                                timeout=timeout)
             for line in r.stdout.splitlines():
                 p = Path(line)

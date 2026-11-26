@@ -93,7 +93,7 @@ def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, 
     # Tartib muhim: CORS tashqi qatlam — 401/403 javoblari ham brauzerda o'qiladigan bo'lsin
     app.add_middleware(BaseHTTPMiddleware, dispatch=guard)
     app.add_middleware(CORSMiddleware, allow_origin_regex=LOCAL_ORIGIN.pattern,
-                       allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+                       allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
                        allow_headers=["content-type", TOKEN_HEADER])
     svc = service or XadichaService(load_config())
     app.state.service = svc
@@ -144,6 +144,49 @@ def create_app(service: XadichaService | None = None, allowed_hosts: tuple[str, 
     def stop() -> dict[str, Any]:
         svc.stop()
         return {"ok": True}
+
+    @app.get("/api/settings")
+    def settings_get() -> dict[str, Any]:
+        return svc.settings_public()
+
+    @app.put("/api/settings")
+    def settings_put(body: dict[str, Any]) -> dict[str, Any]:
+        """Faqat maxfiy bo'lmagan sozlamalar; noma'lum maydon (masalan, API kalit) — 422."""
+        from pydantic import ValidationError
+
+        from .settings import RuntimeSettings
+
+        try:
+            upd = RuntimeSettings.model_validate(body)
+        except ValidationError as e:
+            raise HTTPException(422, [{"loc": err["loc"], "msg": err["msg"]} for err in e.errors()]) from e
+        return svc.apply_settings(upd)
+
+    @app.get("/api/health")
+    def health() -> dict[str, Any]:
+        """Qisqa diagnostika: provayder, STT, Live, qidiruv — kalitsiz."""
+        st = svc.status()
+        p = st["provider"]
+        return {"ok": bool(p.get("ok")), "provider": {k: p.get(k) for k in ("name", "active", "ok", "detail",
+                                                                           "using_fallback", "last_error", "search_mode",
+                                                                           "grounding", "warnings") if k in p},
+                "stt": {k: st["stt"].get(k) for k in ("mode", "active", "offline", "last")},
+                "live": {k: st["live"].get(k) for k in ("available", "active", "state", "detail", "model")},
+                "offline_mode": svc.cfg.offline_mode, "adapter": st["adapter"], "os": st["os"]}
+
+    @app.post("/api/live/start")
+    def live_start() -> dict[str, Any]:
+        """Gemini Live (real vaqt ovozli suhbat). Mavjud bo'lmasa 409 — interfeys oddiy ovoz yo'lidan foydalanadi."""
+        if svc.busy:
+            raise HTTPException(409, "Vazifa bajarilmoqda — tugashini kuting yoki to'xtating.")
+        try:
+            return {"ok": True, "live": svc.start_live()}
+        except RuntimeError as e:
+            raise HTTPException(409, str(e)) from e
+
+    @app.post("/api/live/stop")
+    def live_stop() -> dict[str, Any]:
+        return {"ok": True, "live": svc.stop_live()}
 
     @app.post("/api/listen/start")
     def listen_start(language: str | None = None, auto: bool = False, mode: Mode = Mode.multimodal) -> dict[str, Any]:

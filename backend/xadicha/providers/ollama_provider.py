@@ -27,8 +27,10 @@ class OllamaProvider(LLMProvider):
         try:
             r = requests.post(f"{self.url}/api/chat", json=payload, timeout=self.timeout)
             r.raise_for_status()
+        except requests.Timeout as e:
+            raise ProviderError(f"Ollama javob bermadi ({self.timeout:g} s).", kind="timeout") from e
         except requests.RequestException as e:
-            raise ProviderError(f"Ollama bilan aloqa yo'q ({self.url}). Ollama ishga tushirilganmi?") from e
+            raise ProviderError(f"Ollama bilan aloqa yo'q ({self.url}). Ollama ishga tushirilganmi?", kind="network") from e
         return r.json().get("message", {}).get("content", "")
 
     def warmup(self) -> None:

@@ -10,6 +10,7 @@ import time
 import webbrowser
 from pathlib import Path
 
+from ..redaction import safe_env
 from ..models import Action
 from .base import ExecResult, OSAdapter
 
@@ -33,7 +34,7 @@ class WindowsAdapter(OSAdapter):
             # `cmd /c start` qobiq orqali ishlaydi — maxsus belgilar buyruq in'eksiyasiga olib keladi
             return ExecResult(False, "Ilova nomida ruxsat etilmagan belgilar bor", verified=False)
         target = _APP_ALIASES.get(name.lower(), name)
-        r = subprocess.run(["cmd", "/c", "start", "", target], capture_output=True, text=True, timeout=15)
+        r = subprocess.run(["cmd", "/c", "start", "", target], env=safe_env(), capture_output=True, text=True, timeout=15)
         if r.returncode != 0:
             return ExecResult(False, f"'{name}' ishga tushmadi", verified=False)
         time.sleep(1.5)
@@ -72,7 +73,7 @@ class WindowsAdapter(OSAdapter):
                   f"$n=[Math]::Max(0,[Math]::Min(100,$b+({int(delta)})));"
                   "(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods)"
                   ".WmiSetBrightness(1,$n) | Out-Null; $n")
-            r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], capture_output=True, text=True, timeout=10)
+            r = subprocess.run(["powershell", "-NoProfile", "-Command", ps], env=safe_env(), capture_output=True, text=True, timeout=10)
             if r.returncode != 0:
                 return ExecResult(False, "Yorqinlikni o'zgartirib bo'lmadi (tashqi monitor?)", verified=False)
             return ExecResult(True, f"yorqinlik {r.stdout.strip()}%", verified=None)
@@ -82,7 +83,7 @@ class WindowsAdapter(OSAdapter):
         p = Path(a.path or "").expanduser()
         if not p.exists():
             return ExecResult(False, f"Topilmadi: {p}", verified=False)
-        subprocess.run(["explorer", f"/select,{p}"], capture_output=True, timeout=10)   # explorer chiqish kodi ishonchsiz
+        subprocess.run(["explorer", f"/select,{p}"], env=safe_env(), capture_output=True, timeout=10)   # explorer chiqish kodi ishonchsiz
         return ExecResult(True, str(p), verified=None)
 
     def _to_trash(self, path: Path) -> None:

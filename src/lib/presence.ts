@@ -2,11 +2,11 @@
  * XADICHA "borligi": orb holati va vazifa vaqt chizig'i — faqat haqiqiy backend holatidan.
  * Sof TypeScript (React'siz) — `node --test` bilan sinaladi. Hech qanday soxta faollik yoki vaqt yo'q.
  */
-import type { Listening, Phase, Step, Task } from "./types";
+import type { Listening, LiveState, Phase, Step, Task } from "./types";
 
 export type OrbState =
-  | "idle" | "listening" | "processing" | "thinking" | "executing" | "speaking"
-  | "awaiting" | "interrupted" | "error" | "offline";
+  | "idle" | "listening" | "processing" | "thinking" | "searching" | "executing" | "speaking"
+  | "awaiting" | "interrupted" | "recovering" | "connecting" | "error" | "offline";
 
 export interface PresenceInput {
   online: boolean | null;
@@ -16,6 +16,12 @@ export interface PresenceInput {
   current: Task | null;
   /** Vazifa tugaganidan keyin qisqa vaqt ko'rsatiladigan natija (komponent taymer bilan o'chiradi). */
   flash?: "error" | "interrupted" | null;
+  /** Gemini Live sessiyasi holati (bo'lsa). */
+  live?: LiveState;
+  /** Hozir bajarilayotgan qadam raqami (qidiruv qadamini aniqlash uchun). */
+  activeStep?: number | null;
+  /** AI provayder zaxiraga o'tgan (masalan, Gemini → Ollama). */
+  usingFallback?: boolean;
 }
 
 /** Orb holati. Ustuvorlik: aloqa → mikrofon → tasdiq → ovoz → bajarish → qisqa natija → kutish. */
@@ -24,11 +30,19 @@ export function orbState(s: PresenceInput): OrbState {
   if (s.listening === "recording") return "listening";
   if (s.listening === "transcribing") return "processing";
   if (s.phase === "awaiting_confirmation") return "awaiting";
-  if (s.phase === "speaking") return "speaking";
+  if (s.live === "connecting") return "connecting";
+  if (s.live === "reconnecting") return "recovering";
+  if (s.live === "interrupted") return "interrupted";
+  if (s.phase === "speaking" || s.live === "speaking") return "speaking";
   if (s.busy) {
     const running = s.current?.status === "running";
+    const active = running ? s.current?.steps.find((st) => st.index === s.activeStep) : undefined;
+    if (active && active.action.type === "web_search") return "searching";
+    if (s.usingFallback && running) return "recovering";
     return running && (s.current?.steps.length ?? 0) > 0 ? "executing" : "thinking";
   }
+  if (s.live === "thinking") return "thinking";
+  if (s.live === "listening") return "listening";
   if (s.flash) return s.flash;
   return "idle";
 }

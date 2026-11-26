@@ -88,6 +88,8 @@ _ON = r"(?:yoq\b|yoqib\w*|yoqing|ёқ\b|ёқиб\w*|ёқинг|включ\w*|on)
 _SYS_REPLY = {
     "volume_up": {"uz": "Ovoz balandlatildi.", "ru": "Громкость увеличена.", "en": "Volume turned up."},
     "volume_down": {"uz": "Ovoz pasaytirildi.", "ru": "Громкость уменьшена.", "en": "Volume turned down."},
+    "screenshot": {"uz": "Skrinshot olindi va Desktop'ga saqlandi.", "ru": "Скриншот сохранён на рабочий стол.",
+                   "en": "Screenshot saved to the Desktop."},
     "volume_set": {"uz": "Ovoz {n}% ga o'rnatildi.", "ru": "Громкость установлена на {n}%.", "en": "Volume set to {n}%."},
     "mute": {"uz": "Ovoz o'chirildi.", "ru": "Звук выключен.", "en": "Sound muted."},
     "unmute": {"uz": "Ovoz yoqildi.", "ru": "Звук включён.", "en": "Sound unmuted."},
@@ -96,8 +98,16 @@ _SYS_REPLY = {
 }
 
 
+_SCREENSHOT = re.compile(r"\b(?:screenshot|screen shot|skrinshot\w*|скриншот\w*|снимок экрана|"
+                         r"(?:ekran|экран)\w*\s+(?:rasm|surat|расм|сурат)\w*(?:\s+(?:ol|qil|ол|қил|сделай)\w*)?)")
+
+
 def _one_system(part: str) -> Action | None:
     t = re.sub(r"[ʻʼ’‘`´]", "'", part.lower()).strip(" .!?")
+    if _SCREENSHOT.search(t):
+        return Action(type="system", control="screenshot")
+    # "ovoz balandligi" — ot (daraja), yo'nalish emas: "ovoz balandligini kamaytir" pastga
+    t = re.sub(r"\b(?:balandlig|баландлиг)\w*", "", t)
     num = re.search(r"(\d{1,3})\s*(?:%|foiz|фоиз|процент\w*|percent)?", t)
     n = int(num.group(1)) if num and int(num.group(1)) <= 100 else None
     vol, bri = re.search(_VOL, t), re.search(_BRI, t)
@@ -121,7 +131,10 @@ def _one_system(part: str) -> Action | None:
             return Action(type="system", control="brightness_down", amount=n)
         return None
     if vol:
-        if n is not None and not re.search(_UP + "|" + _DOWN, t):
+        # Faqat bir ma'noli "gacha": "50 gacha tushir", "уменьши до 30", "turn it down to 20" — aniq qiymatga o'rnatish.
+        # "50 foizga tushir" — o'zbek tilida "50 ga kamaytir" ham bo'lishi mumkin, shuning uchun qadam sifatida qoladi.
+        target = n is not None and re.search(rf"\b{n}\s*(?:%|foiz|фоиз)?\s*-?(?:gacha|гача)\b|\bдо\s+{n}\b|\bto\s+{n}\b", t)
+        if n is not None and (target or not re.search(_UP + "|" + _DOWN, t)):
             return Action(type="system", control="volume_set", amount=n)
         if re.search(_OFF, t):
             return Action(type="system", control="mute")

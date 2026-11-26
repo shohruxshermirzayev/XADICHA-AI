@@ -13,6 +13,7 @@ import { GlassInput, GlassPanel, PanelTitle } from "./glass";
 import { TaskTimeline, TraceList } from "./task-timeline";
 import { Button, TaskStatus } from "./ui";
 import { VoiceControl } from "./voice-control";
+import { CommandPartial, GroundingMeta, LatencyChip, LiveButton, LiveTranscript, ProviderChips, SearchSuggestions, prettyProvider } from "./voice-intel";
 
 type X = ReturnType<typeof useXadicha>;
 interface L { lang: Lang; setLang: (l: Lang) => void; t: T }
@@ -39,8 +40,9 @@ export function usePresence(x: X): { orb: OrbState; segments: RowState[] } {
     const off = setTimeout(() => setFlash(null), 5000);
     return () => { clearTimeout(on); clearTimeout(off); };
   }, [x.error]);
-  const orb = orbState({ online: x.online, listening: x.listening, phase: x.phase, busy: x.busy, current: x.current, flash });
   const { activeStep } = x;
+  const orb = orbState({ online: x.online, listening: x.listening, phase: x.phase, busy: x.busy, current: x.current, flash,
+    live: x.live.state, activeStep, usingFallback: !!x.status?.provider.using_fallback });
   const segments = useMemo(() => (current ? timeline(current, { activeStep })
     .filter((r) => r.step).map((r) => r.state) : []), [current, activeStep]);
   return { orb, segments };
@@ -102,7 +104,8 @@ export function AssistantView({ x, l, onOpenScreen, screenSummary }: {
   const lastUser = [...x.messages].reverse().find((m) => m.role === "user");
   const retry = lastUser && !busy && !offline
     ? () => x.run(lastUser.text, (lastUser.lang as Lang) ?? lang, mode) : undefined;
-  const voiceDisabled = offline || (busy && x.listening !== "recording");
+  const liveOn = x.live.state !== "idle" && x.live.state !== "closed" && x.live.state !== "error";
+  const voiceDisabled = offline || liveOn || (busy && x.listening !== "recording");
 
   return (
     <div className="grid min-h-0 gap-4 xl:h-[calc(100dvh-7rem)] xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -125,6 +128,9 @@ export function AssistantView({ x, l, onOpenScreen, screenSummary }: {
           )}
         </AnimatePresence>
 
+        <LiveTranscript state={x.live.state} user={x.live.user} assistant={x.live.assistant} t={t} />
+        <CommandPartial text={x.partial} level={x.micLevel} active={x.listening === "recording" || (x.listening === "transcribing" && !!x.partial)} t={t} />
+
         {/* Ovoz va matn — bitta suzuvchi kapsula */}
         <div className="px-3 pb-3 sm:px-4 sm:pb-4">
           <div className="glass-strong flex items-center gap-2 rounded-[26px] p-2 pr-2.5 transition-[border-color,box-shadow] duration-200 focus-within:border-primary/45 focus-within:shadow-[inset_0_1px_0_rgb(255_255_255/0.14),0_0_0_4px_rgb(119_117_255/0.12),var(--shadow-float)]">
@@ -135,6 +141,7 @@ export function AssistantView({ x, l, onOpenScreen, screenSummary }: {
               <GlassInput id="cmd" ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} disabled={offline} lang={lang}
                 placeholder={t("input.placeholder")} autoComplete="off"
                 className="h-11 flex-1 border-transparent bg-transparent px-2 focus:border-transparent focus:bg-transparent focus-visible:ring-0" />
+              <LiveButton status={x.status} state={x.live.state} busy={busy} onStart={x.startLive} onStop={x.stopLive} t={t} />
               <label className="hidden items-center sm:flex">
                 <span className="sr-only">{t("mode.label")}</span>
                 <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} title={`${t("mode.label")}: ${t(`mode.${mode}.hint`)}`}
@@ -157,7 +164,11 @@ export function AssistantView({ x, l, onOpenScreen, screenSummary }: {
               <span className={cn("size-1.5 shrink-0 rounded-full", ORB_DOT[orb])} />
               <span className="truncate">{t(`orb.${orb}` as MsgKey)}</span>
             </p>
-            <p className="hidden shrink-0 text-faint sm:block">{t("chat.hint")}</p>
+            <div className="flex min-w-0 items-center gap-3">
+              <LatencyChip lat={x.latency} t={t} />
+              <ProviderChips status={x.status} t={t} />
+              <p className="hidden shrink-0 text-faint xl:block">{t("chat.hint")}</p>
+            </div>
           </div>
         </div>
       </GlassPanel>
@@ -182,6 +193,7 @@ const ORB_DOT: Record<OrbState, string> = {
   idle: "bg-success", listening: "animate-pulse bg-secondary", processing: "animate-pulse bg-secondary",
   thinking: "animate-pulse bg-primary", executing: "animate-pulse bg-blue", speaking: "animate-pulse bg-primary",
   awaiting: "bg-warning", interrupted: "bg-warning", error: "bg-destructive", offline: "bg-destructive",
+  searching: "animate-pulse bg-secondary", connecting: "animate-pulse bg-secondary", recovering: "animate-pulse bg-warning",
 };
 
 /* ---------------- Aniqlashtirish ---------------- */
@@ -284,9 +296,12 @@ function Conversation({ x, lang, t, orb, onExample, onRetry, onToggleVoice }: {
   const isLive = (m: ChatMessage) => m.role === "assistant" && !initialIds.has(m.id) && !m.id.startsWith("turn-");
 
   // Foydalanuvchi yuqoriga aylantirgan bo'lsa — joyidan siljitilmaydi; "Yangi xabarlar" tugmasi chiqadi
+  // Pastda turgan bo'lsa — kontent o'sganda ham (kartochka, manbalar keyin yuklanadi) pastda qoladi
   const box = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const [unseen, setUnseen] = useState(false);
+  const hasMessages = messages.length > 0;
   const toBottom = useCallback((smooth = true) => {
     const el = box.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
@@ -297,18 +312,32 @@ function Conversation({ x, lang, t, orb, onExample, onRetry, onToggleVoice }: {
     atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 96;
     if (atBottom.current) setUnseen(false);
   };
+  useEffect(() => {
+    const el = box.current;
+    const inner = content.current;
+    if (!el || !inner) return;
+    atBottom.current = true;
+    el.scrollTop = el.scrollHeight;   // ochilganda — darhol oxirgi xabarga (animatsiyasiz)
+    const ro = new ResizeObserver(() => {
+      if (atBottom.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(inner);
+    return () => ro.disconnect();
+  }, [hasMessages]);
   const signal = `${messages.length}:${thinking ? 1 : 0}:${x.clarify ? 1 : 0}`;
+  const lastIsUser = messages[messages.length - 1]?.role === "user";
   useEffect(() => {
     const id = setTimeout(() => {
-      if (atBottom.current) toBottom();
-      else setUnseen(true);
+      // Foydalanuvchi o'zi yozgan bo'lsa — javobni ko'rishi uchun pastga qaytamiz
+      if (lastIsUser) { atBottom.current = true; toBottom(); setUnseen(false); }
+      else if (!atBottom.current) setUnseen(true);
     }, 60);
     return () => clearTimeout(id);
-  }, [signal, toBottom]);
+  }, [signal, lastIsUser, toBottom]);
 
   if (!messages.length) {
     return (
-      <div className="relative flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-6 text-center">
+      <div className="scroll-fade relative flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6 py-6 text-center [--fade:40px]">
         <div aria-hidden onClick={onToggleVoice} className={cn("mb-3", onToggleVoice && "cursor-pointer")}>
           <AIOrb state={orb} level={x.micLevel} size={156} />
         </div>
@@ -331,9 +360,9 @@ function Conversation({ x, lang, t, orb, onExample, onRetry, onToggleVoice }: {
   const lastSystem = [...messages].reverse().find((m) => m.role !== "user");
   return (
     <div className="relative min-h-0 flex-1">
-      <div ref={box} onScroll={onScroll} className="scroll-soft absolute inset-0 overflow-y-auto px-4 py-4 sm:px-6"
+      <div ref={box} onScroll={onScroll} className="scroll-soft scroll-fade absolute inset-0 overflow-y-auto px-4 py-5 sm:px-6"
         role="log" aria-live="polite" aria-relevant="additions">
-        <div className="mx-auto max-w-3xl">
+        <div ref={content} className="mx-auto max-w-3xl">
           <AnimatePresence initial={false}>
             {messages.map((m, i) => {
               const prev = messages[i - 1];
@@ -362,7 +391,19 @@ function Conversation({ x, lang, t, orb, onExample, onRetry, onToggleVoice }: {
               );
             })}
           </AnimatePresence>
-          {thinking && (
+          {thinking && x.streaming && x.streaming.taskId === x.current?.id && (
+            <div className="mt-5 flex flex-col items-start" role="status" aria-live="polite">
+              <span className="mb-1.5 flex items-center gap-2 px-1 text-[11px] font-medium tracking-wide text-muted-foreground">
+                <span aria-hidden className="size-3.5 rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff_0%,#a5a4ff_25%,#4f4de0_60%,#1b1f4a_100%)] shadow-[0_0_10px_rgb(119_117_255/0.6)]" />
+                XADICHA
+              </span>
+              <div data-msg="streaming" className="glass-subtle max-w-[88%] rounded-[20px] rounded-bl-md px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-foreground">
+                {x.streaming.text}
+                <span aria-hidden className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] animate-pulse bg-secondary" />
+              </div>
+            </div>
+          )}
+          {thinking && !(x.streaming && x.streaming.taskId === x.current?.id) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-5 flex items-center gap-3 text-xs text-muted-foreground"
               role="status" aria-live="polite">
               <span className="glass-subtle inline-flex items-center gap-1.5 rounded-[18px] rounded-bl-md px-3.5 py-3" aria-hidden>
@@ -409,10 +450,19 @@ function MessageBubble({ m, t, animate, onRetry }: { m: ChatMessage; t: T; anima
   }
   if (m.role === "user") {
     return (
-      <div lang={m.lang} data-msg="user"
-        className="max-w-[82%] rounded-[20px] rounded-br-md bg-[linear-gradient(135deg,rgb(129_127_255/0.95),rgb(80_118_255/0.85))] px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_12px_30px_-16px_rgb(119_117_255/0.9)]">
-        {m.text}
-      </div>
+      <>
+        <div lang={m.lang} data-msg="user"
+          className="max-w-[82%] rounded-[20px] rounded-br-md bg-[linear-gradient(135deg,rgb(129_127_255/0.95),rgb(80_118_255/0.85))] px-4 py-2.5 text-[15px] leading-relaxed whitespace-pre-wrap text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.25),0_12px_30px_-16px_rgb(119_117_255/0.9)]">
+          {m.text}
+        </div>
+        {m.voice?.stt && (
+          <span className={cn("mt-1 px-1.5 text-[10px]", m.voice.fallbackFrom ? "text-warning" : "text-faint")}
+            title={m.voice.fallbackReason}>
+            {t("msg.heardBy", { lang: (m.lang ?? "").toUpperCase() || "—", stt: prettyProvider(m.voice.stt) })}
+            {m.voice.fallbackFrom ? ` · ${t("msg.sttFallback", { from: prettyProvider(m.voice.fallbackFrom), to: prettyProvider(m.voice.stt) })}` : ""}
+          </span>
+        )}
+      </>
     );
   }
   return (
@@ -432,7 +482,10 @@ function MessageBubble({ m, t, animate, onRetry }: { m: ChatMessage; t: T; anima
 /** Suhbat ichidagi vazifa kartochkasi: manbalar / fayllar va ochiladigan bajarilish tafsilotlari. */
 function TaskCard({ task, lang, t }: { task: Task; lang: Lang; t: T }) {
   const [open, setOpen] = useState(false);
+  const [allSources, setAllSources] = useState(false);
   const results = task.data?.results ?? [];
+  const sources = results.slice(0, 5);
+  const shownSources = allSources ? sources : sources.slice(0, 3);
   const isSearch = results.some((r) => r.url);
   const isFiles = results.some((r) => r.path);
   return (
@@ -445,10 +498,14 @@ function TaskCard({ task, lang, t }: { task: Task; lang: Lang; t: T }) {
       {isSearch && (
         <div className="glass-subtle rounded-[18px] p-3.5">
           <p className="mb-2.5 text-[11px] font-medium tracking-wide text-muted-foreground">
-            {t("card.sources")}{task.data?.search_provider ? ` · ${t("card.via", { p: task.data.search_provider })}` : ""}
+            {t("card.sources")}{task.data?.search_provider === "google_search" ? ` · ${t("card.google")}`
+              : task.data?.search_provider ? ` · ${t("card.via", { p: task.data.search_provider })}` : ""}
           </p>
+          {task.data?.grounding_error && task.data.search_provider !== "google_search" && (
+            <p className="-mt-1 mb-2 text-[11px] text-warning" title={task.data.grounding_error}>{t("card.groundingFallback")}</p>
+          )}
           <ol className="space-y-2.5">
-            {results.slice(0, 5).map((r, i) => (
+            {shownSources.map((r, i) => (
               <li key={r.url ?? i} className="text-[13px]">
                 <a href={r.url} target="_blank" rel="noreferrer noopener"
                   className="inline-flex items-start gap-1.5 font-medium text-foreground hover:text-secondary focus-visible:outline-2 focus-visible:outline-ring">
@@ -460,6 +517,15 @@ function TaskCard({ task, lang, t }: { task: Task; lang: Lang; t: T }) {
               </li>
             ))}
           </ol>
+          {task.data?.grounding && <GroundingMeta g={task.data.grounding} t={t} />}
+          {task.data?.grounding?.search_entry_point && <SearchSuggestions html={task.data.grounding.search_entry_point} t={t} />}
+          {sources.length > 3 && (
+            <button type="button" onClick={() => setAllSources((v) => !v)} aria-expanded={allSources}
+              className="mt-2.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
+              <ChevronDown className={cn("size-3 transition-transform", allSources && "rotate-180")} aria-hidden />
+              {allSources ? t("card.hide") : t("card.moreSources", { n: sources.length - 3 })}
+            </button>
+          )}
         </div>
       )}
       {isFiles && (
@@ -510,7 +576,7 @@ export function CurrentTaskPanel({ task, lang, t, activeStep, awaiting = false, 
         ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning">{t("task.awaiting")}</span>
         : <TaskStatus status={task.status} t={t} />) : null}>{title ?? t("task.title")}</PanelTitle>
       {!task ? (
-        <p className="py-8 text-center text-sm leading-relaxed text-muted-foreground">{t("task.empty")}</p>
+        <p className="py-5 text-center text-sm leading-relaxed text-muted-foreground">{t("task.empty")}</p>
       ) : (
         <div className="scroll-soft -mr-2 min-h-0 space-y-4 overflow-y-auto pr-2">
           <p className="text-[15px] font-medium leading-snug" lang={task.language}>{task.instruction}</p>

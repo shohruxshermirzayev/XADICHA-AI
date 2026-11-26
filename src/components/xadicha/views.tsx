@@ -75,7 +75,10 @@ export function DashboardView({ x, l }: { x: X; l: L }) {
       <p className="px-1 text-xs text-muted-foreground">{t("dash.live")}</p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label={t("dash.assistant")} value={x.online ? t(`phase.${x.phase}`) : t("dash.offline")} ok={x.online} />
-        <StatCard label={t("dash.model")} value={s ? `${s.provider.name}` : "—"} sub={s?.provider.detail !== "ok" ? s?.provider.detail : String(s?.config.model ?? "")} ok={s?.provider.ok} />
+        <StatCard label={t("dash.model")} value={s ? `${s.provider.name}${s.provider.using_fallback ? ` (${t("chip.fallback")})` : ""}` : "—"}
+          sub={s?.provider.using_fallback ? t("prov.usingFallback", { why: s.provider.last_error || "—" })
+            : s?.provider.detail !== "ok" ? s?.provider.detail : String(s?.provider.primary?.active_model || s?.config.model || "")}
+          ok={s ? s.provider.ok && !s.provider.using_fallback : null} />
         <StatCard label={t("dash.platform")} value={s?.os ?? "—"} sub={s ? `${t("dash.adapter")}: ${s.adapter}` : undefined} ok={!!s} />
         <StatCard label={t("dash.tsr")} value={s?.stats.success_rate != null ? `${s.stats.success_rate}%` : "—"}
           sub={s ? t("dash.tasksOf", { a: s.stats.success, b: s.stats.success + s.stats.failed }) : undefined} ok={s ? (s.stats.success_rate ?? 0) >= 50 : null} />

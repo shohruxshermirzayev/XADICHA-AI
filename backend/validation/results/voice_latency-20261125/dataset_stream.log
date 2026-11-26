@@ -1,0 +1,143 @@
+NEW v_uzl_01-uz-UZ-MadinaNeural: partial=1806 final=3694 action=3828 audio=3829 [server] 'Kalkulyatorni ishga tushir.'
+NEW v_uzl_02-uz-UZ-MadinaNeural: partial=1610 final=3607 action=3780 audio=3781 [server] 'Notes ilovasini ochib ber.'
+NEW v_uzl_03-uz-UZ-MadinaNeural: partial=1147 final=2993 action=3168 audio=3169 [server] 'Finder ni och.'
+NEW v_uzl_04-uz-UZ-MadinaNeural: partial=1115 final=3466 action=3599 audio=3600 [server] "Telegram'ni ochib qo'y."
+NEW v_uzl_05-uz-UZ-MadinaNeural: partial=1903 final=3749 action=None audio=3899 [server] 'YouTube saytiga kir.'
+NEW v_uzl_06-uz-UZ-MadinaNeural: partial=1576 final=3721 action=3840 audio=3841 [server] 'Googledan ob-havo qidir.'
+NEW v_uzl_07-uz-UZ-MadinaNeural: partial=1129 final=3790 action=3926 audio=11318 [server] "Toshkent haqida ma'lumot qidir."
+NEW v_uzl_08-uz-UZ-MadinaNeural: partial=1769 final=3575 action=3782 audio=6764 [server] "Ovozni 70 ga qo'y."
+NEW v_uzl_09-uz-UZ-MadinaNeural: partial=1513 final=3935 action=3938 audio=9611 [interim] 'Ovozni biroz pasaytir.'
+NEW v_uzl_10-uz-UZ-MadinaNeural: partial=None final=6098 action=None audio=None [empty] ''
+NEW v_uzl_11-uz-UZ-MadinaNeural: partial=1717 final=3613 action=3830 audio=8404 [server] 'Shartnoma faylini topib ber.'
+NEW v_uzl_12-uz-UZ-MadinaNeural: partial=1737 final=3552 action=None audio=3688 [server] 'Ovozni butunlay ochir.'
+NEW v_uzl_13-uz-UZ-MadinaNeural: partial=1573 final=3640 action=None audio=3775 [server] "Ekrannadagi matnni o'qib ber."
+NEW v_uzl_14-uz-UZ-MadinaNeural: partial=1137 final=3505 action=None audio=3664 [server] 'Safari-ni açıb yubar.'
+NEW v_uzc_01-uz-UZ-MadinaNeural: partial=1550 final=3602 action=3749 audio=3750 [server] 'Kalkulyatorni ishga tushir.'
+NEW v_uzc_02-uz-UZ-MadinaNeural: partial=1115 final=3225 action=3367 audio=3368 [server] 'Telegramni ochib ber.'
+NEW v_uzc_03-uz-UZ-MadinaNeural: partial=1178 final=3308 action=3438 audio=8309 [server] "Safari'ni ishga tushir."
+NEW v_uzc_04-uz-UZ-MadinaNeural: partial=1107 final=3033 action=None audio=3034 [interim] 'Kun.uz'
+NEW v_uzc_05-uz-UZ-MadinaNeural: partial=None final=None action=None audio=None [error] ''
+NEW v_uzc_06-uz-UZ-MadinaNeural: partial=None final=None action=None audio=None [error] ''
+NEW v_uzc_07-uz-UZ-MadinaNeural: partial=1578 final=3312 action=3435 audio=10702 [server] "Yorug'likni pasaytir."
+NEW v_uzc_08-uz-UZ-MadinaNeural: partial=None final=None action=None audio=None [error] ''
+NEW v_uzc_09-uz-UZ-MadinaNeural: partial=1770 final=3244 action=3382 audio=3446 [server] 'Shartnoma faylini top.'
+NEW v_uzc_10-uz-UZ-MadinaNeural: partial=None final=None action=None audio=None [error] ''
+NEW v_uzc_11-uz-UZ-MadinaNeural: partial=1576 final=3774 action=None audio=3975 [server] 'Ekranda nima borligini ayt.'
+NEW v_uzc_12-uz-UZ-MadinaNeural: partial=1359 final=4319 action=4444 audio=7467 [server] "Ovozni ko'tar va yorug'likni kamaytir."
+NEW v_uzc_13-uz-UZ-MadinaNeural: partial=1058 final=2856 action=3005 audio=3005 [server] 'Finder ni och.'
+NEW v_uzc_14-uz-UZ-MadinaNeural: partial=1491 final=3490 action=3622 audio=3622 [server] 'Ovozni oskin pasaytir.'
+NEW v_ru_01-ru-RU-SvetlanaNeural: partial=1604 final=3283 action=3434 audio=3435 [server] 'Запусти калькулятор.'
+NEW v_ru_02-ru-RU-SvetlanaNeural: partial=1571 final=3171 action=3317 audio=3317 [server] 'Запусти Finder.'
+NEW v_ru_03-ru-RU-SvetlanaNeural: partial=1554 final=3159 action=3288 audio=3288 [server] 'Открой Notes.'
+NEW v_ru_04-ru-RU-SvetlanaNeural: partial=2061 final=3984 action=4125 audio=4126 [server] 'Зайди на сайт con.uz.'
+NEW v_ru_05-ru-RU-SvetlanaNeural: partial=1803 final=4818 action=4979 audio=12496 [server] 'Найди в интернете информацию о Ташкенте.'
+NEW v_ru_06-ru-RU-SvetlanaNeural: partial=1633 final=14874 action=None audio=14875 [interim] 'Поставь громкость на'
+NEW v_ru_07-ru-RU-SvetlanaNeural: partial=None final=13442 action=None audio=None [empty] ''
+NEW v_ru_08-ru-RU-SvetlanaNeural: partial=3811 final=13940 action=None audio=13940 [interim] 'Сделай'
+NEW v_ru_09-ru-RU-SvetlanaNeural: partial=None final=13659 action=None audio=None [empty] ''
+NEW v_ru_10-ru-RU-SvetlanaNeural: partial=1731 final=3774 action=3900 audio=3900 [server] 'Найди на YouTube новости.'
+NEW v_ru_11-ru-RU-SvetlanaNeural: partial=None final=13811 action=None audio=None [empty] ''
+NEW v_ru_12-ru-RU-SvetlanaNeural: partial=1728 final=3671 action=None audio=3850 [server] 'Расскажи, что сейчас на экране.'
+NEW v_en_01-en-US-JennyNeural: partial=1694 final=3615 action=4314 audio=4314 [server] 'Start the Calculator app.'
+NEW v_en_02-en-US-JennyNeural: partial=1725 final=2764 action=2894 audio=2894 [server] 'Launch Finder.'
+NEW v_en_03-en-US-JennyNeural: partial=1089 final=3020 action=3185 audio=3185 [server] 'Open the Notes app.'
+NEW v_en_04-en-US-JennyNeural: partial=1170 final=3328 action=3478 audio=3478 [server] 'Go to github.com.'
+NEW v_en_05-en-US-JennyNeural: partial=1719 final=4679 action=4680 audio=9572 [interim] 'Search the web for Tashkent.'
+NEW v_en_06-en-US-JennyNeural: partial=1834 final=3480 action=3633 audio=5731 [server] 'Set the volume to 60.'
+NEW v_en_07-en-US-JennyNeural: partial=1635 final=2753 action=None audio=2872 [server] 'Make it quieter.'
+NEW v_en_08-en-US-JennyNeural: partial=1629 final=2813 action=None audio=3063 [server] 'Dim the screen.'
+NEW v_en_09-en-US-JennyNeural: partial=1236 final=3463 action=None audio=3590 [server] 'Find the contract file.'
+NEW v_en_10-en-US-JennyNeural: partial=1583 final=3250 action=3383 audio=3384 [server] 'Search YouTube for news.'
+NEW v_en_11-en-US-JennyNeural: partial=2493 final=3344 action=3606 audio=5792 [server] 'Turn the sound back on.'
+NEW v_en_12-en-US-JennyNeural: partial=1633 final=3490 action=None audio=4091 [server] 'Describe what is on my screen.'
+NEW v_mix_01-uz-UZ-MadinaNeural: partial=None final=13748 action=None audio=None [empty] ''
+NEW v_mix_02-uz-UZ-MadinaNeural: partial=1951 final=3788 action=3789 audio=3789 [interim] "YouTube'da musiqa top."
+NEW v_mix_03-uz-UZ-MadinaNeural: partial=2008 final=3636 action=3777 audio=3777 [server] 'Brauzerdagi kun.uz ni och.'
+NEW v_mix_04-uz-UZ-MadinaNeural: partial=1534 final=3503 action=None audio=3679 [server] "Ko'kda devyatyer qidir."
+NEW v_mix_05-ru-RU-SvetlanaNeural: partial=1704 final=3940 action=None audio=4096 [server] 'Сделай громче Ultimus.'
+NEW v_mix_06-uz-UZ-MadinaNeural: partial=1143 final=3178 action=3394 audio=3394 [server] 'Finder ni ochingl.'
+NEW v_mix_07-ru-RU-SvetlanaNeural: partial=1582 final=4003 action=4189 audio=6391 [server] 'Открой Telegram iltimos.'
+NEW v_mix_08-uz-UZ-MadinaNeural: partial=1571 final=3516 action=3646 audio=3646 [server] 'Plyusi ovozini pasaytir.'
+NEW x_mix_01-uz-UZ-MadinaNeural: partial=1195 final=4039 action=4194 audio=5907 [server] 'Xadicha, Google Chrome ni och.'
+NEW x_mix_02-uz-UZ-MadinaNeural: partial=1718 final=4257 action=4403 audio=7379 [server] 'Kecha yuklab olgan PDF faylimni top.'
+NEW x_mix_03-uz-UZ-MadinaNeural: partial=1757 final=3079 action=None audio=3080 [interim] 'Xadicha'
+NEW x_mix_04-en-US-JennyNeural: partial=1598 final=5133 action=5314 audio=7120 [server] 'Open VS Code and find my latest Python p'
+NEW x_mix_05-uz-UZ-MadinaNeural: partial=1084 final=4283 action=4424 audio=4424 [server] 'Xadicha ovozini 50 foizga tushir.'
+NEW x_mix_06-uz-UZ-MadinaNeural: partial=1738 final=6037 action=6154 audio=9938 [server] 'Internetdan Gemini Live app haqida eng y'
+NEW x_mix_07-uz-UZ-MadinaNeural: partial=1065 final=4815 action=None audio=5037 [server] 'Mana shu ekranda nima xato borligini tus'
+NEW x_mix_08-en-US-JennyNeural: partial=1500 final=5789 action=6251 audio=11995 [server] 'Open the last downloaded presentation an'
+{
+ "new": {
+  "first_partial": {
+   "p50": 1583,
+   "p95": 2013,
+   "after_speech_end_p50": -1410,
+   "after_speech_end_p95": -552,
+   "n": 59
+  },
+  "final_transcript": {
+   "p50": 3614,
+   "p95": 13734,
+   "after_speech_end_p50": 567,
+   "after_speech_end_p95": 10726,
+   "n": 64
+  },
+  "intent": {
+   "p50": 3777,
+   "p95": 6163,
+   "after_speech_end_p50": 733,
+   "after_speech_end_p95": 1429,
+   "n": 59
+  },
+  "first_action": {
+   "p50": 3778,
+   "p95": 5297,
+   "after_speech_end_p50": 702,
+   "after_speech_end_p95": 1139,
+   "n": 42
+  },
+  "response_text": {
+   "p50": 3777,
+   "p95": 6806,
+   "after_speech_end_p50": 738,
+   "after_speech_end_p95": 2572,
+   "n": 59
+  },
+  "response_audio": {
+   "p50": 3841,
+   "p95": 12045,
+   "after_speech_end_p50": 772,
+   "after_speech_end_p95": 8073,
+   "n": 59
+  },
+  "intent_ok": 0.5882352941176471,
+  "wer": 0.4333,
+  "cer": 0.3503,
+  "wer_uz_script_insensitive": 0.4169,
+  "intent_accuracy": 0.6765,
+  "by_lang": {
+   "uz": {
+    "n": 40,
+    "wer": 0.6128,
+    "cer": 0.4837
+   },
+   "ru": {
+    "n": 14,
+    "wer": 0.3536,
+    "cer": 0.3192
+   },
+   "en": {
+    "n": 14,
+    "wer": 0.0,
+    "cer": 0.0
+   }
+  },
+  "pooled": 59,
+  "finalized_by": {
+   "server": 52,
+   "interim": 7,
+   "empty": 5,
+   "error": 4
+  }
+ }
+}

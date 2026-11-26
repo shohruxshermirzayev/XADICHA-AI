@@ -67,3 +67,21 @@ tasdiq), `test_state.py` (to'xtatish). Barchasi simulyatsiya (dry-run); haqiqiy 
 - `type_text` va `hotkey` kontekstga bog'liq: "yuborish" so'zi bo'lmasa o'rta xavf hisoblanadi.
 - Claude provayderida ekran surati tashqi serverga ketadi — foydalanuvchi bilishi kerak.
 - Windows adapteri umuman sinalmagan.
+
+## Bulut kalitlari (Gemini) — 2026-11
+
+- `GEMINI_API_KEY` faqat `backend/.env` dan o'qiladi va o'qilgandan keyin jarayon muhitidan olib tashlanadi.
+  Kalit frontend kodida, `NEXT_PUBLIC_*` o'zgaruvchilarida, brauzer `localStorage`'ida, API javoblarida
+  (`/api/status`, `/api/health`, `/api/settings`, `/api/tasks`), WebSocket hodisalarida, loglarda va git'da yo'q.
+- `redaction.py`: `sk-ant-…`, `AIza…`, URL'dagi `key=/api_key=/token=`, `Bearer …`, `api_key=…` naqshlari va
+  konfiguratsiyadagi har qanday kalitning **aynan qiymati** `***` bilan almashtiriladi — log yozuvi, traceback
+  (`exc_text`), WebSocket `error` xabari, `grounding_error`, Live xatolari.
+- `safe_env()`: `open`, `osascript`, `say`, `mdfind`, PowerShell va boshqa subprocess'larga `*_API_KEY`, `*_TOKEN`,
+  `*SECRET*`, `*PASSWORD*`, `*CREDENTIAL*` o'zgaruvchilarisiz muhit beriladi.
+- `PUT /api/settings` faqat whitelist'dagi maxfiy bo'lmagan maydonlarni qabul qiladi (`extra="forbid"` → 422).
+- Gemini (va Gemini Live) faqat registry'dagi harakatlarni taklif qiladi yoki `run_xadicha_command` orqali agentga
+  matn beradi — xavf darajasi, tasdiq, allowlist va taqiqlangan yo'llar o'zgarmagan; shell bajarilmaydi.
+- Google Search grounding natijalari va Search Suggestions o'zgartirilmaydi; Suggestions skriptsiz `iframe`
+  (`sandbox="allow-popups"`) da ko'rsatiladi.
+- Tekshiruv: `tests/test_gemini.py` (redaksiya, traceback, hodisalar, subprocess muhiti, status), haqiqiy backend
+  javoblarida kalit qiymati skaneri (2026-11-25: topilmadi).

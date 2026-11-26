@@ -8,7 +8,7 @@
  *  - Sarlavha, yordamchi, vazifa paneli va dashboard — barchasi shu `phase`/`busy` dan o'qiydi.
  */
 import type { BackendEvent } from "./events";
-import type { Confirmation, Listening, Phase, Status, Step, Task } from "./types";
+import type { Confirmation, Listening, LiveState, Phase, Status, Step, Task } from "./types";
 
 export interface UiState {
   status: Status | null;
@@ -23,11 +23,31 @@ export interface UiState {
   micLevel: number;
   /** Hozir bajarilayotgan qadam (step_started → step_finished oralig'i); vaqt chizig'i uchun. */
   activeStep: number | null;
+  /** Gemini Live: haqiqiy sessiya holati va jonli (tugallanmagan) transkripsiya. */
+  live: { state: LiveState; user: string; assistant: string };
+  /** Buyruq rejimi: gapirilayotgan paytdagi oraliq matn (backend stt_partial). */
+  partial: string;
+  /** Oxirgi ovozli so'rovning haqiqiy kechikishlari (ms, mikrofon boshidan). */
+  latency: VoiceLatency | null;
+  /** Model javobi yozilmoqda (oqim): qaysi vazifa va hozirgacha kelgan haqiqiy matn. */
+  streaming: { taskId: string; text: string } | null;
+}
+
+export interface VoiceLatency {
+  ttf_partial: number | null; ttf_final: number | null; tt_first_action: number | null;
+  tt_response_text: number | null; tt_response_audio: number | null; e2e: number | null; stt: string;
+}
+
+const LIVE_ON = new Set<LiveState>(["connecting", "reconnecting", "listening", "thinking", "speaking", "interrupted"]);
+export function liveActive(st: Pick<UiState, "live">): boolean {
+  return LIVE_ON.has(st.live.state);
 }
 
 export const initialState: UiState = {
   status: null, seq: 0, instance: null, busy: false, phase: "idle", currentTaskId: null,
   current: null, confirmation: null, listening: "idle", micLevel: 0, activeStep: null,
+  live: { state: "idle", user: "", assistant: "" },
+  partial: "", latency: null, streaming: null,
 };
 
 const PHASES = new Set<Phase>(["idle", "running", "awaiting_confirmation", "speaking"]);
@@ -47,8 +67,13 @@ export function applyStatus(st: UiState, s: Status): UiState {
   const fresh = restarted || typeof s.seq !== "number" || s.seq >= st.seq;
   if (!fresh) return { ...st, status: s };
   const listening = s.listening ?? st.listening;
+  // Live: backend aktiv emas desa — interfeys ham "jonli" deb ko'rsatmaydi (soxta holat yo'q)
+  const live = s.live && !s.live.active && LIVE_ON.has(st.live.state)
+    ? { state: "idle" as LiveState, user: "", assistant: "" }
+    : s.live?.active && s.live.state !== st.live.state ? { ...st.live, state: s.live.state } : st.live;
   return {
     ...st,
+    live,
     status: s,
     seq: typeof s.seq === "number" ? s.seq : st.seq,
     instance: s.instance ?? st.instance,
@@ -57,7 +82,7 @@ export function applyStatus(st: UiState, s: Status): UiState {
     currentTaskId: s.current_task,
     confirmation: keepSameConfirmation(st.confirmation, s.pending_confirmation ?? null),
     listening,
-    micLevel: listening === "recording" ? st.micLevel : 0,
+    micLevel: listening === "recording" || LIVE_ON.has(live.state) ? st.micLevel : 0,
   };
 }
 
@@ -101,6 +126,7 @@ export function applyEvent(st: UiState, e: BackendEvent): UiState {
       return next;
     }
     case "task_finished":
+      next.streaming = null;
       // Vazifa tugadi; "band" holati esa backend `state` hodisasi bilan yopiladi (ovoz gapirib bo'lgach)
       next.current = e.task as Task;
       next.activeStep = null;
@@ -117,9 +143,39 @@ export function applyEvent(st: UiState, e: BackendEvent): UiState {
     case "listening":
       next.listening = e.state as Listening;
       if (e.state !== "recording") next.micLevel = 0;
+      if (e.state === "recording") next.partial = "";
       return next;
+    case "response_partial":
+      next.streaming = { taskId: e.task_id as string, text: e.text as string };
+      return next;
+    case "stt_partial":
+      next.partial = next.listening === "recording" || next.listening === "transcribing" ? (e.text as string) : "";
+      return next;
+    case "transcript":
+      next.partial = "";
+      return next;
+    case "voice_latency": {
+      const n = (k: string) => (typeof e[k] === "number" ? (e[k] as number) : null);
+      next.latency = { ttf_partial: n("ttf_partial"), ttf_final: n("ttf_final"), tt_first_action: n("tt_first_action"),
+        tt_response_text: n("tt_response_text"), tt_response_audio: n("tt_response_audio"), e2e: n("e2e"),
+        stt: typeof e.stt === "string" ? e.stt : "" };
+      return next;
+    }
     case "mic_level":
-      next.micLevel = next.listening === "recording" ? (e.level as number) : 0;
+      next.micLevel = next.listening === "recording" || liveActive(next) ? (e.level as number) : 0;
+      return next;
+    case "live_state": {
+      const state = e.state as LiveState;
+      const ended = state === "idle" || state === "closed" || state === "error";
+      next.live = { state, user: ended ? "" : next.live.user, assistant: ended || state === "interrupted" ? "" : next.live.assistant };
+      if (ended) next.micLevel = next.listening === "recording" ? next.micLevel : 0;
+      return next;
+    }
+    case "live_transcript":
+      next.live = { ...next.live, [e.role === "user" ? "user" : "assistant"]: e.text as string };
+      return next;
+    case "live_turn":
+      next.live = { ...next.live, user: "", assistant: "" };
       return next;
     default:
       return next;

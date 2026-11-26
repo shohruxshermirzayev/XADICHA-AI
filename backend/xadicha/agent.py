@@ -34,6 +34,7 @@ from .models import (
     max_risk,
 )
 from .providers.base import LLMProvider, ProviderError
+from .redaction import redact
 from .providers.rule_based import RuleBasedProvider, parse_command
 from .storage import Storage
 from .vision.screen import Screenshot, to_screen
@@ -93,6 +94,11 @@ _CHAT_FALLBACK = {
                        "ищу в интернете, нахожу файлы, меняю громкость и яркость.",
                  "en": "I'm XADICHA, an assistant that controls your computer by voice and text. I open apps and websites, "
                        "search the web, find files and change volume and brightness."},
+    "name_origin": {
+        "uz": "Meni yaratuvchim Shohrux Shermirzayev qizlarining nomidan andoza olib nomlagan, shuning uchun mening ismim Xadicha.",
+        "uz_cyrl": "Мени яратувчим Шоҳрух Шермирзаев қизларининг номидан андоза олиб номлаган, шунинг учун менинг исмим Хадича.",
+        "ru": "Мой создатель Шохрух Шермирзаев назвал меня в честь своих дочерей, поэтому меня зовут Хадича.",
+        "en": "My creator, Shohrux Shermirzayev, named me after his daughters, so my name is Xadicha."},
     "creator": {"uz": "Meni Shohrux Shermirzayev yaratgan.", "ru": "Меня создал Шохрух Шермирзаев.",
                 "en": "I was created by Shohrux Shermirzayev."},
     "other": {"uz": "Hozir suhbat uchun model ulanmagan. Buyruq bering, masalan: Safari ni och.",
@@ -101,23 +107,34 @@ _CHAT_FALLBACK = {
 }
 
 
+def chat_kind(text: str) -> str:
+    """Suhbat turi: creator | thanks | identity | greeting | other. "other"dan boshqasi — kichik suhbat (qidiruvsiz)."""
+    import re as _re
+
+    from .router import CREATOR_QUESTION, is_name_question
+
+    low = text.lower()
+    if is_name_question(low):
+        return "name_origin"
+    if CREATOR_QUESTION.search(low):
+        return "creator"
+    if _re.search(r"rahmat|raxmat|tashakkur|раҳмат|рахмат|спасибо|благодар|thank", low):
+        return "thanks"
+    if _re.search(r"kimsan|kimsiz|isming|qila olas|кимсан|кто ты|как тебя зовут|что ты умеешь|who are you|your name|what can you do", low):
+        return "identity"
+    if _re.search(r"salom|assalom|xayrli|hayrli|салом|ассалом|привет|здравств|добр|hello|\bhi\b|hey|good morning|good evening", low):
+        return "greeting"
+    return "other"
+
+
 def chat_fallback(text: str, lang: str) -> str:
     import re as _re
 
-    from .router import CREATOR_QUESTION
-
-    low = text.lower()
-    if CREATOR_QUESTION.search(low):
-        kind = "creator"
-    elif _re.search(r"rahmat|raxmat|tashakkur|раҳмат|рахмат|спасибо|благодар|thank", low):
-        kind = "thanks"
-    elif _re.search(r"kimsan|kimsiz|isming|qila olas|кимсан|кто ты|как тебя зовут|что ты умеешь|who are you|your name|what can you do", low):
-        kind = "identity"
-    elif _re.search(r"salom|assalom|xayrli|hayrli|салом|ассалом|привет|здравств|добр|hello|\bhi\b|hey|good morning|good evening", low):
-        kind = "greeting"
-    else:
-        kind = "other"
-    return _CHAT_FALLBACK[kind].get(lang, _CHAT_FALLBACK[kind]["en"])
+    kind = chat_kind(text)
+    table = _CHAT_FALLBACK[kind]
+    if lang == "uz" and "uz_cyrl" in table and _re.search(r"[а-яёўқғҳ]", text.lower()):
+        return table["uz_cyrl"]   # kirillda so'ralgan — kirillda javob
+    return table.get(lang, table["en"])
 
 
 def clean_spoken(text: str, limit: int = 700) -> str:
@@ -187,12 +204,12 @@ class Agent:
             task.status = TaskStatus.failed
             task.final_message = msg("provider", language)
             log.warning("provayder xatosi (%s): %s", task.id, e)
-            self._emit("error", task, message=str(e))
+            self._emit("error", task, message=redact(str(e)))
         except Exception as e:  # noqa: BLE001 — vazifa hech qachon "bajarilmoqda" holatida qolib ketmasin
             task.status = TaskStatus.failed
             task.final_message = msg("internal", language)
             log.exception("kutilmagan xato (%s)", task.id)
-            self._emit("error", task, message=f"{e.__class__.__name__}: {e}")
+            self._emit("error", task, message=redact(f"{e.__class__.__name__}: {e}"))
         task.finished_at = time.time()
         task.risk = max_risk(RiskLevel.low, *[s.risk for s in task.steps]) if task.steps else RiskLevel.low
         self._save(task)
@@ -292,10 +309,57 @@ class Agent:
             return ExecResult(False, f"vaqt tugadi ({timeout:g} s)", verified=False)
         return box.get("r") or ExecResult(False, "natija yo'q", verified=False)
 
+    # --- Google Search grounding (faqat Gemini; JSON qaror bosqichidan ALOHIDA) ---
+    def _grounding_wanted(self, text: str, explicit_search: bool = False) -> bool:
+        """XADICHA_SEARCH_MODE: auto — faqat dolzarb/tashqi ma'lumot kerak bo'lsa; always — mos so'rovlarda doim;
+        never — hech qachon. Kichik suhbat (salom, rahmat, "sen kimsan") hech qachon qidirilmaydi."""
+        mode = getattr(self.cfg, "search_mode", "auto")
+        if mode == "never" or not getattr(self.provider, "supports_grounding", False):
+            return False
+        if explicit_search:
+            return True   # "X haqida qidir" — tashqi ma'lumot aniq so'ralgan
+        if chat_kind(text) != "other":
+            return False
+        if mode == "always":
+            return True
+        from .router import needs_web
+
+        return needs_web(text)
+
+    def _ground(self, task: TaskRecord, question: str) -> bool:
+        """Grounded javobni task.data'ga yozadi (manbalar, so'rovlar, Search Suggestions). Muvaffaqiyat — True."""
+        conv = self.conversation.summary() if self.conversation is not None else ""
+        force = getattr(self.cfg, "search_mode", "auto") == "always"
+        t0 = time.perf_counter()
+        try:
+            g = self.provider.grounded_answer(question, task.language, conv, force=force)  # type: ignore[attr-defined]
+        except ProviderError as e:
+            self._span(task, "llm:grounded_search", t0, False, provider="gemini", reason=getattr(e, "kind", "error"))
+            task.data["grounding_error"] = redact(str(e))
+            log.warning("Google Search grounding ishlamadi (%s): %s", task.id, e)
+            return False
+        finally:
+            task.timings["llm_ms"] += int((time.perf_counter() - t0) * 1000)
+        task.llm_calls += 1
+        self._span(task, "llm:grounded_search", t0, bool(g.text), provider="gemini", model=g.model or None)
+        task.data["query"] = question
+        task.data["results"] = [{"title": s["title"], "url": s["url"], "snippet": "", "source": "google_search",
+                                 "domain": s.get("domain", "")} for s in g.sources]
+        task.data["search_provider"] = "google_search"
+        task.data["answer"] = g.text
+        task.data["grounding"] = {"grounded": g.grounded, "queries": g.queries, "supports": g.supports,
+                                  "search_entry_point": g.search_entry_point, "model": g.model,
+                                  "mode": getattr(self.cfg, "search_mode", "auto")}
+        task.data.pop("grounding_error", None)
+        return bool(g.text)
+
     # --- vositalar: internet va fayl qidiruvi (faqat o'qish) ---
     def _run_tool(self, task: TaskRecord, action: Action) -> ExecResult:
         q = (action.text or "").strip()
         lang = task.language
+        if action.type == "web_search" and self._grounding_wanted(q, explicit_search=True) and self._ground(task, q):
+            n = len(task.data.get("results") or [])
+            return ExecResult(True, f"Google Search: {n} manba", verified=True)
         if action.type == "web_search":
             from .tools.search import web_search
 
@@ -325,6 +389,8 @@ class Agent:
 
     def _summarize_search(self, task: TaskRecord) -> str:
         """Natijalar asosida qisqa javob. Model faqat berilgan natijalardan foydalanadi; bo'lmasa — ro'yxat."""
+        if task.data.get("search_provider") == "google_search" and task.data.get("answer"):
+            return str(task.data["answer"])   # Google Search grounding javobi — o'zgartirilmaydi
         results = task.data.get("results") or []
         lang = task.language
         listing = " ".join(f"{i}) {r.get('title', '')}" for i, r in enumerate(results[:3], 1))
@@ -363,10 +429,24 @@ class Agent:
         task.intent, task.planner = "chat", "chat"
         lang = task.language
         task.status = TaskStatus.success
-        if isinstance(self.provider, RuleBasedProvider):
+        if isinstance(self.provider, RuleBasedProvider) or chat_kind(task.instruction) == "name_origin":
+            # Ism haqidagi savol — yaratuvchi belgilagan aniq javob (model iborani o'zgartirmasligi uchun)
             task.final_message = chat_fallback(task.instruction, lang)
             return
+        if self._grounding_wanted(task.instruction):
+            if self._ground(task, task.instruction):
+                task.final_message = str(task.data["answer"])
+                return
+            # Google Search ishlamadi (kvota, tarif, tarmoq) — dolzarb savolga eski ma'lumot bilan emas,
+            # mavjud bepul qidiruv (DuckDuckGo/Wikipedia) natijalari va manbalari bilan javob beriladi
+            step = self._execute(task, Action(type="web_search", text=task.instruction), RiskLevel.low, "")
+            if step.status == StepStatus.verified and task.data.get("results"):
+                task.intent, task.planner = "web_search", "tool"
+                task.final_message = self._summarize_search(task)
+                return
         names = {"uz": "Uzbek", "ru": "Russian", "en": "English"}
+        if self._stream_chat(task, CHAT_PROMPT, names, os_name, _dt):
+            return
         system = CHAT_PROMPT.format(
             os_name=os_name(),
             language=names.get(lang, "English"),
@@ -385,6 +465,58 @@ class Agent:
         self._span(task, "llm:chat", t0, bool(reply), provider=self.provider.name, model=getattr(self.provider, "model", None))
         task.timings["llm_ms"] += int((time.perf_counter() - t0) * 1000)
         task.final_message = reply or chat_fallback(task.instruction, lang)
+
+    _SENT_END = None
+
+    def _stream_chat(self, task: TaskRecord, prompt: str, names: dict, os_name, _dt) -> bool:
+        """Oqimli javob: bo'laklar interfeysga (`response_partial`), tugagan gaplar TTS navbatiga (`response_sentence`).
+        To'xtatish tugmasi oqimni darhol uzadi. Birinchi bo'lakkacha xato bo'lsa — False (oddiy JSON yo'li)."""
+        import re as _re
+
+        stream = getattr(self.provider, "stream_text", None)
+        if not callable(stream) or not getattr(self.provider, "supports_streaming", False):
+            return False
+        lang = task.language
+        plain = prompt.replace('Reply with ONE JSON object only: {{"reply": "the text to say"}}',
+                               "Reply with the text to say only, as plain text (no JSON, no quotes).")
+        system = plain.format(os_name=os_name(), language=names.get(lang, "English"),
+                              now=_dt.datetime.now().strftime("%Y-%m-%d %H:%M, %A"),
+                              conversation=(self.conversation.summary() if self.conversation is not None else "") or "(empty)")
+        t0 = time.perf_counter()
+        text, spoken_upto, n = "", 0, 0
+        try:
+            for chunk in stream(system, f"User: {task.instruction}"):
+                if self._cancel.is_set():
+                    break   # foydalanuvchi to'xtatdi — qolgan javob kutilmaydi
+                text += chunk
+                n += 1
+                self._emit("response_partial", task, text=text[:4000])
+                # Tugagan gaplar (., !, ?) darhol ovozga
+                for m in _re.finditer(r"[^.!?…]*[.!?…]+(?:\s|$)", text[spoken_upto:]):
+                    sent = m.group(0).strip()
+                    if sent:
+                        self._emit("response_sentence", task, text=sent, lang=lang)
+                    spoken_upto += m.end()
+        except ProviderError:
+            if n == 0:
+                self._span(task, "llm:chat_stream", t0, False, provider=self.provider.name)
+                return False
+        finally:
+            task.timings["llm_ms"] += int((time.perf_counter() - t0) * 1000)
+        if n == 0 and not self._cancel.is_set():
+            return False
+        tail = text[spoken_upto:].strip()
+        if tail and not self._cancel.is_set():
+            self._emit("response_sentence", task, text=tail, lang=lang)
+        task.llm_calls += 1
+        self._span(task, "llm:chat_stream", t0, bool(text), provider=self.provider.name,
+                   model=getattr(self.provider, "model", None), chunks=n)
+        task.data["streamed"] = True
+        if self._cancel.is_set():
+            task.status, task.final_message = TaskStatus.cancelled, clean_spoken(text) or msg("cancelled", lang)
+        else:
+            task.final_message = clean_spoken(text) or chat_fallback(task.instruction, lang)
+        return True
 
     def _blind_repeat(self, task: TaskRecord, action: Action) -> bool:
         """Oxirgi qadam muvaffaqiyatsiz bo'lsa va model aynan shu takrorlab bo'lmaydigan harakatni yana so'rasa."""

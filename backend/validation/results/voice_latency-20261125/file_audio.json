@@ -1,0 +1,378 @@
+{
+ "mic": false,
+ "summary": {
+  "new": {
+   "first_partial": {
+    "p50": 1598,
+    "p95": 1754,
+    "after_speech_end_p50": -1316,
+    "after_speech_end_p95": -885,
+    "n": 9
+   },
+   "final_transcript": {
+    "p50": 3733,
+    "p95": 9625,
+    "after_speech_end_p50": 885,
+    "after_speech_end_p95": 6421,
+    "n": 10
+   },
+   "intent": {
+    "p50": 3740,
+    "p95": 4040,
+    "after_speech_end_p50": 883,
+    "after_speech_end_p95": 944,
+    "n": 9
+   },
+   "first_action": {
+    "p50": 3711,
+    "p95": 4022,
+    "after_speech_end_p50": 882,
+    "after_speech_end_p95": 940,
+    "n": 8
+   },
+   "response_text": {
+    "p50": 3742,
+    "p95": 4041,
+    "after_speech_end_p50": 884,
+    "after_speech_end_p95": 944,
+    "n": 9
+   },
+   "response_audio": {
+    "p50": 4980,
+    "p95": 5829,
+    "after_speech_end_p50": 2250,
+    "after_speech_end_p95": 2743,
+    "n": 9
+   },
+   "intent_ok": 0.8,
+   "finalized_by": {
+    "server": 2,
+    "interim": 7,
+    "empty": 1,
+    "error": 0
+   }
+  },
+  "old": {
+   "first_partial": {
+    "p50": null,
+    "p95": null,
+    "after_speech_end_p50": null,
+    "after_speech_end_p95": null,
+    "n": 0
+   },
+   "final_transcript": {
+    "p50": 12714,
+    "p95": 14983,
+    "after_speech_end_p50": 10215,
+    "after_speech_end_p95": 10215,
+    "n": 10
+   },
+   "intent": {
+    "p50": 12714,
+    "p95": 14984,
+    "after_speech_end_p50": 10215,
+    "after_speech_end_p95": 10215,
+    "n": 10
+   },
+   "first_action": {
+    "p50": 12565,
+    "p95": 12854,
+    "after_speech_end_p50": null,
+    "after_speech_end_p95": null,
+    "n": 6
+   },
+   "response_text": {
+    "p50": 12714,
+    "p95": 14985,
+    "after_speech_end_p50": 10216,
+    "after_speech_end_p95": 10216,
+    "n": 10
+   },
+   "response_audio": {
+    "p50": 12714,
+    "p95": 15765,
+    "after_speech_end_p50": 10217,
+    "after_speech_end_p95": 10217,
+    "n": 10
+   },
+   "intent_ok": 0.6
+  }
+ },
+ "rows": [
+  {
+   "sample": "v_uzl_01-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 509,
+    "first_partial": 1846,
+    "final_transcript": 4080,
+    "finalized_by": "interim",
+    "text": "Kalkulyatorni ishga tushir.",
+    "error": "",
+    "speech_end": 3162,
+    "intent": 4105,
+    "first_action": 4105,
+    "action_done": 4105,
+    "response_text": 4105,
+    "response_audio": 5917,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 3194,
+    "final_transcript": 16394,
+    "text": "Calculatorna iške tšir.",
+    "intent": 16396,
+    "response_text": 16397,
+    "response_audio": 17814,
+    "intent_ok": false
+   }
+  },
+  {
+   "sample": "v_uzl_02-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 519,
+    "first_partial": null,
+    "final_transcript": 14162,
+    "finalized_by": "empty",
+    "text": "",
+    "error": "",
+    "speech_end": 3258
+   },
+   "old": {
+    "speech_end": 3044,
+    "endpoint": 3112,
+    "final_transcript": 13259,
+    "text": "Notis ilova, sayn ochu bir.",
+    "intent": 13259,
+    "response_text": 13260,
+    "response_audio": 13261,
+    "intent_ok": false
+   }
+  },
+  {
+   "sample": "v_uzl_04-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 518,
+    "first_partial": 1605,
+    "final_transcript": 3739,
+    "finalized_by": "interim",
+    "text": "Telegramni ochib qo'y.",
+    "error": "",
+    "speech_end": 2807,
+    "intent": 3740,
+    "first_action": 3742,
+    "action_done": 3742,
+    "response_text": 3742,
+    "response_audio": 5136,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 2806,
+    "final_transcript": 12727,
+    "text": "Telegram'ni açıq qoy.",
+    "intent": 12727,
+    "response_text": 12727,
+    "response_audio": 12727,
+    "intent_ok": false
+   }
+  },
+  {
+   "sample": "v_uzl_05-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 472,
+    "first_partial": 1616,
+    "final_transcript": 3941,
+    "finalized_by": "interim",
+    "text": "YouTube Tom saytiga kir.",
+    "error": "",
+    "speech_end": 2999,
+    "intent": 3944,
+    "response_text": 3945,
+    "response_audio": 3945,
+    "intent_ok": false
+   },
+   "old": {
+    "endpoint": 3017,
+    "final_transcript": 12912,
+    "text": "YouTube'e ton sayti gekir.",
+    "intent": 12912,
+    "response_text": 12912,
+    "response_audio": 12912,
+    "intent_ok": false
+   }
+  },
+  {
+   "sample": "v_uzl_06-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 487,
+    "first_partial": 1547,
+    "final_transcript": 3728,
+    "finalized_by": "server",
+    "text": "Googledan ob-havo qidir.",
+    "error": "",
+    "speech_end": 3018,
+    "intent": 3868,
+    "first_action": 3869,
+    "action_done": 3870,
+    "response_text": 3870,
+    "response_audio": 5698,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 3007,
+    "final_transcript": 12906,
+    "text": "Google'dan abhavaqıdır.",
+    "intent": 12906,
+    "first_action": 12906,
+    "action_done": 12906,
+    "response_text": 12906,
+    "response_audio": 12906,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_ru_02-ru-RU-SvetlanaNeural",
+   "new": {
+    "connected": 490,
+    "first_partial": 1598,
+    "final_transcript": 3678,
+    "finalized_by": "interim",
+    "text": "Запусти Finder.",
+    "error": "",
+    "speech_end": 2797,
+    "intent": 3680,
+    "first_action": 3681,
+    "action_done": 3681,
+    "response_text": 3681,
+    "response_audio": 5522,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 2720,
+    "final_transcript": 12686,
+    "text": "Запусти Finder.",
+    "intent": 12686,
+    "first_action": 12686,
+    "action_done": 12686,
+    "response_text": 12686,
+    "response_audio": 12686,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_ru_03-ru-RU-SvetlanaNeural",
+   "new": {
+    "connected": 481,
+    "first_partial": 1612,
+    "final_transcript": 3608,
+    "finalized_by": "interim",
+    "text": "Открой Notes.",
+    "error": "",
+    "speech_end": 2730,
+    "intent": 3610,
+    "first_action": 3610,
+    "action_done": 3610,
+    "response_text": 3610,
+    "response_audio": 4980,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 2663,
+    "final_transcript": 12445,
+    "text": "Открой заметки.",
+    "intent": 12445,
+    "first_action": 12445,
+    "action_done": 12445,
+    "response_text": 12445,
+    "response_audio": 12445,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_en_01-en-US-JennyNeural",
+   "new": {
+    "connected": 461,
+    "first_partial": 1574,
+    "final_transcript": 3816,
+    "finalized_by": "interim",
+    "text": "Start the Calculator app.",
+    "error": "",
+    "speech_end": 2926,
+    "intent": 3817,
+    "first_action": 3817,
+    "action_done": 3817,
+    "response_text": 3817,
+    "response_audio": 3817,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 2855,
+    "final_transcript": 12701,
+    "text": "Start the calculator app.",
+    "intent": 12701,
+    "first_action": 12701,
+    "action_done": 12701,
+    "response_text": 12701,
+    "response_audio": 12701,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_en_02-en-US-JennyNeural",
+   "new": {
+    "connected": 498,
+    "first_partial": 1588,
+    "final_transcript": 2922,
+    "finalized_by": "server",
+    "text": "Launch Finder.",
+    "error": "",
+    "speech_end": 2318,
+    "intent": 3071,
+    "first_action": 3072,
+    "action_done": 3072,
+    "response_text": 3072,
+    "response_audio": 3072,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 2319,
+    "final_transcript": 12069,
+    "text": "Launch Finder.",
+    "intent": 12070,
+    "first_action": 12070,
+    "action_done": 12070,
+    "response_text": 12070,
+    "response_audio": 12070,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_en_03-en-US-JennyNeural",
+   "new": {
+    "connected": 468,
+    "first_partial": 1068,
+    "final_transcript": 3308,
+    "finalized_by": "interim",
+    "text": "Open the Notes app.",
+    "error": "",
+    "speech_end": 2461,
+    "intent": 3309,
+    "first_action": 3309,
+    "action_done": 3309,
+    "response_text": 3309,
+    "response_audio": 3309,
+    "intent_ok": true
+   },
+   "old": {
+    "endpoint": 2364,
+    "final_transcript": 12270,
+    "text": "Open the Notes app.",
+    "intent": 12270,
+    "first_action": 12270,
+    "action_done": 12270,
+    "response_text": 12270,
+    "response_audio": 12270,
+    "intent_ok": true
+   }
+  }
+ ]
+}

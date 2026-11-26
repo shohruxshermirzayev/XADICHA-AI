@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ConfirmDialog } from "@/components/xadicha/confirm-dialog";
 import { AssistantView } from "@/components/xadicha/conversation";
 import { GlassNavigation, type View } from "@/components/xadicha/navigation";
@@ -39,8 +39,14 @@ export default function Home() {
   const [view, setView] = useState<View>("assistant");
   const [snap, setSnap] = useState<ScreenSnapshot | null>(null);
   const compact = prefs.nav === "compact";
+  const { getSettings, saveSettings } = x;
+  const settingsApi = useMemo(() => ({ getSettings, saveSettings }), [getSettings, saveSettings]);
   // Sarlavha, yordamchi, panel va dashboard — barchasi bitta manbadan: x.phase / x.busy
   const phase = x.online === false ? "idle" : x.phase;
+  // Ulanish o'rnatilmaguncha "Kutish rejimi" (tayyor) deb ko'rsatilmaydi — yon paneldagi holat bilan bir xil
+  const connecting = x.online === null || (x.online === true && !x.wsOpen && !x.status);
+  const headerLabel = x.online === false ? t("backend.offline") : connecting ? t("backend.connecting") : t(`phase.${phase}`);
+  const headerDot = x.online === false ? "bg-destructive" : connecting ? "bg-warning animate-pulse" : PHASE_DOT[phase];
   const detail = x.status ? `${x.status.os} · ${x.status.provider.name}` : undefined;
 
   return (
@@ -58,8 +64,8 @@ export default function Home() {
             <h1 className="truncate text-[15px] font-semibold tracking-tight">{t(`nav.${view}`)}</h1>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
-                <span className={cn("size-1.5 rounded-full", x.online === false ? "bg-destructive" : PHASE_DOT[phase])} aria-hidden />
-                <span>{t(`phase.${phase}`)}</span>
+                <span className={cn("size-1.5 rounded-full", headerDot)} aria-hidden />
+                <span>{headerLabel}</span>
               </div>
               <div className="hidden sm:block">
                 <LangSwitch {...l} layoutId="lang-header" />
@@ -88,7 +94,7 @@ export default function Home() {
               {view === "screen" && <ScreenView x={x} l={l} snap={snap} setSnap={setSnap} />}
               {view === "history" && <HistoryView x={x} l={l} />}
               {view === "research" && <ResearchView x={x} l={l} />}
-              {view === "settings" && <SettingsView status={x.status} l={l} prefs={prefs} setPrefs={setPrefs} />}
+              {view === "settings" && <SettingsView status={x.status} l={l} prefs={prefs} setPrefs={setPrefs} api={settingsApi} />}
             </motion.div>
           </AnimatePresence>
         </main>

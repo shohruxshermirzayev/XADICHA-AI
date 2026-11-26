@@ -102,11 +102,11 @@ export function GlassNavigation({ view, onChange, compact, onToggleCompact, onli
           const active = view === id;
           return (
             <button key={id} type="button" onClick={() => onChange(id)} aria-current={active ? "page" : undefined} aria-label={t(`nav.${id}`)}
-              className={cn("relative flex flex-col items-center gap-0.5 rounded-2xl py-2 text-[10px] focus-visible:outline-2 focus-visible:outline-ring",
+              className={cn("relative flex flex-col items-center justify-center gap-0.5 rounded-2xl py-2.5 text-[10px] focus-visible:outline-2 focus-visible:outline-ring",
                 active ? "text-foreground" : "text-muted-foreground")}>
               {active && <motion.span layoutId="nav-active-m" className="glass-active absolute inset-0 rounded-2xl" />}
               <Icon className="relative size-5" strokeWidth={1.75} aria-hidden />
-              <span className="relative max-w-full truncate px-0.5">{t(`nav.${id}`)}</span>
+              <span className="relative hidden max-w-full truncate px-0.5 min-[440px]:block">{t(`nav.${id}`)}</span>
             </button>
           );
         })}

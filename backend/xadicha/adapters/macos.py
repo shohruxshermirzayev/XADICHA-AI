@@ -6,6 +6,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from ..redaction import safe_env
 from ..models import Action
 from .base import ExecResult, OSAdapter
 
@@ -14,7 +15,7 @@ _KEYMAP = {"cmd": "command", "ctrl": "ctrl", "control": "ctrl", "opt": "option",
 
 
 def osascript(script: str, timeout: float = 10) -> str:
-    r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(["osascript", "-e", script], env=safe_env(), capture_output=True, text=True, timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip() or "osascript xatosi")
     return r.stdout.strip()
@@ -25,7 +26,7 @@ class MacOSAdapter(OSAdapter):
 
     def _do_open_app(self, a: Action) -> ExecResult:
         app = (a.app or "").strip()
-        r = subprocess.run(["open", "-a", app], capture_output=True, text=True, timeout=15)
+        r = subprocess.run(["open", "-a", app], env=safe_env(), capture_output=True, text=True, timeout=15)
         if r.returncode != 0:
             return ExecResult(False, f"'{app}' ilovasi topilmadi", verified=False)
         # Dasturiy tekshiruv: ilova old planga chiqdimi (0,25 s oraliqda, 5 s gacha). Tezlashtirish faqat
@@ -44,7 +45,7 @@ class MacOSAdapter(OSAdapter):
         if not url.lower().startswith(("http://", "https://", "mailto:", "tel:")):
             # Xavfsizlik qatlami buni allaqachon taqiqlaydi; bu — ikkinchi himoya (`open <yo'l>` ilovani ishga tushiradi)
             return ExecResult(False, "Faqat http/https manzillar ochiladi", verified=False)
-        r = subprocess.run(["open", url], capture_output=True, text=True, timeout=15)
+        r = subprocess.run(["open", url], env=safe_env(), capture_output=True, text=True, timeout=15)
         return ExecResult(r.returncode == 0, a.url or "", verified=None if r.returncode == 0 else False)
 
     # --- tizim boshqaruvi: ovoz va yorqinlik (faqat sonli qiymatlar — ixtiyoriy matn AppleScript'ga tushmaydi) ---
@@ -75,13 +76,20 @@ class MacOSAdapter(OSAdapter):
             osascript(f'tell application "System Events"\nrepeat {presses} times\nkey code {code}\n'
                       f'delay 0.05\nend repeat\nend tell', timeout=10)
             return ExecResult(True, f"yorqinlik {'+' if code == 144 else '-'}{presses} qadam", verified=None)
+        if c == "screenshot":
+            # Butun ekran → Desktop (ovozsiz, -x); faqat fayl yaratiladi, hech narsa yuborilmaydi
+            out = Path.home() / "Desktop" / time.strftime("XADICHA Screenshot %Y-%m-%d %H.%M.%S.png")
+            r = subprocess.run(["screencapture", "-x", str(out)], env=safe_env(), capture_output=True, text=True, timeout=15)
+            ok = r.returncode == 0 and out.exists() and out.stat().st_size > 0
+            return ExecResult(ok, str(out) if ok else (r.stderr.strip() or "screencapture xatosi (Ekran yozuvi ruxsati?)"),
+                              verified=ok)
         return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
 
     def _do_reveal(self, a: Action) -> ExecResult:
         p = Path(a.path or "").expanduser()
         if not p.exists():
             return ExecResult(False, f"Topilmadi: {p}", verified=False)
-        r = subprocess.run(["open", "-R", str(p)], capture_output=True, text=True, timeout=10)   # faqat ko'rsatadi
+        r = subprocess.run(["open", "-R", str(p)], env=safe_env(), capture_output=True, text=True, timeout=10)   # faqat ko'rsatadi
         return ExecResult(r.returncode == 0, str(p), verified=None if r.returncode == 0 else False)
 
     def _to_trash(self, path: Path) -> None:

@@ -55,7 +55,8 @@ ActionType = Literal[
 ]
 
 # Tizim boshqaruvi: faqat shu oldindan belgilangan, xavfsiz amallar (ixtiyoriy buyruq yo'q)
-SYSTEM_CONTROLS = ("volume_up", "volume_down", "volume_set", "mute", "unmute", "brightness_up", "brightness_down")
+SYSTEM_CONTROLS = ("volume_up", "volume_down", "volume_set", "mute", "unmute", "brightness_up", "brightness_down",
+                   "screenshot")
 
 
 class ToolSpec(BaseModel):

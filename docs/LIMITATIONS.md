@@ -56,3 +56,30 @@ Tezkor yo'l tanimagan buyruqlar modelga (LLM) o'tadi, lekin model yo'q yoki seki
 
 To'plam ataylab tuzatilmadi: real nutq sinovi ham shu to'plamda o'tkaziladi. Tuzatishdan keyin u regressiya
 to'plamiga aylanadi va yakuniy baholash uchun yangi ko'rilmagan to'plam kerak bo'ladi.
+
+## Gemini, nutq va Live (2026-11-25 holati)
+
+- **Google Search grounding** bepul tarifda ishlamadi (`429 RESOURCE_EXHAUSTED`) — kod va simulyatsiya testlari bor,
+  lekin haqiqiy grounded javob (manbalar, Search Suggestions) shu kalit bilan olinmadi. Billing yoqilgach
+  `python scripts/gemini_smoke.py` qayta ishga tushirilishi kerak. Hozircha DuckDuckGo/Wikipedia zaxirasi ishlaydi.
+- `gemini-3.8-flash` sinov kuni `504 DEADLINE_EXCEEDED` qaytardi; ishlar `gemini-3.5-flash-lite` orqali bajarildi.
+  Vaqtincha bo'lishi mumkin — model zanjiri buni avtomatik hal qiladi, lekin birinchi so'rov ~20 s kechikadi.
+- STT taqqoslash **sintetik TTS nutqida** o'tkazilgan; real odam nutqi, shovqinli muhit va turli talaffuz uchun WER
+  hali o'lchanmagan. Gemini Transcribe so'z darajasidagi ishonch qiymatini bermaydi (`asr_confidence = None`).
+- Gemini Live **real mikrofon bilan** hali sinalmagan (sinov sintetik nutq oqimi bilan). macOS'da aks-sado
+  so'ndirish yo'q — quloqchinsiz barge-in o'z ovozidan ham ishga tushishi mumkin. Gap o'rtasidagi uzun pauza
+  (rus tilidagi sinovda) server VAD tomonidan navbat tugashi deb olindi.
+- Live suhbat davomida desktop buyrug'i tasdiq talab qilsa, tasdiq dialogi interfeysda chiqadi; Live modeli natijani
+  tasdiq yakunlangach oladi.
+- Whisper bu Mac'da `faster-whisper` (CPU) da ishladi — MLX (Apple GPU) faol emas, shuning uchun sekin (~10 s).
+- Fayl qidiruvi sana/tur bo'yicha filtrlamaydi ("kecha yuklab olgan PDF" — nom bo'yicha qidiriladi).
+
+## Oqimli ovoz (2026-11-25)
+
+- Odam nutqi bilan (sintetik ovoz emas) kechikish va aniqlik hali o'lchanmagan; real mikrofon sinovi karnaydan
+  ijro etilgan sintetik ovoz bilan (3 namuna).
+- Ko'p holatda (7/10) server yakuniy matni 1.2 s ichida kelmaydi va oxirgi oraliq matn olinadi — sinovda ular
+  to'g'ri edi, lekin oraliq matn ba'zan to'liq bo'lmasligi mumkin (`finalized_by=interim` metadata'da).
+- TTS (edge-tts) birinchi ovozi ~1.2–1.8 s — eng katta qolgan kechikish; qisqa takroriy javoblar keshlanadi.
+  Gemini Live suhbat rejimida bu yo'q (native audio).
+- Oqimli rejimda "Xadicha" kabi wake-word doimiy tinglash yo'q — mikrofon tugmasi yoki Space bilan boshlanadi.

@@ -7,6 +7,7 @@ import type { UiPrefs } from "@/lib/use-ui-prefs";
 import { cn } from "@/lib/utils";
 import type { Status } from "@/lib/xadicha";
 import { GlassPanel, PanelTitle, Segmented } from "./glass";
+import { RuntimeSettings, type SettingsApi } from "./runtime-settings";
 import { CapChip, capOf } from "./screen-context";
 import { Dot } from "./ui";
 
@@ -42,8 +43,8 @@ function Section({ icon, title, hint, children, className }: {
 const CAP_ORDER = ["os_adapter", "screenshot", "vision_model", "ocr", "accessibility_tree", "microphone", "stt", "tts", "windows_ui_automation"] as const;
 
 /** Sozlamalar — barcha qiymatlar backend holatidan (/api/status); o'zgartirish backend/.env orqali. */
-export function SettingsView({ status, l, prefs, setPrefs }: {
-  status: Status | null; l: L; prefs: UiPrefs; setPrefs: (p: Partial<UiPrefs>) => void;
+export function SettingsView({ status, l, prefs, setPrefs, api }: {
+  status: Status | null; l: L; prefs: UiPrefs; setPrefs: (p: Partial<UiPrefs>) => void; api?: SettingsApi;
 }) {
   const { t } = l;
   const ic = "size-4";
@@ -85,14 +86,39 @@ export function SettingsView({ status, l, prefs, setPrefs }: {
     <div className="max-w-6xl space-y-4">
       <p className="px-1 text-xs text-muted-foreground">{t("settings.hint")}</p>
       {appearance}
+      {api && <RuntimeSettings api={api} status={status} t={t} />}
       <div className="grid gap-4 lg:grid-cols-2">
         <Section icon={<Cpu className={ic} aria-hidden />} title={t("settings.sec.ai")}>
-          <Row k={t("settings.provider")} v={`${provider} — ${c.model}`} />
-          <Row k={t("settings.modelHealth")} v={<span className="inline-flex items-center gap-2"><Dot ok={status.provider.ok} />{status.provider.detail}</span>} />
+          <Row k={t("settings.provider")} v={`${c.provider ?? provider} — ${c.model}`} />
+          {status.provider.primary && (
+            <Row k={t("prov.primary")} v={<span className="inline-flex items-start gap-2"><Dot ok={status.provider.primary.ok} />
+              <span>{status.provider.primary.name} · {status.provider.primary.active_model || status.provider.primary.model}
+                {status.provider.primary.detail !== "ok" && <span className="block text-xs text-muted-foreground">{status.provider.primary.detail}</span>}</span></span>} />
+          )}
+          {status.provider.fallback && (
+            <Row k={t("prov.fallback")} v={<span className="inline-flex items-start gap-2"><Dot ok={status.provider.fallback.ok} />
+              <span>{status.provider.fallback.name} · {status.provider.fallback.model}
+                {status.provider.fallback.detail !== "ok" && <span className="block text-xs text-muted-foreground">{status.provider.fallback.detail}</span>}</span></span>} />
+          )}
+          <Row k={t("prov.active")} v={status.provider.using_fallback
+            ? <span className="text-warning">{status.provider.name} — {t("prov.usingFallback", { why: status.provider.last_error || "—" })}
+                {status.provider.retry_in_s ? ` · ${t("prov.retryIn", { s: status.provider.retry_in_s })}` : ""}</span>
+            : <span className="inline-flex items-center gap-2"><Dot ok={status.provider.ok} />{status.provider.name}{status.provider.detail !== "ok" ? ` — ${status.provider.detail}` : ""}</span>} />
+          {status.provider.search_mode && (
+            <Row k={t("prov.grounding")} v={`${String(status.provider.search_mode).toUpperCase()} · ${
+              (typeof status.provider.grounding === "object" ? status.provider.grounding.available : status.provider.grounding)
+                ? t("prov.groundingOn") : t("prov.groundingOff")}${typeof status.provider.grounding === "object" && status.provider.grounding.detail
+                ? ` — ${status.provider.grounding.detail}` : ""}`} />
+          )}
+          {status.provider.warnings?.map((w) => <Row key={w} k={t("prov.warnings")} v={<span className="text-warning">{w}</span>} />)}
           <Row k={t("settings.vision")} v={status.provider.vision ? t("common.yes") : t("common.no")} />
           <Row k={t("settings.fastPath")} v={c.fast_path ? t("settings.fastPathOn") : t("common.off")} />
         </Section>
         <Section icon={<Mic className={ic} aria-hidden />} title={t("settings.sec.speech")}>
+          {status.stt && (
+            <Row k={t("settings.sttProvider")} v={`${status.stt.mode} → ${status.stt.active === "gemini"
+              ? `Gemini · ${status.stt.gemini.model}` : `Whisper · ${status.stt.whisper.model}`}${status.stt.gemini.error ? ` — ${status.stt.gemini.error}` : ""}`} />
+          )}
           <Row k={t("settings.model")} v={String(c.whisper_model)} />
           <Row k={t("settings.engine")} v={status.stt_engine === "mlx" ? "MLX (Apple GPU)" : status.stt_engine ?? "—"} />
           <Row k={t("cap.microphone")} v={<CapChip cap={capOf(status, "microphone")} t={t} />} />
@@ -117,7 +143,11 @@ export function SettingsView({ status, l, prefs, setPrefs }: {
           <Row k={t("settings.workspace")} v={<code className="font-mono text-xs">{String(c.workspace)}</code>} />
         </Section>
         <Section icon={<Lock className={ic} aria-hidden />} title={t("settings.sec.privacy")}>
-          {[privacyModel, t("privacy.asr"), t("privacy.screens"), t("privacy.memory"),
+          {[status.provider.offline ? t("privacy.offline") : privacyModel,
+            status.stt && status.stt.active === "gemini" ? t("privacy.asrGemini") : t("privacy.asr"),
+            ...(status.live?.available ? [t("privacy.live")] : []),
+            ...(status.provider.search_mode && status.provider.search_mode !== "never" && !status.provider.offline ? [t("privacy.search")] : []),
+            t("privacy.screens"), t("privacy.memory"),
             c.tts_engine === "edge" ? t("privacy.ttsEdge") : t("privacy.ttsLocal")].map((line) => (
             <div key={line} className="flex items-start gap-2.5 py-2.5 text-sm">
               <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-secondary/70" />

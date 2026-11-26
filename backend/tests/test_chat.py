@@ -163,3 +163,41 @@ def test_prompt_names_the_creator_and_forbids_companies():
     from xadicha.providers.prompts import CHAT_PROMPT
 
     assert "Shohrux Shermirzayev" in CHAT_PROMPT and "Never name an AI company" in CHAT_PROMPT
+
+
+NAME_QUESTIONS = [
+    ("Sani isming nima uchun Xadicha AI degan?", "uz", "qizlarining nomidan"),
+    ("Isming nega Xadicha?", "uz", "qizlarining nomidan"),
+    ("Ismingiz qayerdan olingan?", "uz", "qizlarining nomidan"),
+    ("Nima uchun seni Xadicha deb atashgan?", "uz", "qizlarining nomidan"),
+    ("Исминг нега Хадича?", "uz", "қизларининг номидан"),
+    ("Почему тебя зовут Хадича?", "ru", "в честь своих дочерей"),
+    ("Кто тебя назвал?", "ru", "в честь своих дочерей"),
+    ("Why is your name Xadicha?", "en", "named me after his daughters"),
+    ("Where does your name come from?", "en", "named me after his daughters"),
+]
+
+
+@pytest.mark.parametrize("text,lang,expect", NAME_QUESTIONS)
+def test_name_origin_question_gets_creators_answer(text, lang, expect, cfg):
+    assert route(text, lang).path == "chat", text
+    model = ChatModel(reply="model javobi — ishlatilmasligi kerak")
+    task = Agent(cfg, model, Spy()).run(text, lang, Mode.multimodal)
+    assert expect in task.final_message and model.calls == []   # aniq javob, model chaqirilmaydi
+    assert ("Shohrux" in task.final_message or "Шоҳрух" in task.final_message or "Шохрух" in task.final_message)
+
+
+@pytest.mark.parametrize("text", ["Xadicha, Safari ni och", "Xadicha nomli papka yarat", "Ismim Ali, Notes ni och",
+                                  "Nega Safari ochilmadi? qayta och"])
+def test_commands_are_not_name_questions(text):
+    from xadicha.router import is_name_question
+
+    assert not is_name_question(text), text
+
+
+def test_prompts_know_why_the_name_is_xadicha():
+    from xadicha.providers.prompts import CHAT_PROMPT
+    from xadicha.speech.live import SYSTEM
+
+    assert "named you after his daughters" in CHAT_PROMPT and "qizlarining nomidan" in CHAT_PROMPT
+    assert "named you after his daughters" in SYSTEM

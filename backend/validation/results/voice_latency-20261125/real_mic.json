@@ -1,0 +1,113 @@
+{
+ "mic": true,
+ "summary": {
+  "new": {
+   "first_partial": {
+    "p50": 1642,
+    "p95": 1988,
+    "after_speech_end_p50": -2008,
+    "after_speech_end_p95": -1945,
+    "n": 3
+   },
+   "final_transcript": {
+    "p50": 3936,
+    "p95": 3978,
+    "after_speech_end_p50": 33,
+    "after_speech_end_p95": 309,
+    "n": 3
+   },
+   "intent": {
+    "p50": 4173,
+    "p95": 4226,
+    "after_speech_end_p50": 298,
+    "after_speech_end_p95": 436,
+    "n": 3
+   },
+   "first_action": {
+    "p50": 4174,
+    "p95": 4226,
+    "after_speech_end_p50": 299,
+    "after_speech_end_p95": 436,
+    "n": 3
+   },
+   "response_text": {
+    "p50": 4174,
+    "p95": 4226,
+    "after_speech_end_p50": 299,
+    "after_speech_end_p95": 437,
+    "n": 3
+   },
+   "response_audio": {
+    "p50": 4174,
+    "p95": 4226,
+    "after_speech_end_p50": 299,
+    "after_speech_end_p95": 437,
+    "n": 3
+   },
+   "intent_ok": 1.0,
+   "finalized_by": {
+    "server": 2,
+    "interim": 1,
+    "empty": 0,
+    "error": 0
+   },
+   "mic_peak": "audio"
+  }
+ },
+ "rows": [
+  {
+   "sample": "v_uzl_01-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 713,
+    "first_partial": 2027,
+    "final_transcript": 3983,
+    "finalized_by": "server",
+    "text": "Kalkulyatorni ishga tushir.",
+    "error": "",
+    "speech_end": 3965,
+    "intent": 4232,
+    "first_action": 4232,
+    "action_done": 4232,
+    "response_text": 4232,
+    "response_audio": 4232,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_uzl_02-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 566,
+    "first_partial": 1642,
+    "final_transcript": 3908,
+    "finalized_by": "server",
+    "text": "Notes ilovasini ochib ber.",
+    "error": "",
+    "speech_end": 3875,
+    "intent": 4173,
+    "first_action": 4174,
+    "action_done": 4174,
+    "response_text": 4174,
+    "response_audio": 4174,
+    "intent_ok": true
+   }
+  },
+  {
+   "sample": "v_uzl_04-uz-UZ-MadinaNeural",
+   "new": {
+    "connected": 563,
+    "first_partial": 1588,
+    "final_transcript": 3936,
+    "finalized_by": "interim",
+    "text": "Telegramni ochib qo'y.",
+    "error": "",
+    "speech_end": 3596,
+    "intent": 4048,
+    "first_action": 4048,
+    "action_done": 4049,
+    "response_text": 4049,
+    "response_audio": 4049,
+    "intent_ok": true
+   }
+  }
+ ]
+}
