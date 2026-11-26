@@ -56,7 +56,7 @@ ActionType = Literal[
 
 # Tizim boshqaruvi: faqat shu oldindan belgilangan, xavfsiz amallar (ixtiyoriy buyruq yo'q)
 SYSTEM_CONTROLS = ("volume_up", "volume_down", "volume_set", "mute", "unmute", "brightness_up", "brightness_down",
-                   "screenshot")
+                   "screenshot", "battery")
 
 
 class ToolSpec(BaseModel):
@@ -81,6 +81,8 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     "delete_path": ToolSpec(read_only=False, idempotent=False, timeout_s=15, verify="path_absent"),
     "wait": ToolSpec(read_only=True, idempotent=True, timeout_s=11, verify="none"),
     "system": ToolSpec(read_only=False, idempotent=False, timeout_s=10, verify="readback_if_possible"),
+    # Batareya zaryadini o'qish — tizimda hech narsani o'zgartirmaydi (tasdiq so'ralmaydi)
+    "system.battery": ToolSpec(read_only=True, idempotent=True, timeout_s=8, verify="readback"),
     "web_search": ToolSpec(read_only=True, idempotent=True, timeout_s=15, verify="results_nonempty"),
     "find_file": ToolSpec(read_only=True, idempotent=True, timeout_s=8, verify="results_nonempty"),
     "reveal": ToolSpec(read_only=True, idempotent=True, timeout_s=5, verify="command_exit_code"),
@@ -212,3 +214,9 @@ class TaskRecord(BaseModel):
     def latency_ms(self) -> int:
         end = self.finished_at or time.time()
         return int((end - self.started_at) * 1000)
+
+
+def tool_spec(action: Action) -> ToolSpec | None:
+    """Amalga mos ToolSpec: avval aniq boshqaruv ("system.battery"), bo'lmasa amal turi ("system")."""
+    specific = TOOL_REGISTRY.get(f"{action.type}.{action.control}") if action.control else None
+    return specific or TOOL_REGISTRY.get(action.type)

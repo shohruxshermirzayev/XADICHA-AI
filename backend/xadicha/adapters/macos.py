@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -19,6 +20,46 @@ def osascript(script: str, timeout: float = 10) -> str:
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip() or "osascript xatosi")
     return r.stdout.strip()
+
+
+_PMSET_PCT = re.compile(r"(\d{1,3})%")
+_PMSET_STATE = re.compile(r"\d{1,3}%;\s*([^;]+?)\s*(?:;|$)", re.M)
+_PMSET_LEFT = re.compile(r"(\d+):(\d{2})\s+remaining")
+
+
+def parse_pmset(out: str) -> dict:
+    """`pmset -g batt` chiqishi → {present, percent, state, minutes_left, source}.
+    state: charging | discharging | charged | ac (quvvat manbaiga ulangan, lekin zaryadlanmayapti)."""
+    source = "ac" if "'AC Power'" in out else "battery" if "'Battery Power'" in out else ""
+    line = next((ln for ln in out.splitlines() if "InternalBattery" in ln or _PMSET_PCT.search(ln)), "")
+    m = _PMSET_PCT.search(line)
+    if not line or not m:
+        return {"present": False, "source": source}   # Mac mini / iMac — batareya yo'q
+    raw = (_PMSET_STATE.search(line).group(1).strip().lower() if _PMSET_STATE.search(line) else "")
+    if raw in ("charging", "finishing charge"):
+        state = "charging"
+    elif raw == "discharging":
+        state = "discharging"
+    elif raw == "charged":
+        state = "charged"
+    elif "ac attached" in raw or "not charging" in raw or source == "ac":
+        state = "ac"
+    else:
+        state = "discharging" if source == "battery" else "ac"
+    left = _PMSET_LEFT.search(line)
+    minutes = int(left.group(1)) * 60 + int(left.group(2)) if left else None
+    if minutes == 0 or "no estimate" in line:
+        minutes = None
+    return {"present": True, "percent": min(100, int(m.group(1))), "state": state, "minutes_left": minutes,
+            "source": source}
+
+
+def battery_detail(info: dict) -> str:
+    """Iz va tarix uchun qisqa matn (foydalanuvchiga aytiladigan javob — rule_based.battery_reply)."""
+    if not info.get("present"):
+        return "batareya topilmadi"
+    left = info.get("minutes_left")
+    return f"batareya: {info['percent']}%, {info['state']}" + (f", {left // 60}:{left % 60:02d} qoldi" if left else "")
 
 
 class MacOSAdapter(OSAdapter):
@@ -76,6 +117,8 @@ class MacOSAdapter(OSAdapter):
             osascript(f'tell application "System Events"\nrepeat {presses} times\nkey code {code}\n'
                       f'delay 0.05\nend repeat\nend tell', timeout=10)
             return ExecResult(True, f"yorqinlik {'+' if code == 144 else '-'}{presses} qadam", verified=None)
+        if c == "battery":
+            return self._battery()
         if c == "screenshot":
             # Butun ekran → Desktop (ovozsiz, -x); faqat fayl yaratiladi, hech narsa yuborilmaydi
             out = Path.home() / "Desktop" / time.strftime("XADICHA Screenshot %Y-%m-%d %H.%M.%S.png")
@@ -84,6 +127,17 @@ class MacOSAdapter(OSAdapter):
             return ExecResult(ok, str(out) if ok else (r.stderr.strip() or "screencapture xatosi (Ekran yozuvi ruxsati?)"),
                               verified=ok)
         return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
+
+    def _battery(self) -> ExecResult:
+        """Batareya zaryadi — faqat aniq `pmset -g batt` (shell'siz, timeout bilan), faqat o'qish."""
+        try:
+            r = subprocess.run(["pmset", "-g", "batt"], env=safe_env(), capture_output=True, text=True, timeout=5)
+        except (OSError, subprocess.SubprocessError) as e:
+            return ExecResult(False, f"batareya holatini o'qib bo'lmadi: {e.__class__.__name__}", verified=False)
+        if r.returncode != 0:
+            return ExecResult(False, "batareya holatini o'qib bo'lmadi (pmset)", verified=False)
+        info = parse_pmset(r.stdout)
+        return ExecResult(True, battery_detail(info), verified=True, data=info)
 
     def _do_reveal(self, a: Action) -> ExecResult:
         p = Path(a.path or "").expanduser()

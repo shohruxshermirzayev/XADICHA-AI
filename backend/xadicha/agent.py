@@ -23,6 +23,7 @@ from .adapters.base import ExecResult, OSAdapter
 from .config import Config
 from .models import (
     TOOL_REGISTRY,
+    tool_spec,
     Action,
     Decision,
     Mode,
@@ -228,7 +229,7 @@ class Agent:
                 base = ws / "Desktop" if ws.resolve() == Path.home().resolve() and (ws / "Desktop").is_dir() else ws
                 action = action.model_copy(update={"path": str(base / p)})
         step = StepRecord(index=len(task.steps) + 1, action=action, expected_outcome=expected)
-        spec = TOOL_REGISTRY.get(action.type)
+        spec = tool_spec(action)
         step.verification = spec.verify if spec else ""
         step.risk = safety.final_risk(action, proposed, self.cfg.workspace, context=expected + " " + task.instruction)
         t0 = time.time()
@@ -239,7 +240,7 @@ class Agent:
             denied = blocked
         elif self._cancel.is_set():
             denied = DENY_STOPPED
-        elif safety.needs_confirmation(step.risk, self.cfg.confirm_risk):
+        elif safety.needs_confirmation(step.risk, self.cfg.confirm_risk) and not safety.is_read_only_control(action):
             answer = self.confirm(task, action, step.risk, expected)
             if answer is not True:   # faqat aniq True ruxsat; satr yoki boshqa qiymat — rad
                 denied = _DENY_DETAIL.get(answer, DENY_USER) if isinstance(answer, str) else DENY_USER
@@ -268,6 +269,8 @@ class Agent:
             res = self._call_adapter(action)
             task.timings["exec_ms"] += int((time.perf_counter() - te) * 1000)
             self._span(task, f"exec:{action.type}", te, res.ok)
+            if action.type == "system" and action.control == "battery" and res.ok:
+                task.data["battery"] = res.data   # javob matni shu qiymatlardan tuziladi
             if res.verify_ms is not None:
                 task.trace.append({"stage": "verify", "ms": int(res.verify_ms), "ok": res.verified is not False,
                                    "action": action.type})
@@ -294,7 +297,7 @@ class Agent:
 
     # --- adapter chaqiruvi: vaqt chegarasi bilan ---
     def _call_adapter(self, action: Action) -> ExecResult:
-        spec = TOOL_REGISTRY.get(action.type)
+        spec = tool_spec(action)
         timeout = spec.timeout_s if spec else 15.0
         box: dict[str, ExecResult] = {}
 
@@ -523,7 +526,7 @@ class Agent:
         if not task.steps:
             return False
         last = task.steps[-1]
-        spec = TOOL_REGISTRY.get(action.type)
+        spec = tool_spec(action)
         return (last.status == StepStatus.failed and spec is not None and not spec.idempotent
                 and last.action.model_dump(exclude_none=True) == action.model_dump(exclude_none=True))
 
@@ -606,6 +609,14 @@ class Agent:
             if step.status == StepStatus.failed:
                 task.status, task.final_message = TaskStatus.failed, step.detail
                 return True
+        if any(a.control == "battery" for a in actions):
+            # Batareya — o'qilgan haqiqiy qiymatdan javob (statik shablon o'rniga)
+            from .providers.rule_based import _SYS_REPLY, battery_reply
+
+            r = _SYS_REPLY["battery"]
+            static = r.get(task.language, r["en"])
+            dynamic = battery_reply(task.data.get("battery"), task.language)
+            reply = reply.replace(static, dynamic) if static in reply else dynamic
         task.status, task.final_message = TaskStatus.success, reply
         return True
 

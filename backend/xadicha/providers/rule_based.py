@@ -85,9 +85,18 @@ _DOWN = (r"(?:pasaytir\w*|kamaytir\w*|past\w*|sekin\w*|tushir\w*|пасайти�
 _OFF = r"(?:o'chir\w*|ўчир\w*|выключ\w*|отключ\w*|off)"
 _ON = r"(?:yoq\b|yoqib\w*|yoqing|ёқ\b|ёқиб\w*|ёқинг|включ\w*|on)"
 
+# Batareya so'rovi: "zaryad qancha", "batareya necha foiz", "сколько заряда", "battery level"…
+# "quvvat" — faqat so'roq bilan ("kompyuter quvvatini o'chir" — batareya so'rovi emas)
+BATTERY = re.compile(
+    r"\b(?:batare\w*|akkumulyator\w*|zaryad\w*|батаре\w*|аккумулятор\w*|заряд\w*|battery|batteries)|"
+    r"\b(?:quvvat\w*|қувват\w*)\s+(?:qancha|necha|nechchi|nech|foiz|qoldi|қанча|неча|фоиз|қолди)|"
+    r"\b(?:qancha|necha|қанча|неча)\s+(?:quvvat|қувват)\w*|how much (?:charge|power) (?:is )?left|charge level",
+    re.I)
+
 _SYS_REPLY = {
     "volume_up": {"uz": "Ovoz balandlatildi.", "ru": "Громкость увеличена.", "en": "Volume turned up."},
     "volume_down": {"uz": "Ovoz pasaytirildi.", "ru": "Громкость уменьшена.", "en": "Volume turned down."},
+    "battery": {"uz": "Batareya holati tekshirildi.", "ru": "Состояние батареи проверено.", "en": "Battery checked."},
     "screenshot": {"uz": "Skrinshot olindi va Desktop'ga saqlandi.", "ru": "Скриншот сохранён на рабочий стол.",
                    "en": "Screenshot saved to the Desktop."},
     "volume_set": {"uz": "Ovoz {n}% ga o'rnatildi.", "ru": "Громкость установлена на {n}%.", "en": "Volume set to {n}%."},
@@ -106,6 +115,8 @@ def _one_system(part: str) -> Action | None:
     t = re.sub(r"[ʻʼ’‘`´]", "'", part.lower()).strip(" .!?")
     if _SCREENSHOT.search(t):
         return Action(type="system", control="screenshot")
+    if BATTERY.search(t) and not re.search(_VOL, t) and not re.search(_BRI, t):
+        return Action(type="system", control="battery")   # faqat o'qish — zaryad foizi va holati
     # "ovoz balandligi" — ot (daraja), yo'nalish emas: "ovoz balandligini kamaytir" pastga
     t = re.sub(r"\b(?:balandlig|баландлиг)\w*", "", t)
     num = re.search(r"(\d{1,3})\s*(?:%|foiz|фоиз|процент\w*|percent)?", t)
@@ -155,6 +166,44 @@ def parse_system(text: str) -> list[Action] | None:
         return None
     actions = [_one_system(p) for p in parts]
     return actions if all(actions) else None  # type: ignore[return-value]
+
+
+def _uz_duration(m: int) -> str:
+    h, mm = divmod(m, 60)
+    if h and mm:
+        return f"{h} soat {mm} daqiqaga"
+    return f"{h} soatga" if h else f"{mm} daqiqaga"
+
+
+def battery_reply(info: dict | None, lang: str) -> str:
+    """Batareya javobi foydalanuvchi tilida: "Zaryad 76%, quvvatlanmoqda." Faqat o'qilgan qiymatlardan — to'qilmaydi."""
+    lang = lang if lang in ("uz", "ru", "en") else "en"
+    if not info or info.get("simulated"):
+        return {"uz": "Batareya holati simulyatsiya rejimida o'qilmaydi.",
+                "ru": "В режиме симуляции состояние батареи не читается.",
+                "en": "Battery status is not read in simulation mode."}[lang]
+    if not info.get("present"):
+        return {"uz": "Batareya topilmadi.", "ru": "Батарея не найдена.", "en": "No battery found."}[lang]
+    p, state, m = int(info["percent"]), info.get("state", ""), info.get("minutes_left")
+    if state == "charged" or (p >= 100 and state in ("charging", "ac")):
+        tail = {"uz": "to'liq", "ru": "полностью заряжена", "en": "fully charged"}[lang]
+    elif state == "charging":
+        tail = {"uz": "quvvatlanmoqda", "ru": "идёт зарядка", "en": "charging"}[lang]
+    elif state == "ac":
+        tail = {"uz": "quvvat manbaiga ulangan", "ru": "подключено к питанию", "en": "plugged in"}[lang]
+    elif m:
+        h, mm = divmod(m, 60)
+        tail = {"uz": f"taxminan {_uz_duration(m)} yetadi",
+                "ru": "хватит примерно на " + (f"{h} ч {mm} мин" if h else f"{mm} мин"),
+                "en": "about " + (f"{h} h {mm} min" if h else f"{mm} min") + " left"}[lang]
+    else:
+        tail = ""
+    head = {"uz": f"Zaryad {p}%", "ru": f"Заряд {p}%", "en": f"Battery is at {p}%"}[lang]
+    text = f"{head}, {tail}." if tail else f"{head}."
+    if p < 20 and state == "discharging":
+        text += " " + {"uz": "Zaryadlovchini ulashni maslahat beraman.", "ru": "Советую подключить зарядку.",
+                       "en": "I recommend plugging in the charger."}[lang]
+    return text
 
 
 def system_reply(actions: list[Action], lang: str) -> str:

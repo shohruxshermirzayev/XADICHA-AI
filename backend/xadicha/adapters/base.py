@@ -21,6 +21,7 @@ class ExecResult:
     detail: str = ""
     verified: bool | None = None   # dasturiy tekshiruv natijasi; None = dasturiy tekshirib bo'lmaydi
     verify_ms: int | None = None   # tekshiruvga ketgan vaqt (ms) — tezlik tahlili uchun; o'lchanmasa None
+    data: dict | None = None       # o'qilgan qiymatlar (masalan, batareya: foiz, holat, qolgan vaqt)
 
 
 class OSAdapter(ABC):
@@ -141,6 +142,9 @@ class DryRunAdapter(OSAdapter):
         self.executed.append(action)
         if action.type in self.fail_types:
             return ExecResult(False, "simulyatsiya qilingan xato", verified=False)
+        if action.type == "system" and action.control == "battery":
+            # Simulyatsiya: haqiqiy batareya o'qilmaydi — soxta foiz to'qilmaydi
+            return ExecResult(True, "dry-run: batareya o'qilmadi", verified=None, data={"simulated": True})
         if action.type == "open_app":
             self._front = action.app or ""
             return ExecResult(True, action.app or "", verified=True)

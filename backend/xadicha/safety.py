@@ -10,7 +10,7 @@ import re
 from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse
 
-from .models import RISK_ORDER, SYSTEM_CONTROLS, Action, RiskLevel, max_risk
+from .models import RISK_ORDER, SYSTEM_CONTROLS, Action, RiskLevel, max_risk, tool_spec
 
 # Xabar yuborish, o'rnatish, to'lov, o'chirish bilan bog'liq kalit so'zlar (uz/ru/en)
 _SENSITIVE_WORDS = [
@@ -131,9 +131,17 @@ def is_inside(path: str, root: Path) -> bool:
         return False
 
 
+def is_read_only_control(action: Action) -> bool:
+    """Faqat o'qiydigan tizim boshqaruvi (masalan, batareya zaryadi) — hech narsani o'zgartirmaydi."""
+    spec = tool_spec(action)
+    return action.type == "system" and action.control in SYSTEM_CONTROLS and bool(spec and spec.read_only)
+
+
 def final_risk(action: Action, proposed: RiskLevel, workspace: Path | None = None,
                context: str = "") -> RiskLevel:
     """Qoida + model + kontekst (masalan, kutilgan natijada "yuborish" bo'lsa)."""
+    if is_read_only_control(action):
+        return RiskLevel.low   # o'qish amali — model yuqoriroq xavf taklif qilsa ham past
     risk = max_risk(classify(action, workspace), proposed)
     if action.type in ("click", "double_click", "hotkey") and _has_sensitive_words(context):
         risk = RiskLevel.high

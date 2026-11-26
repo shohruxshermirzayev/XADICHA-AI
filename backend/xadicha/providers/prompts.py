@@ -42,6 +42,7 @@ Action types and fields:
 - reveal {{"path": "..."}}                show a file/folder in Finder (does not open or run it)
 - system {{"control": "volume_up"|"volume_down"|"volume_set"|"mute"|"unmute"|"brightness_up"|"brightness_down", "amount": 10}}
                                          volume / screen brightness; amount = step in % (or the level for volume_set)
+- system {{"control": "battery"}}         read the battery charge level and charging state (read-only; no amount needed)
 
 Rules:
 - Do ONLY what the user explicitly asked. Never add extra actions, never open, close, type or change anything
@@ -64,7 +65,7 @@ Produce a complete plan for the instruction as ONE JSON object only:
   "final_message": "short reply in {language}"}}
 Use the same action types as: open_app, open_url, click, double_click, type_text, hotkey, scroll,
 create_folder, create_file, delete_path, wait, system (control: volume_up|volume_down|volume_set|mute|unmute|
-brightness_up|brightness_down, amount). Avoid click (you cannot see coordinates).
+brightness_up|brightness_down, amount; or battery — read the battery charge, no amount). Avoid click (you cannot see coordinates).
 Plan ONLY the steps needed for exactly what the user asked — no extra actions."""
 
 

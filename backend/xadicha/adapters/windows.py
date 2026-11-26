@@ -77,7 +77,31 @@ class WindowsAdapter(OSAdapter):
             if r.returncode != 0:
                 return ExecResult(False, "Yorqinlikni o'zgartirib bo'lmadi (tashqi monitor?)", verified=False)
             return ExecResult(True, f"yorqinlik {r.stdout.strip()}%", verified=None)
+        if c == "battery":
+            return self._battery()
         return ExecResult(False, f"Noma'lum tizim boshqaruvi: {c}", verified=False)
+
+    def _battery(self) -> ExecResult:
+        """Batareya zaryadi — psutil.sensors_battery() (faqat o'qish). Batareya yo'q bo'lsa — "topilmadi"."""
+        try:
+            import psutil
+        except ImportError:
+            return ExecResult(False, "psutil o'rnatilmagan: pip install -r requirements.txt", verified=False)
+        from .macos import battery_detail
+
+        b = psutil.sensors_battery()
+        if b is None:
+            info: dict = {"present": False, "source": ""}
+        else:
+            pct = int(round(b.percent))
+            plugged = bool(b.power_plugged)
+            state = ("charged" if pct >= 100 else "charging") if plugged else "discharging"
+            secs = b.secsleft
+            known = isinstance(secs, (int, float)) and secs not in (psutil.POWER_TIME_UNLIMITED, psutil.POWER_TIME_UNKNOWN)
+            info = {"present": True, "percent": min(100, pct), "state": state,
+                    "minutes_left": int(secs // 60) if known and not plugged and secs > 0 else None,
+                    "source": "ac" if plugged else "battery"}
+        return ExecResult(True, battery_detail(info), verified=True, data=info)
 
     def _do_reveal(self, a: Action) -> ExecResult:
         p = Path(a.path or "").expanduser()

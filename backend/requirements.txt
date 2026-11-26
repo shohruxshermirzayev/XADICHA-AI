@@ -25,6 +25,7 @@ edge-tts>=6.1            # ixtiyoriy: o'zbekcha ayol ovozi (TTS_ENGINE=edge), in
 # Windows uchun (macOS'da o'rnatilmaydi)
 pyttsx3>=2.90; sys_platform == "win32"
 send2trash>=1.8; sys_platform == "win32"
+psutil>=5.9; sys_platform == "win32"   # batareya zaryadi (macOS'da pmset ishlatiladi)
 
 # Testlar
 pytest>=8.0

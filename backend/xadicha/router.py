@@ -149,6 +149,10 @@ def detect_chat(text: str) -> bool:
     low = t.lower().strip(" .!,")
     if not low or _SCREEN_WORDS.search(low) or _mentions_app(low):
         return False
+    from .providers.rule_based import BATTERY
+
+    if BATTERY.search(low):
+        return False   # "zaryad qancha?" — savol shaklida bo'lsa ham tizim so'rovi (batareya o'qiladi)
     if CREATOR_QUESTION.search(low) or is_name_question(low):
         return True
     if _ACTION_WORDS.search(low):
