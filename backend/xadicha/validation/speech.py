@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import statistics
 import threading
 import time
@@ -197,8 +198,8 @@ def _pct(rs: list[dict[str, Any]], k: str) -> float | None:
 
 def summarize(items: list[dict[str, Any]]) -> dict[str, Any]:
     def block(rs: list[dict[str, Any]]) -> dict[str, Any]:
-        cmd = [r for r in rs if r["group"] != "silence"]
-        sil = [r for r in rs if r["group"] == "silence"]
+        cmd = [r for r in rs if r["group"] != "silence" and not r.get("provider_error")]
+        sil = [r for r in rs if r["group"] == "silence" and not r.get("provider_error")]
         asr = [r["asr_ms"] for r in rs if r.get("asr_ms") is not None]
         eos = [r["eos_ms"] for r in rs if r.get("eos_ms") is not None]
         counts: dict[str, int] = {}
@@ -217,6 +218,7 @@ def summarize(items: list[dict[str, Any]]) -> dict[str, Any]:
             "eos_ms_p90": round(percentile(eos, 90)) if eos else None,
             "silence_trials": len(sil),
             "silence_false_transcriptions": sum(1 for r in sil if r.get("false_transcription")),
+            "provider_errors": sum(1 for r in rs if r.get("provider_error")),
             "error_counts": counts,
         }
 
@@ -237,12 +239,29 @@ def write_wav(path: Path, audio: np.ndarray, rate: int = 16000) -> None:
         w.writeframes(pcm.tobytes())
 
 
-def _transcribe_and_score(li, row, audio, selected: str) -> dict[str, Any]:
+def vad_replay(audio: np.ndarray) -> str:
+    """Saqlangan yozuvni ilovadagi VAD orqali o'tkazish (oflayn): "silence" — nutq sezildi va tugadi,
+    "no_speech" — nutq sezilmadi, "max_seconds" — yozuv tugaguncha gap davom etdi."""
+    from ..speech.stt import BLOCK, Endpointer
+
+    ep = Endpointer()
+    for i in range(0, len(audio) - BLOCK + 1, BLOCK):
+        c = audio[i:i + BLOCK]
+        if ep.feed(float(np.sqrt(np.mean(c * c))), BLOCK / 16000):
+            break
+    return ep.reason or ("max_seconds" if ep.heard else "no_speech")
+
+
+def _transcribe_and_score(li, row, audio, selected: str, no_speech: bool = False) -> dict[str, Any]:
     from ..lang import refine_asr_language
+    from ..speech.stt import is_prompt_echo
 
     t0 = time.perf_counter()
     tr = li.transcribe(audio, None, prior=selected)
     asr_ms = round((time.perf_counter() - t0) * 1000)
+    filtered = bool(no_speech and tr.text and is_prompt_echo(tr.text, tr.asr_confidence))
+    if filtered:   # ilovadagi kabi: VAD nutq sezmagan + Whisper yordamchi so'rovni qaytargan — nutq emas
+        tr.text = ""
     t1 = time.perf_counter()
     final = refine_asr_language(tr.text, tr.language, tr.probability or None, selected) if tr.text else tr.language
     lang_ms = round((time.perf_counter() - t1) * 1000, 1)
@@ -251,13 +270,44 @@ def _transcribe_and_score(li, row, audio, selected: str) -> dict[str, Any]:
                audio_s=round(len(audio) / 16000, 2), engine=li.engine, model=li.model_name)
     if getattr(li, "engine", "") == "gemini-live":
         rec["transcript_status"] = getattr(li, "last_status", "")
+    if filtered:
+        rec["asr_filter"] = "prompt_echo_without_speech"
     return rec
+
+
+def _retry_after(e: BaseException, default: float) -> float:
+    m = re.search(r"retry in (\d+(?:\.\d+)?)\s*s", f"{e} {e.__cause__ or ''}")
+    return min(90.0, float(m.group(1)) + 1.0) if m else default
+
+
+def score_safely(li, row, audio, selected: str, no_speech: bool = False, retries: int = 3, wait_s: float = 25.0,
+                 sleep=time.sleep) -> dict[str, Any]:
+    """Bitta yozuv xatosi (kvota 429, tarmoq) butun baholashni to'xtatmasin: kvotada kutib qayta urinadi, boshqa
+    xatoda yozuv "provider_error" bilan belgilanadi va WER/aniqlik hisobiga KIRMAYDI (alohida sanaladi)."""
+    from ..providers.base import ProviderError
+    from ..redaction import redact
+
+    last: BaseException | None = None
+    for attempt in range(retries + 1):
+        try:
+            return _transcribe_and_score(li, row, audio, selected, no_speech)
+        except ProviderError as e:
+            last = e
+            if e.kind != "quota" or attempt == retries:
+                break
+            sleep(_retry_after(e, wait_s))
+        except Exception as e:  # noqa: BLE001
+            last = e
+            break
+    return {"id": row["id"], "group": group_of(row), "reference": row["text"], "hypothesis": "",
+            "provider_error": redact(f"{type(last).__name__}: {last}")[:200], "asr_ms": None,
+            "engine": getattr(li, "engine", ""), "model": getattr(li, "model_name", "")}
 
 
 def write_csv(path: Path, items: list[dict[str, Any]]) -> Path:
     """Mashina o'qiydigan natija (har yozuv — bitta qator)."""
     cols = ["provider", "id", "group", "reference", "hypothesis", "wer", "cer", "lid_ok", "intent_ok", "entity_ok",
-            "asr_ms", "final_lang", "transcript_status"]
+            "asr_ms", "final_lang", "transcript_status", "vad_replay", "asr_filter", "provider_error"]
     with path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
         w.writeheader()
@@ -265,8 +315,40 @@ def write_csv(path: Path, items: list[dict[str, Any]]) -> Path:
     return path
 
 
+def _record(li, max_seconds: float):
+    from ..speech.stt import Endpointer
+
+    ep, stop = Endpointer(), threading.Event()
+    print("     🎙 GAPIRING", flush=True)
+    t0 = time.perf_counter()
+    audio = li.record_until(stop, max_seconds=max_seconds, endpointer=ep)
+    return audio, ep, round((time.perf_counter() - t0) * 1000)
+
+
+def mic_check(li, ask=input) -> dict[str, Any] | None:
+    """Sessiyadan oldin mikrofon tekshiruvi: nutq sezilyaptimi va daraja yetarlimi (2026-11-26 dagi sessiyada
+    VAD nutqni umuman sezmagan, natija yaroqsiz bo'lgan). Qaytaradi: o'lchov yoki None (foydalanuvchi chiqdi)."""
+    while True:
+        ask("Mikrofon tekshiruvi: Enter bosing va «Salom, men tayyorman» deng...")
+        audio, ep, _ = _record(li, 8)
+        peak = round(float(np.abs(audio).max()) if audio.size else 0.0, 3)
+        res = {"speech_detected": ep.reason == "silence", "peak": peak, "speech_s": round(ep.speech_total, 2),
+               "noise_floor": round(ep.floor or 0.0, 5)}
+        if res["speech_detected"] and peak >= 0.05:
+            print(f"     ✓ Mikrofon yaxshi (daraja {peak:.2f}, nutq {res['speech_s']} s).\n")
+            return res
+        why = "nutq sezilmadi" if not res["speech_detected"] else "ovoz juda past"
+        print(f"     ⚠ {why} (eng baland daraja {peak:.2f}). Mikrofonga yaqinroq gapiring yoki Tizim sozlamalari → "
+              "Ovoz → Kirish darajasini oshiring.")
+        a = ask("     Enter — qayta tekshirish, d — shunday davom etish, q — chiqish: ").strip().lower()
+        if a == "q":
+            return None
+        if a == "d":
+            return res
+
+
 def record_session(args, cfg) -> int:
-    from ..speech.stt import Endpointer, Listener
+    from ..speech.stt import Listener
 
     set_file = set_path(getattr(args, "set", None))
     rows = load_set(set_file)
@@ -279,22 +361,26 @@ def record_session(args, cfg) -> int:
         return 3
     run_id = stamp()
     audio_dir = RESULTS_DIR / f"speech-{run_id}" / "audio"
-    audio_dir.mkdir(parents=True, exist_ok=True)
     li = Listener(cfg.whisper_model, cfg.stt_engine)
     print(f"ASR: {li.engine} · {cfg.whisper_model}. Model yuklanmoqda (birinchi marta bir necha daqiqa olishi mumkin)...")
     t0 = time.perf_counter()
     li.warmup()
     load_s = round(time.perf_counter() - t0, 2)
     print(f"Yuklandi: {load_s} s.\n")
-    print("Har bir qatorda: Enter bosing → 0,5 s jim turing → matnni oddiy ovozda o'qing → jim turing.\n"
-          "Yozish o'zi to'xtaydi. 'JIMLIK' qatorlarida hech narsa demang (fon shovqini sinovi).\n"
-          "Chiqish: Ctrl+C (shu paytgacha yozilganlar saqlanadi).\n")
+    print("Har bir qatorda: Enter bosing → «GAPIRING» chiqqach ko'rsatilgan matnni oddiy ovozda o'qing → jim turing.\n"
+          "Faqat ko'rsatilgan matnni o'qing («Xadicha» deyish shart emas). Yozish o'zi to'xtaydi.\n"
+          "'JIMLIK' qatorlarida hech narsa demang (fon shovqini sinovi). Chiqish: Ctrl+C (yozilganlar saqlanadi).\n")
+    mic = mic_check(li)
+    if mic is None:
+        return 4
+    audio_dir.mkdir(parents=True, exist_ok=True)
     items: list[dict[str, Any]] = []
     meta = {"selected_language_prior": args.selected, "engine": li.engine, "model": cfg.whisper_model,
             "model_load_s": load_s, "set_file": str(set_file.name), "audio_dir": str(audio_dir),
             "kind": "real microphone recordings (user)", "real": True, "consent": True,
             "speaker": getattr(args, "speaker", "") or "anon", "environment": getattr(args, "env", "") or "quiet",
-            "speed": getattr(args, "speed", "") or "normal", "microphone": cfg.microphone or "default"}
+            "speed": getattr(args, "speed", "") or "normal", "microphone": cfg.microphone or "default",
+            "mic_check": mic, "vad": "time-based noise tracking (2026-11-27)"}
 
     def save() -> Path:
         return save_result("speech", {**meta, "summary": summarize(items), "items": items}, run_id)
@@ -303,15 +389,21 @@ def record_session(args, cfg) -> int:
         for i, row in enumerate(rows, 1):
             label = "JIMLIK — hech narsa demang" if row["kind"] == "silence" else row["text"]
             input(f"[{i}/{len(rows)}] {group_of(row):8} «{label}»  — Enter...")
-            ep, stop = Endpointer(), threading.Event()
-            tr0 = time.perf_counter()
-            audio = li.record_until(stop, max_seconds=8 if row["kind"] == "silence" else 15, endpointer=ep)
-            cap_ms = round((time.perf_counter() - tr0) * 1000)
+            while True:
+                audio, ep, cap_ms = _record(li, 8 if row["kind"] == "silence" else 15)
+                if row["kind"] == "silence" or ep.reason == "silence":
+                    break
+                peak = float(np.abs(audio).max()) if audio.size else 0.0
+                a = input(f"     ⚠ Nutq sezilmadi ({ep.reason or 'max_seconds'}, eng baland daraja {peak:.2f}). "
+                          "Enter — qayta yozish, s — shunday saqlash: ").strip().lower()
+                if a == "s":
+                    break
             write_wav(audio_dir / f"{row['id']}.wav", audio)
-            rec = _transcribe_and_score(li, row, audio, args.selected)
+            rec = _transcribe_and_score(li, row, audio, args.selected, no_speech=ep.reason == "no_speech")
             rec.update(capture_ms=cap_ms, vad_reason=ep.reason or "max_seconds",
                        eos_ms=round(ep.endpoint_delay_s * 1000) if ep.reason == "silence" else None,
-                       speech_s=round(ep.speech_total, 2), noise_floor=round(ep.floor or 0, 5))
+                       speech_s=round(ep.speech_total, 2), noise_floor=round(ep.floor or 0, 5),
+                       peak=round(float(np.abs(audio).max()) if audio.size else 0.0, 3))
             if row["kind"] != "silence" and ep.reason != "silence":
                 rec.setdefault("errors", {})["vad"] = ep.reason or "max_seconds"
             items.append(rec)
@@ -342,12 +434,13 @@ def rescore(args, cfg) -> int:
     comparisons = {}
     providers = [p.strip() for p in (getattr(args, "providers", "") or "whisper").split(",") if p.strip()]
     all_items: list[dict[str, Any]] = []
+    vad = {f.stem: vad_replay(read_wav(f)) for f in files}
     for name in [p for p in providers if p != "whisper"]:
         li = make_provider(name, cfg)
         items = []
         for f in files:
-            rec = _transcribe_and_score(li, rows[f.stem], read_wav(f), args.selected)
-            rec["provider"] = name
+            rec = score_safely(li, rows[f.stem], read_wav(f), args.selected, no_speech=vad[f.stem] == "no_speech")
+            rec.update(provider=name, vad_replay=vad[f.stem])
             items.append(rec)
         comparisons[name] = {"summary": summarize(items), "items": items}
         all_items += items
@@ -361,8 +454,8 @@ def rescore(args, cfg) -> int:
             items = []
             for f in files:
                 audio = read_wav(f)
-                rec = _transcribe_and_score(li, rows[f.stem], audio, args.selected)
-                rec["provider"] = f"whisper:{li.engine}:{model}"
+                rec = score_safely(li, rows[f.stem], audio, args.selected, no_speech=vad[f.stem] == "no_speech")
+                rec.update(provider=f"whisper:{li.engine}:{model}", vad_replay=vad[f.stem])
                 items.append(rec)
             comparisons[f"{li.engine}:{model}"] = {"model_load_s": load_s, "summary": summarize(items), "items": items}
             all_items += items

@@ -37,6 +37,8 @@ Next.js (Liquid Glass) ──HTTP+WS (localhost, token, origin)──► FastAPI
 ## 3. Tugallanmagan imkoniyatlar
 
 - Inson nutqi bilan baholash: vosita bor (`validate speech`, faqat Whisper), lekin yozuvlar yo'q; oqimli/Gemini STT qo'llab-quvvatlanmaydi.
+  *(Yangilandi 2026-11-27: ochiq FLEURS korpusida VAD va STT o'lchandi — [HUMAN_SPEECH_EVAL.md](HUMAN_SPEECH_EVAL.md); buyruqlar
+  bo'yicha niyat/obyekt aniqligi uchun foydalanuvchi yozuvi hamon kerak.)*
 - Vazifa grafi (bog'liqlik, parallel xavfsiz amallar) yo'q — agent qadamlar ketma-ket.
 - Brauzer DOM (Playwright), ekran o'zgarishini aniqlash, ko'p monitor — yo'q.
 - Accessibility rejimi (VoiceOver bilan sinov, ovozli tasdiq, verbosity) — yo'q; interfeysda faqat asosiy aria/klaviatura.
@@ -56,6 +58,9 @@ Next.js (Liquid Glass) ──HTTP+WS (localhost, token, origin)──► FastAPI
 | B6 | faster-whisper `decode_audio` o'rnatilgan PyAV bilan ishlamaydi (fayldan o'qish) | [A] | Stage 1 (muhit) |
 | B7 | Whisper CPU'da (`mlx-whisper` o'rnatilmagan), o'zbekchani turkcha yozadi | [A] | muhit |
 | B8 | Live: gap o'rtasidagi uzun pauza navbatni bo'ladi (ru) | [A] | Stage 5 |
+| B9 | VAD fon darajasi nutq paytida nutq darajasiga "o'sib" ketadi (har bo'lakda EMA 0.05 — bo'lak o'lchamiga bog'liq) → real inson nutqi umuman sezilmaydi, yozuv 6 s da kesiladi | [H] foydalanuvchi sessiyasi 2026-11-26: 8/8 `no_speech` | ✅ 2026-11-27 ([HUMAN_SPEECH_EVAL.md](HUMAN_SPEECH_EVAL.md)) |
+| B10 | Whisper nutqsiz audioda yordamchi so'rov gapini qaytaradi ("Play a song on YouTube.") — baholashda matn sifatida hisoblangan | [H] | ✅ 2026-11-27 |
+| B11 | `--rescore` Gemini 429 (bepul tarif: 3 so'rov/daqiqa) da yiqiladi, hech narsa saqlanmaydi | [A] | ✅ 2026-11-27 |
 
 ## 5. Xavfsizlik
 

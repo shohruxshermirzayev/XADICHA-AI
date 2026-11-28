@@ -102,6 +102,7 @@ python scripts/gemini_live_smoke.py            # Gemini Live: uz/ru/en, tool cha
 python -m xadicha.validation.stt_compare       # STT: Gemini Transcribe vs Whisper, bir xil (sintetik) audio
 python scripts/voice_latency_bench.py          # kechikish: eski vs oqimli zanjir, P50/P95 (--mic — real mikrofon)
 python -m xadicha.validate speech --set heldout --speaker s01   # inson nutqi (rozilik bilan), ko'rilmagan to'plam
+python -m xadicha.validate fleurs --vad --stt --split test     # ochiq inson nutqi (FLEURS, CC BY 4.0) — yozuvsiz
 ```
 
 Real Mac'da tekshirish: `python backend/scripts/mac_selftest.py` — [docs/MACOS_TEST_PROTOCOL.md](docs/MACOS_TEST_PROTOCOL.md).

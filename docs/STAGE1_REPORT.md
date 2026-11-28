@@ -19,7 +19,7 @@ Ko'rilmagan to'plam bu bosqichda tizimni sozlash uchun ishga tushirilmadi (faqat
 
 | Ish | Sabab / keyingi qadam |
 |---|---|
-| Inson nutqi bilan WER/CER/intent/entity | Sizning (va boshqa ishtirokchilarning) roziligi bilan yozuv kerak — buyruqlar quyida |
+| Inson nutqi bilan WER/CER/intent/entity | **Qisman bajarildi (2026-11-27):** ochiq FLEURS korpusida (haqiqiy inson nutqi, uz/ru/en) VAD va WER/CER/til aniqlash o'lchandi — [HUMAN_SPEECH_EVAL.md](HUMAN_SPEECH_EVAL.md). Buyruqlar bo'yicha niyat/obyekt — hamon sizning yozuvingiz kerak. 2026-11-26 dagi birinchi sessiya vosita xatolari (B9–B11) sababli yaroqsiz deb topildi va tuzatildi |
 | Shovqinli muhit, turli tezlik va aksentlar | Yozuv sessiyalari `--env noisy`, `--speed fast/slow`, turli `--speaker` bilan |
 | B3 — oqimli ulanish xatolari (9/68) | Ilovada bufer zaxira STT'ga beriladi (buyruq yo'qolmaydi); pool sessiyasi yiqilganda yangi ulanish bilan qayta urinish — Stage 2 (provayder ishonchliligi) |
 | Ishonch asosidagi aniqlashtirish (Gemini) | Gemini so'z darajasidagi ishonch bermaydi; hozircha holat (`local`) va tushunish tahlili (`understand`) ishlatiladi |
@@ -43,7 +43,7 @@ baholashda audio Google'ga yuboriladi — rozilik matnida aytiladi. Ism o'rniga 
 
 ## Testlar
 
-Backend 609 (Stage 0 da 589), interfeys 41, TypeScript, ESLint, build — o'tdi.
+Backend 609 (Stage 0 da 589), interfeys 41, TypeScript, ESLint, build — o'tdi. 2026-11-27: backend 626 (VAD, baholash vositasi, FLEURS).
 
 ## Xavflar va keyingi bosqich
 

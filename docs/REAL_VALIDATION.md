@@ -26,6 +26,7 @@ Ollama ishlab turishi kerak (`ollama serve`, model: `ollama pull qwen3.5:9b`).
 | 6 | `python -m xadicha.validate profile --label before` | hech narsa (Calculator ochiladi, ovoz 30% ga qo'yilib, keyin tiklanadi) | 3–5 daq |
 | 7 | `python -m xadicha.validate abc` | boshlashga ruxsat; klaviaturaga tegmaysiz | 30–90 daq |
 | 8 | `python -m xadicha.validate report` | — | 1 s |
+| — | `python -m xadicha.validate fleurs --vad --stt --split test` | hech narsa — ochiq FLEURS korpusi ([HUMAN_SPEECH_EVAL.md](HUMAN_SPEECH_EVAL.md)) | VAD 1 daq, STT 30–45 daq |
 
 Natijalar: `backend/validation/results/` (JSON va audio). Hisobot: `backend/validation/REPORT.md`.
 

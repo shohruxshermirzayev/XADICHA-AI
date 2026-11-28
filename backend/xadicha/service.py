@@ -20,7 +20,7 @@ from .agent import Agent
 from .config import Config
 from .models import Action, Mode, RiskLevel, TaskRecord
 from .providers import LLMProvider, ProviderError, RuleBasedProvider, make_provider
-from .speech.stt import Endpointer, Listener, Transcript
+from .speech.stt import Endpointer, Listener, Transcript, is_prompt_echo
 from .understand import understand
 from .conversation import Conversation, Turn
 from .lang import refine_asr_language
@@ -760,6 +760,10 @@ class XadichaService:
                 else:
                     self._listen_result = self.stt.transcribe(audio, None, prior=language)
                 r = self._listen_result
+                if r.text and endpointer is not None and endpointer.reason == "no_speech" \
+                        and is_prompt_echo(r.text, r.asr_confidence):
+                    trace.append({"stage": "asr_filter", "ms": 0, "ok": False, "reason": "prompt_echo_without_speech"})
+                    r.text = ""   # VAD nutq sezmagan + Whisper yordamchi so'rovni qaytardi — bu nutq emas
                 if r.text:
                     r.text = self._apply_uz_script(r.text, r.language)
                 self._vmark("final_transcript")

@@ -1,0 +1,103 @@
+{
+  "step": "user_session_diag",
+  "run_id": "20261127",
+  "saved_at": "2026-11-27T14:32:02+0500",
+  "platform": "macOS-27.2.1-arm64-arm-64bit",
+  "source": "validation/results/speech-20261126-130733",
+  "real": true,
+  "kind": "diagnosis of real user recordings (s01, 2026-11-26)",
+  "verdict": "INVALID as benchmark: every recording cut at 6.0 s (VAD no_speech); Gemini hears at most the wake word in 4/8; Whisper hypotheses are prompt echoes/hallucinations",
+  "causes": [
+    "VAD noise floor crept up to speech level (per-chunk EMA 0.05, chunk-size dependent)",
+    "Whisper initial_prompt echo ('Play a song on YouTube.') accepted as transcript",
+    "rescore crashed on Gemini 429 (3 RPM free tier) — nothing saved"
+  ],
+  "items": [
+    {
+      "id": "hh_uzl_01",
+      "reference": "Musiqa ilovasini ishga tushir",
+      "whisper_session": "och.",
+      "gemini_transcribe": "",
+      "gemini_live_no_client_vad": "",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "no_speech",
+      "vad_replay_new": "no_speech"
+    },
+    {
+      "id": "hh_uzl_02",
+      "reference": "Pochta dasturini ochgin",
+      "whisper_session": "",
+      "gemini_transcribe": "",
+      "gemini_live_no_client_vad": "",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "no_speech",
+      "vad_replay_new": "max_seconds"
+    },
+    {
+      "id": "hh_uzl_03",
+      "reference": "kun.uz saytini och",
+      "whisper_session": "Play a song on YouTube.",
+      "gemini_transcribe": "",
+      "gemini_live_no_client_vad": "",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "no_speech",
+      "vad_replay_new": "max_seconds"
+    },
+    {
+      "id": "hh_uzl_04",
+      "reference": "Samarqand ob-havosi haqida ma'lumot qidir",
+      "whisper_session": "How did you do it?",
+      "gemini_transcribe": "Xadicha, yop.",
+      "gemini_live_no_client_vad": "Qadimgi choy.",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "max_seconds",
+      "vad_replay_new": "max_seconds"
+    },
+    {
+      "id": "hh_uzl_05",
+      "reference": "ovozni 60 gacha ko'tar",
+      "whisper_session": "See you next time.",
+      "gemini_transcribe": "Xadicha",
+      "gemini_live_no_client_vad": "Sizlar",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "max_seconds",
+      "vad_replay_new": "max_seconds"
+    },
+    {
+      "id": "hh_uzl_06",
+      "reference": "ovozni biroz pasaytirib qo'y",
+      "whisper_session": "Pobre. Pobre. Pobre.",
+      "gemini_transcribe": "Xadicha",
+      "gemini_live_no_client_vad": "",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "no_speech",
+      "vad_replay_new": "max_seconds"
+    },
+    {
+      "id": "hh_uzl_07",
+      "reference": "ekranni yorqinroq qil",
+      "whisper_session": "Play a song on YouTube.",
+      "gemini_transcribe": "Xadicha.",
+      "gemini_live_no_client_vad": "",
+      "vad_live_session": "no_speech",
+      "vad_replay_old": "no_speech",
+      "vad_replay_new": "max_seconds"
+    },
+    {
+      "id": "hh_uzl_08",
+      "reference": "batareya necha foiz bo'ldi",
+      "whisper_session": null,
+      "gemini_transcribe": "",
+      "gemini_live_no_client_vad": "",
+      "vad_live_session": null,
+      "vad_replay_old": "no_speech",
+      "vad_replay_new": "no_speech"
+    }
+  ],
+  "vad_replay_new_params": {
+    "min_level": 0.001,
+    "rise_tau_s": 4.0,
+    "fall_tau_s": 0.4,
+    "calib_q": 0.5
+  }
+}

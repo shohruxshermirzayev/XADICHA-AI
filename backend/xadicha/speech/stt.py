@@ -8,6 +8,8 @@ majburan berilishi mumkin (`--lang uz`).
 
 from __future__ import annotations
 
+import math
+import re
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -26,6 +28,9 @@ PROMPTS = {
 }
 
 
+BLOCK = SAMPLE_RATE * 32 // 1000   # mikrofon bo'lagi (namuna) — FLEURS'da sinalgan o'lchamlardan biri
+
+
 def rms_level(samples: np.ndarray) -> float:
     """Ovoz balandligi 0..1 (RMS * 6, yuqoridan kesilgan) — brauzerdagi eski hisob bilan bir xil shkala."""
     if samples.size == 0:
@@ -38,24 +43,35 @@ class Endpointer:
     """Gapirib bo'linganini sezish (energiya asosida, sof — testlanadi).
 
     Algoritm:
-      - Kalibrlash: birinchi `calib_s` da fon shovqini (median RMS) o'lchanadi.
-      - Moslashuvchan shovqin: nutq bo'lmagan bo'laklarda fon darajasi sekin yangilanadi (EMA) — konditsioner
-        yoqilsa yoki xona tinchisa ham chegara mos keladi.
+      - Kalibrlash: birinchi `calib_s` da fon shovqini o'lchanadi (past kvantil — `calib_q`).
+      - Moslashuvchan shovqin (vaqtga asoslangan, bo'lak o'lchamiga bog'liq emas): fon pastga TEZ tushadi
+        (`fall_tau_s` — gap ichidagi bo'g'inlar orasidagi jimlik haqiqiy fonni ko'rsatadi; foydalanuvchi Enter
+        bosilishi bilan gapirsa, kalibrlash nutqqa to'g'ri kelgan bo'lsa ham chegara tez tiklanadi) va yuqoriga
+        SEKIN ko'tariladi (`rise_tau_s`, faqat nutq yo'q paytda — konditsioner yoqilsa moslashadi, lekin nutqning
+        sokin qismlari fonni "o'stirib" chegarani nutqdan yuqori qilib qo'ymaydi).
+        Eski EMA (har bo'lakda 0.05) kichik bo'laklarda fonni nutq darajasiga ko'tarib yuborardi — real
+        foydalanuvchi yozuvlarida nutq umuman sezilmadi (2026-11-26).
       - Gisterezis: nutq boshlanishi uchun yuqoriroq chegara (`on_ratio`), davom etishi uchun pastroq (`off_ratio`) —
         so'z oxiridagi pasayishda erta kesib qo'ymaydi.
       - Pauzaga chidamlilik: uzoqroq gapirilgan bo'lsa (> `long_speech_s`), jimlik chegarasi biroz uzayadi
         (gap ichidagi o'ylash pauzasi ko'proq bo'ladi).
-      - Minimal nutq: `min_speech_s` dan qisqa tovush (stol taqillashi) nutq hisoblanmaydi.
+      - Minimal nutq: `min_speech_s` dan qisqa tovush (stol taqillashi) nutq hisoblanmaydi; `short_speech_s` dan
+        qisqa tovushdan keyin (nafas, stul g'ijirlashi) jimlik chegarasi `short_silence_s` — asosiy gap kesilmaydi.
       - Nutq bo'lmasa — `no_speech_s` dan keyin; umumiy chegara — chaqiruvchidagi `max_seconds`.
-    Qiymatlar real mikrofonda kalibrlanmagan — scripts/mac_selftest.py --only vad bilan o'lchanadi.
+    Qiymatlar FLEURS `dev` to'plamida (180 ta haqiqiy inson yozuvi × 4 holat × 3 bo'lak o'lchami + 3 ta nutqsiz holat)
+    tanlangan: `python -m xadicha.validate fleurs --vad --split dev`; yakuniy o'lchov — `--split test`.
     """
 
     def __init__(self, silence_s: float = 0.9, min_speech_s: float = 0.2, no_speech_s: float = 6.0,
-                 calib_s: float = 0.3, on_ratio: float = 3.0, off_ratio: float = 1.8, min_level: float = 0.008,
-                 long_speech_s: float = 1.5, long_silence_s: float = 1.2, noise_alpha: float = 0.05):
+                 calib_s: float = 0.3, on_ratio: float = 3.0, off_ratio: float = 1.8, min_level: float = 0.001,
+                 long_speech_s: float = 1.5, long_silence_s: float = 1.2, rise_tau_s: float = 4.0,
+                 fall_tau_s: float = 0.4, calib_q: float = 0.5, short_speech_s: float = 0.35,
+                 short_silence_s: float = 2.0):
         self.silence_s, self.min_speech_s, self.no_speech_s = silence_s, min_speech_s, no_speech_s
         self.calib_s, self.on_ratio, self.off_ratio, self.min_level = calib_s, on_ratio, off_ratio, min_level
-        self.long_speech_s, self.long_silence_s, self.noise_alpha = long_speech_s, long_silence_s, noise_alpha
+        self.long_speech_s, self.long_silence_s = long_speech_s, long_silence_s
+        self.rise_tau_s, self.fall_tau_s, self.calib_q = rise_tau_s, fall_tau_s, calib_q
+        self.short_speech_s, self.short_silence_s = short_speech_s, short_silence_s
         self.t = 0.0
         self.noise: list[float] = []
         self.floor: float | None = None
@@ -87,7 +103,10 @@ class Endpointer:
             if self.t <= self.calib_s:
                 self.noise.append(rms)
                 return False
-            self.floor = sorted(self.noise)[len(self.noise) // 2] if self.noise else 0.0
+            xs = sorted(self.noise)
+            self.floor = xs[int(self.calib_q * (len(xs) - 1))] if xs else 0.0
+        if rms < self.floor and not self.in_speech:   # fon pastga tez tushadi (nutq fondan sokin bo'lolmaydi)
+            self.floor += (1.0 - math.exp(-dt / self.fall_tau_s)) * (rms - self.floor)
         thr = self._threshold(self.off_ratio if self.in_speech else self.on_ratio)
         if rms > thr:
             self.speech_run += dt
@@ -102,10 +121,13 @@ class Endpointer:
         else:
             if not self.in_speech:
                 self.speech_run = 0.0
-                # Faqat nutq yo'q paytda fon yangilanadi (nutqni shovqin deb o'rganib qolmaslik uchun)
-                self.floor = (1 - self.noise_alpha) * self.floor + self.noise_alpha * rms
+                # Faqat nutq yo'q paytda va sekin ko'tariladi (nutqni shovqin deb o'rganib qolmaslik uchun)
+                if rms > self.floor:
+                    self.floor += (1.0 - math.exp(-dt / self.rise_tau_s)) * (rms - self.floor)
             self.silence_run += dt
             limit = self.long_silence_s if self.speech_total >= self.long_speech_s else self.silence_s
+            if self.speech_total < self.short_speech_s:
+                limit = self.short_silence_s   # nafas/taqillash/"Xadicha" — asosiy gap keyin keladi, erta kesmaymiz
             if self.in_speech and self.silence_run >= limit:
                 self.in_speech = False
                 self.speech_run = 0.0
@@ -126,6 +148,33 @@ _HALLUCINATIONS = ("продолжение следует", "субтитры", 
 def is_hallucination(text: str) -> bool:
     low = text.lower().strip(" .!?…")
     return bool(low) and any(h in low for h in _HALLUCINATIONS)
+
+
+def _plain(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", text.lower().replace("'", ""))).strip()
+
+
+_PROMPT_SENTENCES = {_plain(x) for p in PROMPTS.values() for x in re.split(r"[.!?]+", p) if _plain(x)}
+ECHO_CONFIDENCE = 0.55   # understand.ASR_LOW bilan bir xil: bundan yuqori ishonchdagi matn hech qachon tashlanmaydi
+
+
+def is_repetition(text: str, confidence: float | None) -> bool:
+    """Bitta so'zning takrorlanishi ("Pobre. Pobre. Pobre.") — past ishonchda Whisper xayoloti, buyruq emas."""
+    if confidence is None or confidence >= ECHO_CONFIDENCE:
+        return False
+    words = _plain(text).split()
+    return len(words) >= 3 and len(set(words)) == 1
+
+
+def is_prompt_echo(text: str, confidence: float | None) -> bool:
+    """Whisper tushunarsiz audioda yordamchi so'rovning (PROMPTS) gapini "eshitadi" — real yozuvlarda
+    "Play a song on YouTube." (2026-11-26). Faqat VAD nutq SEZMAGAN yozuvda qo'llanadi (aks holda "Telegramni och"
+    kabi haqiqiy, lekin ishonchi past buyruq tashlanib ketardi — u tasdiqlash orqali so'raladi); aniq eshitilgan
+    (ishonch ≥ 0.55) matn hech qachon tashlanmaydi."""
+    if confidence is not None and confidence >= ECHO_CONFIDENCE:
+        return False
+    parts = [_plain(x) for x in re.split(r"[.!?]+", text) if _plain(x)]
+    return bool(parts) and all(x in _PROMPT_SENTENCES for x in parts)
 
 
 def asr_confidence(segments: list[tuple[float, float, int]]) -> float | None:
@@ -263,8 +312,9 @@ class Listener:
                 if endpointer.feed(rms, frames / SAMPLE_RATE):
                     stop.set()   # gapirib bo'lindi — yozish avtomatik to'xtaydi
 
+        # Bo'lak o'lchami aniq (32 ms): drayver tanlovi (10 ms va h.k.) VAD xatti-harakatini o'zgartirmasin
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback,
-                            device=self.device or None):
+                            device=self.device or None, blocksize=BLOCK):
             stop.wait(timeout=max_seconds)
         if not chunks:
             return np.zeros(0, dtype=np.float32)
@@ -305,7 +355,8 @@ class Listener:
         text = " ".join(s.text.strip() for s in segments).strip()
         conf = asr_confidence([(getattr(s, "avg_logprob", None), getattr(s, "no_speech_prob", 0.0), len(s.text))
                                for s in segments])
-        if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(language, "")) or is_hallucination(text):
+        if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(language, "")) or is_hallucination(text) \
+                or is_repetition(text, conf):
             text, conf = "", None   # jimlikda Whisper ba'zan matn "o'ylab topadi" — bu nutq emas, bajarilmaydi
         return Transcript(text, language, prob, language in SUPPORTED, detected_raw=raw, asr_confidence=conf)
 
@@ -317,7 +368,8 @@ class Listener:
             # tanlangan til (yoki o'zbekcha) deb qayta o'qiymiz
             raw = lang
             text, lang, conf = self._mlx_full(audio, prior if prior in SUPPORTED else "uz")
-        if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(lang, "")) or is_hallucination(text):
+        if (len(text) > 40 and text.rstrip(".") in PROMPTS.get(lang, "")) or is_hallucination(text) \
+                or is_repetition(text, conf):
             text, conf = "", None
         # MLX til ehtimolligini bermaydi — 1.0 emas, noma'lum deb belgilaymiz
         return Transcript(text, lang, 0.0, lang in SUPPORTED, detected_raw=raw, asr_confidence=conf)

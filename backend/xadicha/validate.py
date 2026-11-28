@@ -61,6 +61,17 @@ def main(argv: list[str] | None = None) -> int:
     ab.add_argument("--langs", default="uz,ru,en")
     ab.add_argument("--tasks", default="core", help="'core' (12 ta xavfsiz vazifa), 'all' yoki id lar")
 
+    fl = sub.add_parser("fleurs", help="ochiq inson nutqi (Google FLEURS, CC BY 4.0) — yozuvsiz baholash")
+    fl.add_argument("--split", default="dev", choices=["dev", "test"], help="dev — sozlash, test — yakuniy o'lchov")
+    fl.add_argument("--download", action="store_true", help="arxivdan namunalarni oqim bilan yuklash")
+    fl.add_argument("--per-lang", type=int, default=30)
+    fl.add_argument("--langs", default="uz,ru,en")
+    fl.add_argument("--limit", type=int, default=0, help="har til uchun ko'pi bilan N ta")
+    fl.add_argument("--vad", action="store_true", help="nutqni sezish (mahalliy, API'siz)")
+    fl.add_argument("--stt", action="store_true", help="transkripsiya: WER/CER, til aniqlash")
+    fl.add_argument("--providers", default="whisper", help="whisper,gemini,gemini-live")
+    fl.add_argument("--pause", type=float, default=0.0, help="so'rovlar orasida kutish (bepul tarif limiti)")
+
     sub.add_parser("report")
     args = ap.parse_args(argv)
 
@@ -78,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
         from .validation.profile import main as run
     elif args.step == "abc":
         from .validation.abc import main as run
+    elif args.step == "fleurs":
+        from .validation.fleurs import main as run
     else:
         from .validation.report import main as run
     return run(args)
